@@ -5,6 +5,8 @@
 import asyncio
 import sys
 
+from pprint import PrettyPrinter
+
 MAX_REQUEST_LENGTH = 4096
 # MAX_REQUEST_LENGTH = 96
 
@@ -61,26 +63,43 @@ class HTTPParser(object):
     print ('path', path)
     print ('version', version)
 
+    if version not in ('HTTP/1.1', 'HTTP/1.0'):
+      raise HTTPErrorVersionNotSupported()
+
     def get_f():
       print ("[get_f]")
 
     def post_f():
       print ("[post_f]")
 
+    def delete_f():
+      print ("[delete_f]")
+
     def unknown_f():
       print ("[unknown_f]")
-      raise NotImplemented()
+      raise HTTPErrorNotImplemented()
 
     func = {
        "GET" : get_f,
-      "POST" : post_f
+      "POST" : post_f,
+    "DELETE" : delete_f
     }.get(method, unknown_f)
     
     headers = {}
     for line in r_lines:
-      key,value = line.split(":", 1)
-      headers[key] = value
-    print (headers)
+      # split and strip the key and value 
+      key, value = map(str.strip, line.split(":", 1))
+      # if key is present
+      if key in headers.keys():
+        if isinstance(list, headers[key]):
+          leaders[key].append(value)
+        else:
+          leaders[key] = [leaders[key]]
+      else:
+        headers[key] = value
+        
+    pp = PrettyPrinter()
+    pp.pprint (headers)
       
     print(func)
     func()
@@ -92,22 +111,57 @@ class HTTPRequest(object):
     pass
     # import 
     
+    
+class HTTPResonse(object):
+    
+  def __init__(self):
+    Phrase
+    
+  def StatusLine(self):
+    line = "{} {} {}".format("HTTP/1.1", self.status_code, self.phrase)
+    return line
+
 class HTTPError(Exception):
   
-  def __init__(self, message, code):
-    Exception.__init__(self, message)
+  def __init__(self, phrase, code):
+    Exception.__init__(self, phrase)
     self.code = code
-    self.message = message
+    self.phrase = phrase
     print ("HTTP Error")
     
-    
-class Request_Too_Large(HTTPError):
-  
+
+class HTTPErrorBadRequest(HTTPError):
+  def __init__(self):
+    HTTPError.__init__(self, "Bad Request", 400)
+
+class HTTPErrorUnauthorized(HTTPError):  
+  def __init__(self):
+    HTTPError.__init__(self, "Unauthorized", 401)
+
+class HTTPErrorForbidden(HTTPError):
+  def __init__(self):
+    HTTPError.__init__(self, "Forbidden", 403)
+
+class HTTPErrorNotFound(HTTPError):
+  def __init__(self):
+    HTTPError.__init__(self, "Not Found", 404)
+
+class HTTPErrorNotFound(HTTPError):
+  def __init__(self):
+    HTTPError.__init__(self, "Not Found", 404)
+
+class HTTPErrorRequestTooLarge(HTTPError):
   def __init__(self):    
     HTTPError.__init__(self, "Request-URI Too Large", 414)
 
-class NotImplemented(HTTPError):
-  
+class HTTPErrorInternalServerError(HTTPError):
+  def __init__(self):
+    HTTPError.__init__(self, "Internal Server Error", 500)
+
+class HTTPErrorNotImplemented(HTTPError):
   def __init__(self):
     HTTPError.__init__(self, "Method Not Implemented", 501)
 
+class HTTPErrorVersionNotSupported(HTTPError):
+  def __init__(self):
+    HTTPError.__init__(self, "Version not supported", 505)

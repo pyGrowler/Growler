@@ -43,11 +43,11 @@ class App(object):
       print ("Error in parser.parse")
       print(err)
       
-      h = "HTTP/1.1 {} {}\n".format(err.code, err.message)
+      h = "HTTP/1.1 {} {}\n".format(err.code, err.phrase)
       h += "Date: {}\n".format(datetime.now().strftime("%a, %d %b %Y %H:%M:%S %Z"))
     
-      body_content = "<h1>{}</h1>".format(err.message)
-      b = "<!DOCTYPE html>\n<html><head><title>{}</title></head><body>{}</body></html>".format(err.message, body_content)
+      body_content = "<h1>{}</h1>".format(err.phrase)
+      b = "<!DOCTYPE html>\n<html><head><title>{}</title></head><body>{}</body></html>".format(err.phrase, body_content)
       self.send_message(writer, h, b)
       return None
 
