@@ -10,37 +10,66 @@ from pprint import PrettyPrinter
 MAX_REQUEST_LENGTH = 4096
 # MAX_REQUEST_LENGTH = 96
 
+# End of line and end of header
+# EOL = "\r\n"
+EOL = "\n"
+HEADER_DELIM = EOL * 2
+
+
 class HTTPParser(object):
 
   def __init__(self):
     print("Constructing HTTPParser")
 
-  # @asyncio.coroutine
+  @asyncio.coroutine
   def parse(self, stream):
     """
       Read an HTTP request from stream object.
     """
-    # request length
-    request_length = 0
-
+    # number of bytes read in 'so far'
+    header_length = 0
+  
     # list of lines in the header
     header_lines = []
+    
+    # position of the end of the header (-1 to begin)
+    header_end = -1
 
-    # read in at most MAX_REQUEST_LENGTH bytes from the stream
-    line0 = yield from stream.read(MAX_REQUEST_LENGTH)
+    request_line = ''
+
+    # loop while we have not yet loaded the header
+    while header_end == -1:
+      # If stream is dead - raise a 'bad request' error
+      if stream.at_eof():
+        raise HTTPErrorBadRequest()
+      # read in the next block of data
+      next_line = yield from stream.read(MAX_REQUEST_LENGTH - header_length)
+      print ("the next line is", next_line)
+
+      try:
+        next_line = str(next_line, 'latin_1', 'replace')
+      except UnicodeDecodeError:
+        raise HTTPErrorBadRequest()
+
+      request_line += next_line.replace("\r\n", "\n")
+
+      # find (via reverse find) the end of the header
+      header_end = request_line.rfind(HEADER_DELIM)
+      header_length += len(next_line)
+      print ("no header delim found, reading again..." if header_end == -1 else "FOUND delim {}".format(header_end))
+      # request_line.find(HEADER_DELIM)
+      # print (header_length)
 
     try:
-      # request_line = line0.decode('iso_8859_1', 'strict')
-      request_line = str(line0, 'latin_1', 'replace')
-    except UnicodeDecodeError as e:
-      print ('ERROR', e)
-      return None
-
-    try:
-      hstr, bstr = request_line.split("\r\n\r\n", 1)
-    except ValueError:
+      hstr, bstr = request_line.split(HEADER_DELIM, 1)
+    except ValueError as err:
       print ("HTTP Error")
-      raise Request_Too_Large
+      print (err)
+      if len(line0) >= MAX_REQUEST_LENGTH:
+        raise HTTPErrorRequestTooLarge()
+
+    peer = stream._transport.get_extra_info('peername')
+    print ("PEER", peer)
 
     print("hstr: '" + hstr + "'")
     print("")
@@ -49,10 +78,9 @@ class HTTPParser(object):
     r_lines = request_line.strip().split("\r\n")
 
     try:
-      method, path, version = r_lines.pop(0).split()
+      method, request_uri, version = r_lines.pop(0).split()
     except ValueError as ve:
-      print ("HTTP Error")
-      return None
+      raise HTTPErrorBadRequest()
     except:
       e = sys.exc_info()[0]
       print ("HTTP Error")
@@ -60,30 +88,36 @@ class HTTPParser(object):
       print (e)
 
     print ('method', method)
-    print ('path', path)
+    print ('path', request_uri)
     print ('version', version)
 
     if version not in ('HTTP/1.1', 'HTTP/1.0'):
       raise HTTPErrorVersionNotSupported()
 
-    def get_f():
+    @asyncio.coroutine
+    def get_f(ins, body):
       print ("[get_f]")
+      print ("  ", body)
+      nextline = yield from stream.readline()
+      print ("  ", nextline)
+      return None
 
-    def post_f():
+    def post_f(ins, body):
       print ("[post_f]")
 
-    def delete_f():
+    def delete_f(ins, body):
       print ("[delete_f]")
+      return None
 
-    def unknown_f():
-      print ("[unknown_f]")
-      raise HTTPErrorNotImplemented()
-
-    func = {
+    finish = {
        "GET" : get_f,
       "POST" : post_f,
     "DELETE" : delete_f
-    }.get(method, unknown_f)
+    }.get(method, None)
+
+    if finish == None:
+      print ("Unknown HTTP Method '{}'".format(method))
+      raise HTTPErrorNotImplemented()
     
     headers = {}
     for line in r_lines:
@@ -98,12 +132,19 @@ class HTTPParser(object):
       else:
         headers[key] = value
         
+    # print the headers
     pp = PrettyPrinter()
     pp.pprint (headers)
-      
-    print(func)
-    func()
-    
+
+    # return the headers
+    yield headers
+
+    # finish reading the stream, passing the stream and the body string
+    return finish(stream, bstr)
+
+  @asyncio.coroutine
+  def next_header(self, reader):
+    pass
 
 class HTTPRequest(object):
   
@@ -146,13 +187,17 @@ class HTTPErrorNotFound(HTTPError):
   def __init__(self):
     HTTPError.__init__(self, "Not Found", 404)
 
-class HTTPErrorNotFound(HTTPError):
+class HTTPErrorGone(HTTPError):
   def __init__(self):
-    HTTPError.__init__(self, "Not Found", 404)
+    HTTPError.__init__(self, "Gone", 410)
 
 class HTTPErrorRequestTooLarge(HTTPError):
   def __init__(self):    
     HTTPError.__init__(self, "Request-URI Too Large", 414)
+
+class HTTPErrorUnsupportedMediaType(HTTPError):
+  def __init__(self):    
+    HTTPError.__init__(self, "Unsupported Media Type", 415)
 
 class HTTPErrorInternalServerError(HTTPError):
   def __init__(self):

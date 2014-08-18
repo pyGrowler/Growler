@@ -5,7 +5,7 @@
 import asyncio
 
 from time import time
-from datetime import datetime
+from datetime import (datetime, timezone, timedelta)
 
 from .http import (HTTPParser, HTTPError)
 
@@ -44,10 +44,10 @@ class App(object):
       print(err)
       
       h = "HTTP/1.1 {} {}\n".format(err.code, err.phrase)
-      h += "Date: {}\n".format(datetime.now().strftime("%a, %d %b %Y %H:%M:%S %Z"))
+      h += "Date: {}\n".format(datetime.now(timezone(timedelta())).strftime("%a, %d %b %Y %H:%M:%S %Z"))
     
       body_content = "<h1>{}</h1>".format(err.phrase)
-      b = "<!DOCTYPE html>\n<html><head><title>{}</title></head><body>{}</body></html>".format(err.phrase, body_content)
+      b = "<!DOCTYPE html>\n<html><head><title>{}</title></head><body>{}</body></html>\n".format(err.phrase, body_content)
       self.send_message(writer, h, b)
       return None
 
