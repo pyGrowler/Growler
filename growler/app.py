@@ -16,6 +16,7 @@ class App(object):
     self.settings = {};
     self.engines = {};
     self.loop = loop if loop != None else asyncio.get_event_loop()
+    self.loop.set_debug(True)
 
     print(__name__, name)
 

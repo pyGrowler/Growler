@@ -4,7 +4,7 @@
 
 import asyncio
 import sys
-
+from urllib.parse import quote
 from pprint import PrettyPrinter
 
 MAX_REQUEST_LENGTH = 4096
@@ -22,63 +22,125 @@ class HTTPParser(object):
     print("Constructing HTTPParser")
 
   @asyncio.coroutine
+  def countdown(self, n):
+    print ("Counting down from", n)
+    while n > 0:
+        yield n
+        n -= 1
+    print ("Done counting down")
+
+  @asyncio.coroutine
   def parse(self, stream):
     """
       Read an HTTP request from stream object.
     """
+    @asyncio.coroutine
+    def process_request_line(aString):
+      print('[process_request_line] ::', aString)
+
     # number of bytes read in 'so far'
-    header_length = 0
+    bytes_read = 0
   
     # list of lines in the header
     header_lines = []
+
+    # list of read in data
+    chunks = []
     
     # position of the end of the header (-1 to begin)
     header_end = -1
+    
+    # token for end of line
+    eol_token = None
 
     request_line = ''
 
+    body = ''
+    
     # loop while we have not yet loaded the header
     while header_end == -1:
       # If stream is dead - raise a 'bad request' error
       if stream.at_eof():
         raise HTTPErrorBadRequest()
-      # read in the next block of data
-      next_line = yield from stream.read(MAX_REQUEST_LENGTH - header_length)
-      print ("the next line is", next_line)
 
+      # read in the next block of data
+      next_data = yield from stream.read(MAX_REQUEST_LENGTH - bytes_read)
+      bytes_read += len(next_data)
+
+      # transform bytes to string
       try:
-        next_line = str(next_line, 'latin_1', 'replace')
+        next_str = next_data.decode('latin_1','replace')
       except UnicodeDecodeError:
         raise HTTPErrorBadRequest()
 
-      request_line += next_line.replace("\r\n", "\n")
+        print("current '{}'".format(quote(''.join(chunks + [next_str]))))
 
-      # find (via reverse find) the end of the header
-      header_end = request_line.rfind(HEADER_DELIM)
-      header_length += len(next_line)
-      print ("no header delim found, reading again..." if header_end == -1 else "FOUND delim {}".format(header_end))
-      # request_line.find(HEADER_DELIM)
-      # print (header_length)
+      # look for end of line
+      line_ends_at = next_str.find("\n")
 
+      # no end of line in the current 
+      if line_ends_at == -1:
+        # We must be still parsing the header - check for overflow
+        if bytes_read >= MAX_REQUEST_LENGTH:
+          raise HTTPErrorRequestTooLarge()
+
+        #print ("no end line read -- waiting for more data")
+
+        # add string to the next_line
+        chunks.append(next_str)
+
+        # go back and wait for more data
+        continue
+
+      # the ending of the line has not been set - determine now (the first time encountered)
+      elif eol_token == None:
+        # special case where first character is newline
+        if line_ends_at == 0:
+          # ensure we have a non-empty string in the previous chunk of data
+          if len(chunks) != 0 and len(chunks[-1]) != 0:
+            eol_token = "\r\n" if chunks[-1][-1] == '\r' else "\n"
+          else:
+            raise HTTPErrorBadRequest()
+        else:
+          # set the end of line token to detected line
+          eol_token = "\r\n" if next_str[line_ends_at-1] == '\r' else "\n"
+        print ("Detected ending as {}".format("\\r\\n" if eol_token == "\r\n" else "\\n"))
+
+      # we have an end of line in current string - join together everything and split it up
+      current_string = ''.join(chunks + [next_str])
+
+      # check for the end of header (double eol)
+      header_ends_at = current_string.find(eol_token * 2)
+      # print ("current_string:: '{}'".format(current_string))
+      # print ("header_ends_at::", header_ends_at)
+
+      # The header delimiter has been found
+      if header_ends_at != -1:
+        # split up "current string" into headers and body
+        if header_ends_at != 0:
+          header_lines += current_string[:header_ends_at].split(eol_token)
+        body = current_string[header_ends_at+(len(eol_token)*2):]
+        chunks.clear()
+        # break out of loop
+        break
+
+      # still in the header -
+      #  split the current string into lines
+      #  add those completed into header_lines
+      #  put last one back into chunks
+      new_headers = current_string.split(eol_token)
+      header_lines += new_headers[:-1]
+      chunks = [eol_token] if new_headers[-1] == '' else [new_headers[-1]]
+
+    # At this point we have a list of headers in header_lines and maybe some data in body
+
+    # print("header_lines", header_lines)
+    # print("")
+    # print("body: '" + body + "'")
+    # print("")
+    # 
     try:
-      hstr, bstr = request_line.split(HEADER_DELIM, 1)
-    except ValueError as err:
-      print ("HTTP Error")
-      print (err)
-      if len(line0) >= MAX_REQUEST_LENGTH:
-        raise HTTPErrorRequestTooLarge()
-
-    peer = stream._transport.get_extra_info('peername')
-    print ("PEER", peer)
-
-    print("hstr: '" + hstr + "'")
-    print("")
-    print("bstr: '" + bstr + "'")
-    print("")
-    r_lines = request_line.strip().split("\r\n")
-
-    try:
-      method, request_uri, version = r_lines.pop(0).split()
+      method, request_uri, version = header_lines.pop(0).split()
     except ValueError as ve:
       raise HTTPErrorBadRequest()
     except:
@@ -120,7 +182,7 @@ class HTTPParser(object):
       raise HTTPErrorNotImplemented()
     
     headers = {}
-    for line in r_lines:
+    for line in header_lines:
       # split and strip the key and value 
       key, value = map(str.strip, line.split(":", 1))
       # if key is present
@@ -137,14 +199,78 @@ class HTTPParser(object):
     pp.pprint (headers)
 
     # return the headers
-    yield headers
+    return headers, body
 
     # finish reading the stream, passing the stream and the body string
-    return finish(stream, bstr)
-
+    # return finish(stream, bstr)
+    
   @asyncio.coroutine
   def next_header(self, reader):
-    pass
+    bytes_read = 0
+    line_end = 0
+    string_read = ''
+
+    # loop until break
+    # while True:
+      # print ("Awaiting next line")
+    for next_line in reader.read(MAX_REQUEST_LENGTH - bytes_read):
+      # read in some data
+      # next_line = yield from reader.read(MAX_REQUEST_LENGTH - bytes_read)
+      print("NEXT LINE:",next_line)
+      bytes_read += len(next_line)
+
+      # convert into string
+      try:
+        next_str = str(next_line, 'latin_1', 'replace')
+      except UnicodeDecodeError:
+        raise HTTPErrorBadRequest()
+      
+      print( "Read in '{}' ({})\n".format(next_str, bytes_read))
+      string_read += next_str
+
+      # look for end of line
+      line_ends_at = string_read.find("\n")
+
+      # Not found
+      if line_ends_at == -1:
+
+        # We must be still parsing the header - check for overflow
+        if bytes_read >= MAX_REQUEST_LENGTH:
+          raise HTTPErrorRequestTooLarge()
+
+        print ("no end line read -- waiting for more data")
+        # go back and wait for more data
+        continue
+
+      # the ending of the line has not be determined - figure out now (the first time)
+      elif line_end == 0:
+        # set the line ending based on the end of the line
+        line_end = "\r\n" if string_read[line_ends_at-1] == '\r' else "\n"
+        print ("Detected ending as {}".format("\\r\\n"if line_end == "\r\n" else "\\n"))
+
+      # check for the end of header (double the detected line end)
+      header_ends_at = string_read.find(line_end * 2)
+      
+      if header_ends_at != -1:
+        print ("Found that the header ends at", header_ends_at)
+        # yield string_read.split(line_end)
+        for line in string_read.split(line_end):
+          print ("split", line)
+          yield line
+        break
+      else:
+        for line in string_read.split(line_end):
+          yield line
+
+      print ("next line???")
+    # while line_ends_at == -1:
+    #   next_line += yield from reader.read(MAX_REQUEST_LENGTH - bytes_read)
+    #   print( "read in {}".format(next_line))
+    #   line_ends_at = next_line.find("\n")
+    # while 
+    # read = reader.read
+    print ("DONE")
+    # return None
 
 class HTTPRequest(object):
   
