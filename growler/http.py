@@ -75,7 +75,6 @@ class HTTPParser(object):
   @asyncio.coroutine
   def parse(self):
     res = yield from self.parse_headers()
-    print ("res ", res)
     done = yield from self.parse_body(res)
 
   @asyncio.coroutine
@@ -158,7 +157,22 @@ class HTTPParser(object):
           # set the end of line token to detected line
           eol_token = "\r\n" if next_str[line_ends_at-1] == '\r' else "\n"
         print ("Detected ending as {}".format("\\r\\n" if eol_token == "\r\n" else "\\n"))
-
+        request_str = next_str[:line_ends_at + 1 - len(eol_token)]
+        
+        try:
+          # method, request_uri, version
+          req_lst = request_str.split()
+          if len(req_lst) != 3: raise HTTPErrorBadRequest()
+          header_processor = self._req.process_request_line.send(req_lst)
+          # no longer required to keep this open
+          self._req.process_request_line.close()
+        except ValueError as e:
+          print ('error', e)
+          raise HTTPErrorBadRequest(e)
+        
+        
+        next_str = next_str[line_ends_at + 1:]
+        print ("next_str '{}'".format(next_str))
       # we have an end of line in current string - join together everything and split it up
       current_string = ''.join(chunks + [next_str])
 
@@ -200,15 +214,6 @@ class HTTPParser(object):
     # print("body: '" + body + "'")
     # print("")
     # 
-    try:
-      # method, request_uri, version
-      # yield from header_lines.pop(0).split()
-      header_processor = self._req.process_request_line.send(header_lines.pop(0).split())
-      # no longer required to keep this open
-      self._req.process_request_line.close()
-    except ValueError as e:
-      print ('error', e)
-      raise HTTPErrorBadRequest(e)
 
     print("header_lines",header_lines)
     for line in header_lines:
@@ -231,15 +236,10 @@ class HTTPParser(object):
     bytes_read = len(body_str)
     while True:
       next_data = yield from self._stream.read(MAX_POST_LENGTH - bytes_read)
-      if len(next_data) == 0:
-        break
+      if len(next_data) == 0: break
       bytes_read += len(next_data)
-      print(bytes_read)
       body_str += next_data.decode()
-    print ("done")
-    print ("=======")
-    print (body_str)
-    print ("=======")
+    yield body_str
 
   @asyncio.coroutine
   def read_data(self, read_max):
