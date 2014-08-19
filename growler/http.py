@@ -155,21 +155,34 @@ class HTTPParser(object):
         else:
           # set the end of line token to detected line
           eol_token = "\r\n" if next_str[line_ends_at-1] == '\r' else "\n"
-        print ("Detected ending as {}".format("\\r\\n" if eol_token == "\r\n" else "\\n"))
+
+        # Special handling if we have a partial header
+        if len(chunks):
+          # combine 'chunks'
+          next_str = ''.join(chunks + [next_str])
+          # remove everything from chunks
+          chunks.clear()
+          # find the 'new' endline location
+          line_ends_at = next_str.find('\n')
+
+        # print ("Detected ending as '{}' at {}".format("\\r\\n" if eol_token == "\r\n" else "\\n", line_ends_at))
+
+        # break into request and (rest)
         request_str = next_str[:line_ends_at + 1 - len(eol_token)]
-        
+        next_str = next_str[line_ends_at + 1:]
+
         try:
-          # method, request_uri, version
+          # split into method, request_uri, version
           req_lst = request_str.split()
-          if len(req_lst) != 3: raise HTTPErrorBadRequest()
+          # expand into the request's process_request_line function
           header_processor = self._req.process_request_line(*req_lst)
         except ValueError as e:
           print ('error', e)
           raise HTTPErrorBadRequest(e)
-        
-        
-        next_str = next_str[line_ends_at + 1:]
-        print ("next_str '{}'".format(next_str))
+        except TypeError as e:
+          print ('TypeError', e)
+          raise HTTPErrorBadRequest(e)
+
       # we have an end of line in current string - join together everything and split it up
       current_string = ''.join(chunks + [next_str])
 
@@ -186,7 +199,9 @@ class HTTPParser(object):
           for hl in current_string[:header_ends_at].split(eol_token):
             header_lines.append(hl)
             # handle.send(hl)
+        # everything AFTER the header delimeter 
         body = current_string[header_ends_at+(len(eol_token)*2):]
+        # we have no more use for chunks
         chunks.clear()
         # break out of loop
         break
@@ -198,6 +213,7 @@ class HTTPParser(object):
       new_headers = current_string.split(eol_token)
       # header_lines += new_headers[:-1]
       for hl in new_headers[:-1]:
+        # empty strings are no good
         if hl != '':
           header_lines.append(hl)
         # handle.send(hl)
@@ -212,7 +228,6 @@ class HTTPParser(object):
     # print("")
     # 
 
-    print("header_lines",header_lines)
     for line in header_lines:
       # split and strip the key and value
       try:
@@ -225,7 +240,6 @@ class HTTPParser(object):
     header_processor.send(None)
     header_processor.close()
     return body
-  
 
   @asyncio.coroutine
   def parse_body(self, body_str):
@@ -313,7 +327,9 @@ class HTTPRequest(object):
     self.process_headers.send(None)
     print ("[_process_request_line] :", self.process_headers)
     print ("[_process_request_line] method :", method)
-    
+    print ("[_process_request_line] request_uri :", request_uri)
+    print ("[_process_request_line] version :", version)
+      
     # This is required to return to the 'sending' function and not to
     # the 'yield from' function
     # return (yield self.process_headers)
