@@ -3,23 +3,30 @@
 #
 
 import asyncio
+import re
 
-from time import time
+from time import (time, sleep)
 from datetime import (datetime, timezone, timedelta)
 
-from .http import (HTTPParser, HTTPError, HTTPRequest, HTTPResonse)
+# from .http import (HTTPParser, HTTPError, HTTPRequest, HTTPResonse, Errors)
+from .http import *
 
 class App(object):
   
   def __init__(self, name, settings = {}, loop = None):
     self.cache = {};
 
-    self._config = {'host':'127.0.0.1'};
+    self._config = {'host':'127.0.0.1'}
     self._config.update(settings)
 
-    self.engines = {};
+    self.engines = {}
+    self.patterns = []
     self.loop = loop if loop != None else asyncio.get_event_loop()
     self.loop.set_debug(True)
+
+    # Unknown at start 
+    self.route_to_use = asyncio.Future()
+    
     print(__name__, name)
 
   @asyncio.coroutine
@@ -32,15 +39,14 @@ class App(object):
     print('[handle_connection]', reader, writer, "\n")
 
     # create the request object
-    req = req_class(reader)
+    self.req = req = req_class(reader, self)
 
     # create the response object
-    res = res_class(writer)
+    self.res = res = res_class(writer, self)
 
     try:
       # process the request
-      x = yield from req.process()
-      print('x',x)
+      yield from req.process()
     except HTTPError as err:
       err.PrintSysMessage()
       print (err)
@@ -48,10 +54,18 @@ class App(object):
       body_content = "<h1>{}</h1>".format(err.phrase)
       b = "<!DOCTYPE html>\n<html><head><title>{}</title></head><body>{}</body></html>\n".format(err.phrase, body_content)
 
+      res.headers['Content-Type'] = 'text/html'
       res.status_code = err.code
       res.phrase = err.phrase
       res.message = b
       res.end()
+
+    if self.route_to_use.done():
+      print("We know which route to use!!!")
+      self.after_route()
+    else:
+      print ("We still do NOT know which route to use")
+      self.route_to_use.set_done_callback(self.after_route)
 
     return None
     # except Exception as e:
@@ -89,6 +103,10 @@ class App(object):
     finally:
       print("Run Forever Ended!")
       self.loop.close()
+      
+  def after_route(self, f = None):
+    self.route_to_use.result()(self.req, self.res)
+    
 
   # WARNING : This is hiding io, something we want to AVOID!
   def send_message(self, output, header, body):
@@ -97,11 +115,40 @@ class App(object):
     output.write(msg)
     output.write_eof()
 
-  def get(self, *, path):
-    print("GET")
-    def _(m):
-      print(' ', m)
-    return _
+  def get(self, patt):
+    # regex = re.compile(patt)
+    print("GET:", self, patt)
+
+    def wrap(a):
+      print ("wrap::", a)
+      self.patterns.append(('GET', patt, a))
+
+    def _(req, res):
+      print ("this is underscore running calling...")
+      print(' _GET:: ', m) # regex.test(m))
+    return wrap
+
+  def _find_route(self, method, path):
+    found = None
+    for r in self.patterns:
+      print ('r', r)
+      if r[1] == path:
+        print ("path matches!!!")
+        # self.route_to_use.set_result(r(2))
+        # return
+        found = r[2]
+        print ("found:: ", found)
+        break
+    if found == None: raise HTTPErrorNotFound()
+    sleep(4)
+    self.route_to_use.set_result(found)
+    print ("_find_route done")
+    return self.route_to_use
+    # yield from asyncio.sleep(1)
+    # yield
+
+  def finish(self):
+    self.req._parser.parse_body.close()
 
   #
   # Dict like configuration access

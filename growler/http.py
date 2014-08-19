@@ -76,7 +76,7 @@ class HTTPParser(object):
   @asyncio.coroutine
   def parse(self):
     res = yield from self.parse_headers()
-    done = yield from self.parse_body(res)
+    asyncio.async(self.parse_body(res))
 
   @asyncio.coroutine
   def parse_headers(self):
@@ -284,10 +284,12 @@ class HTTPParser(object):
 
 class HTTPRequest(object):
   
-  def __init__(self, istream, delay_processing = False, parser_class = HTTPParser, loop = None):
+  def __init__(self, istream, app = None, delay_processing = False, parser_class = HTTPParser, loop = None):
     self._stream = istream
     self._parser = parser_class(self, self._stream)
     self._loop = loop if loop != None else asyncio.get_event_loop()
+    self.app = app
+    self.body = asyncio.Future()
 
   @asyncio.coroutine
   def process(self):
@@ -321,6 +323,7 @@ class HTTPRequest(object):
       print ("Unknown HTTP Method '{}'".format(method))
       raise HTTPErrorNotImplemented()
     
+    asyncio.async(self.app._find_route(method, request_uri))
 
     # setup the header receiver
     self.process_headers = self._process_headers()
@@ -356,7 +359,7 @@ class HTTPRequest(object):
 
 class HTTPResonse(object):
     
-  def __init__(self, ostream):
+  def __init__(self, ostream, app = None):
     self._stream = ostream
     self.send = self.write
     # Assume we are OK
@@ -365,6 +368,7 @@ class HTTPResonse(object):
     self.has_sent_headers = False
     self.message = ''
     self.headers = {}
+    self.app = app
 
   def send_headers(self):
     EOL = "\r\n"
@@ -395,6 +399,7 @@ class HTTPResonse(object):
     self.send_headers()
     self.send_message()
     self.write_eof()
+    self.app.finish()
 
 class HTTPError(Exception):
   
