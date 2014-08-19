@@ -20,6 +20,11 @@ MAX_POST_LENGTH = 2 * 1024**3 # 2MB
 EOL = "\n"
 HEADER_DELIM = EOL * 2
 
+HTTPCodes = {
+  200 : "OK",
+  301 : "Moved Permanently",
+  302 : "Found"
+}
 
 class HTTPParser(object):
 
@@ -401,6 +406,13 @@ class HTTPResonse(object):
     self.write_eof()
     self.app.finish()
 
+  def redirect(self, url, status = 302):
+    self.status_code = status
+    self.phrase = HTTPCodes[status]
+    self.headers = {'Location': url}
+    self.message = ''
+    self.end()
+  
 class HTTPError(Exception):
   
   def __init__(self, phrase, code, ex = None):

@@ -106,7 +106,7 @@ class App(object):
       
   def after_route(self, f = None):
     self.route_to_use.result()(self.req, self.res)
-    
+
 
   # WARNING : This is hiding io, something we want to AVOID!
   def send_message(self, output, header, body):
