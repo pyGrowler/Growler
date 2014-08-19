@@ -20,7 +20,6 @@ class App(object):
     self.engines = {};
     self.loop = loop if loop != None else asyncio.get_event_loop()
     self.loop.set_debug(True)
-
     print(__name__, name)
 
   @asyncio.coroutine
@@ -45,13 +44,14 @@ class App(object):
     except HTTPError as err:
       err.PrintSysMessage()
       print (err)
-      
-      h = "HTTP/1.1 {} {}\n".format(err.code, err.phrase)
-      h += "Date: {}\n".format(datetime.now(timezone(timedelta())).strftime("%a, %d %b %Y %H:%M:%S %Z"))
 
       body_content = "<h1>{}</h1>".format(err.phrase)
       b = "<!DOCTYPE html>\n<html><head><title>{}</title></head><body>{}</body></html>\n".format(err.phrase, body_content)
-      self.send_message(res, h, b)
+
+      res.status_code = err.code
+      res.phrase = err.phrase
+      res.message = b
+      res.end()
 
     return None
     # except Exception as e:

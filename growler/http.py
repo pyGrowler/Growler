@@ -7,6 +7,9 @@ import sys
 from urllib.parse import quote
 from pprint import PrettyPrinter
 
+from datetime import (datetime, timezone, timedelta)
+
+
 MAX_REQUEST_LENGTH = 4096 # 4KB
 MAX_POST_LENGTH = 2 * 1024**3 # 2MB
 
@@ -21,11 +24,9 @@ HEADER_DELIM = EOL * 2
 class HTTPParser(object):
 
   def __init__(self, req, instream):
-    print("Constructing HTTPParser")
     self._stream = instream
     self._req = req
     self._buffer = ''
-    print("Done")
 
   def store_buffer(func):
     def _store(self, data):
@@ -125,8 +126,6 @@ class HTTPParser(object):
       except UnicodeDecodeError:
         raise HTTPErrorBadRequest()
 
-        print("current '{}'".format(quote(''.join(chunks + [next_str]))))
-
       # look for end of line
       line_ends_at = next_str.find("\n")
 
@@ -163,9 +162,7 @@ class HTTPParser(object):
           # method, request_uri, version
           req_lst = request_str.split()
           if len(req_lst) != 3: raise HTTPErrorBadRequest()
-          header_processor = self._req.process_request_line.send(req_lst)
-          # no longer required to keep this open
-          self._req.process_request_line.close()
+          header_processor = self._req.process_request_line(*req_lst)
         except ValueError as e:
           print ('error', e)
           raise HTTPErrorBadRequest(e)
@@ -274,16 +271,9 @@ class HTTPParser(object):
 class HTTPRequest(object):
   
   def __init__(self, istream, delay_processing = False, parser_class = HTTPParser, loop = None):
-    print ("Creating HTTPRequest")
     self._stream = istream
     self._parser = parser_class(self, self._stream)
     self._loop = loop if loop != None else asyncio.get_event_loop()
-
-    # setup callback coroutines
-    self.process_request_line = self._process_request_line()
-    self.process_request_line.send(None)
-
-    print ("Done")
 
   @asyncio.coroutine
   def process(self):
@@ -303,8 +293,8 @@ class HTTPRequest(object):
     # yield from self._parser
     # import 
 
-  def _process_request_line(self):
-    method, request_uri, version = (yield)
+  def process_request_line(self, method, request_uri, version):
+    # method, request_uri, version = (yield)
     if version not in ('HTTP/1.1', 'HTTP/1.0'):
       raise HTTPErrorVersionNotSupported()
 
@@ -326,9 +316,8 @@ class HTTPRequest(object):
     
     # This is required to return to the 'sending' function and not to
     # the 'yield from' function
-    return (yield self.process_headers)
-    # results in error
-    # self.process_request_line.close()
+    # return (yield self.process_headers)
+    return self.process_headers
 
   def _process_get_request(self):
     headers = {}
@@ -356,6 +345,25 @@ class HTTPResonse(object):
     self.send = self.write
     # Assume we are OK
     self.status_code = 200
+    self.phrase = "OK"
+    self.has_sent_headers = False
+    self.message = ''
+    self.headers = {}
+
+  def send_headers(self):
+    EOL = "\r\n"
+    headerstrings = [self.StatusLine()]
+
+    self.headers.setdefault('Date', datetime.now(timezone(timedelta())).strftime("%a, %d %b %Y %H:%M:%S %Z"))
+    self.headers.setdefault('Content-Length', len(self.message))
+    
+    headerstrings += ["{}: {}".format(k, self.headers[k]) for k in self.headers]
+    self._stream.write(EOL.join(headerstrings).encode())
+    self._stream.write((EOL * 2).encode())
+
+  def send_message(self):
+    # self._stream.write(self.message.encode())
+    self.write(self.message)
 
   def write(self, msg):
     self._stream.write(msg.encode())
@@ -364,8 +372,13 @@ class HTTPResonse(object):
     self._stream.write_eof()
 
   def StatusLine(self):
-    line = "{} {} {}".format("HTTP/1.1", self.status_code, self.phrase)
-    return line
+    return "{} {} {}".format("HTTP/1.1", self.status_code, self.phrase)
+
+
+  def end(self):
+    self.send_headers()
+    self.send_message()
+    self.write_eof()
 
 class HTTPError(Exception):
   
