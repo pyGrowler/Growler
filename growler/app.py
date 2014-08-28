@@ -55,6 +55,8 @@ class App(object):
       b = "<!DOCTYPE html>\n<html><head><title>{}</title></head><body>{}</body></html>\n".format(err.phrase, body_content)
 
       res.headers['Content-Type'] = 'text/html'
+      res.headers['Connection'] = 'close'
+      
       res.status_code = err.code
       res.phrase = err.phrase
       res.message = b
@@ -65,7 +67,7 @@ class App(object):
       self.after_route()
     else:
       print ("We still do NOT know which route to use")
-      self.route_to_use.set_done_callback(self.after_route)
+      self.route_to_use.add_done_callback(self.after_route)
 
     return None
     # except Exception as e:
@@ -139,16 +141,17 @@ class App(object):
         found = r[2]
         print ("found:: ", found)
         break
-    if found == None: raise HTTPErrorNotFound()
-    sleep(4)
     self.route_to_use.set_result(found)
-    print ("_find_route done")
-    return self.route_to_use
+    print ("_find_route done ({})".format(found))
+    if found == None: raise HTTPErrorNotFound()
+    # sleep(4)
+    # return self.route_to_use
     # yield from asyncio.sleep(1)
     # yield
 
   def finish(self):
-    self.req._parser.parse_body.close()
+    # self.req._parser.parse_body.close()
+    pass
 
   #
   # Dict like configuration access
