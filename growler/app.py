@@ -16,8 +16,10 @@ class App(object):
   def __init__(self, name, settings = {}, loop = None):
     self.cache = {};
 
-    self._config = {'host':'127.0.0.1'}
+    self._config = {'host':'127.0.0.1', 'port': '8000'}
     self._config.update(settings)
+
+    print(self._config)
 
     self.engines = {}
     self.patterns = []
@@ -26,13 +28,11 @@ class App(object):
 
     # Unknown at start 
     self.route_to_use = asyncio.Future()
-    
-    print(__name__, name)
 
   @asyncio.coroutine
   def GenerateServerListner(self):
     print('[GenerateServerListner]')
-    yield from asyncio.start_server(self.handle_connection, 'localhost', 8000)
+    yield from asyncio.start_server(self.handle_connection, self._config['host'], self._config['port'])
 
   @asyncio.coroutine
   def handle_connection(self, reader, writer, req_class = HTTPRequest, res_class = HTTPResonse):

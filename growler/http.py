@@ -5,10 +5,14 @@
 import asyncio
 import sys
 import time
-from urllib.parse import quote
+from urllib.parse import (quote, urlparse, parse_qs)
 from pprint import PrettyPrinter
 
 from datetime import (datetime, timezone, timedelta)
+
+import mimetypes
+mimetypes.init()
+
 
 KB = 1024
 MB = KB ** 2
@@ -443,8 +447,16 @@ class HTTPParser(object):
     # yield None
 
 class HTTPRequest(object):
-  
+
   def __init__(self, istream, app = None, delay_processing = False, parser_class = HTTPParser, loop = None):
+    """
+    The HTTPRequest object is all the information you could want about the 
+    incoming http connection. It gets passed along with the HTTPResponse object
+    to all the middleware of the app.
+    :istream: an asyncio.StreamReader
+    """
+    
+    self.ip = istream._transport.get_extra_info('socket').getpeername()[0]
     self._stream = istream
     self._parser = parser_class(self, self._stream)
     self._loop = loop if loop != None else asyncio.get_event_loop()
@@ -482,7 +494,12 @@ class HTTPRequest(object):
     if self._process_headers == None:
       print ("Unknown HTTP Method '{}'".format(method))
       raise HTTPErrorNotImplemented()
-    
+
+    self.original_url = request_uri
+    self.parsed_url = urlparse(request_uri)
+    self.path = self.parsed_url.path
+    self.query = parse_qs(url.query)
+
     # Find the route in its spare time
     asyncio.async(self.app._find_route(method, request_uri))
 
@@ -505,6 +522,7 @@ class HTTPRequest(object):
       header = (yield)
       if header == None: break
       key, value = header
+      key = key.lower()
       # if key is present
       if key in headers.keys():
        if isinstance(list, headers[key]):
@@ -518,8 +536,20 @@ class HTTPRequest(object):
     print('[self.headers]', self.headers)
     yield
 
+  def get(self, key):
+    """Get the case-insensitive request header corresponding to key"""
+    return self.headers[key.lower()]
+
+  def istype(self, typename):
+    """Check if 'Content-Type' header was sent and matches typename"""
+    try:
+      t = self.headers['content-type']
+    except:
+      return false
+    return mimetypes.types_map[t] == mimetypes.types_map['.' + typename]
+
 class HTTPResonse(object):
-    
+
   def __init__(self, ostream, app = None):
     self._stream = ostream
     self.send = self.write
@@ -535,7 +565,7 @@ class HTTPResonse(object):
     EOL = "\r\n"
     headerstrings = [self.StatusLine()]
 
-    self.headers.setdefault('Date', datetime.now(timezone(timedelta())).strftime("%a, %d %b %Y %H:%M:%S %Z"))
+    self.headers.setdefault('date', datetime.now(timezone(timedelta())).strftime("%a, %d %b %Y %H:%M:%S %Z"))
     self.headers.setdefault('Content-Length', len(self.message))
     
     headerstrings += ["{}: {}".format(k, self.headers[k]) for k in self.headers]
@@ -557,20 +587,58 @@ class HTTPResonse(object):
 
 
   def end(self):
+    """Ends the response.  Useful for quickly ending connection with no data sent"""
     self.send_headers()
     self.send_message()
     self.write_eof()
     self.app.finish()
 
   def redirect(self, url, status = 302):
+    """Redirect to the specified url, optional status code defaults to 302"""
     self.status_code = status
     self.phrase = HTTPCodes[status]
     self.headers = {'Location': url}
     self.message = ''
     self.end()
-  
+    
+  def set(self, header, value = None):
+    """Set header to the key"""
+    if value == None:
+      self.headers.update(header)
+    else:
+      self.headers[header] = value
+
+  def get(self, field):
+    """Get a header"""
+    return self.headers[field]
+
+  def cookie(self, name, value, options = {}):
+    """Set cookie name to value"""
+    self.cookies[name] = value
+
+  def clear_cookie(self, name, options = {}):
+    """Removes a cookie"""
+    options.setdefault("path", "/")
+    del self.cookies[name]
+
+  def redirect(self, url, status = 302):
+    """Redirects request to a different url"""
+    self.status = status
+    self.phrase = "Redirect"
+
+  def location(self, location):
+    """Set the location header"""
+    self.headers['location'] = location
+
+  def links(self, links):
+    """Sets the Link """
+    s = []
+    for rel in links:
+      s.push("<{}>; rel=\"{}\"".format(links[rel], rel))
+    self.headers['Link'] = ','.join(s)
+
 class HTTPError(Exception):
-  
+
   def __init__(self, phrase, code, ex = None):
     print ("[HTTPError]")
     Exception.__init__(self, phrase)
@@ -586,7 +654,6 @@ class HTTPError(Exception):
       print (self.traceback)
       # for line in self.traceback:
         # print (line)
-
 
   def GetFromCode(self, code):
     return {400: HTTPErrorBadRequest,
