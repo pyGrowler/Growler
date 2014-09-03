@@ -12,39 +12,78 @@ from datetime import (datetime, timezone, timedelta)
 from .http import *
 
 class App(object):
-  
+  """A Growler application object."""
+
+  # default configuration goes here
+  config = {'host':'127.0.0.1', 'port': '8000'}
+
   def __init__(self, name, settings = {}, loop = None):
+    """
+    Creates an application object.
+    
+    name - does nothing
+    settings - server configuration
+    loop - asyncio event loop to run on
+    """
     self.cache = {};
 
-    self._config = {'host':'127.0.0.1', 'port': '8000'}
-    self._config.update(settings)
+    self.config.update(settings)
 
-    print(self._config)
+    print(self.config)
 
     self.engines = {}
     self.patterns = []
     self.loop = loop if loop != None else asyncio.get_event_loop()
     self.loop.set_debug(True)
 
-    # Unknown at start 
+    self.middleware = [{'path':None, 'cb' : self._middleware_boot}]
+
+    # Unknown at start
     self.route_to_use = asyncio.Future()
 
   @asyncio.coroutine
-  def GenerateServerListner(self):
-    print('[GenerateServerListner]')
-    yield from asyncio.start_server(self.handle_connection, self._config['host'], self._config['port'])
+  def _server_listen(self):
+    """Starts the server. Should be called from 'app.run()'."""
+    yield from asyncio.start_server(self._handle_connection, self.config['host'], self.config['port'])
 
   @asyncio.coroutine
-  def handle_connection(self, reader, writer, req_class = HTTPRequest, res_class = HTTPResonse):
-    print('[handle_connection]', reader, writer, "\n")
+  def _handle_connection(self, reader, writer, req_class = HTTPRequest, res_class = HTTPResonse):
+    print('[_handle_connection]', self, reader, writer, "\n")
 
     # create the request object
-    self.req = req = req_class(reader, self)
+    req = req_class(reader, self)
 
     # create the response object
-    self.res = res = res_class(writer, self)
+    res = res_class(writer, self)
+
+    # futures which will be filled in by the request 'processor'
+    request_line = asyncio.Future()
+    http_headers = asyncio.Future()
+    http_body = asyncio.Future()
+
+    # begin processing the request
+    try:
+      handle_task = asyncio.Task(req.do_process(request_line, http_headers, http_body))
+    except Exception as e:
+      handle_task.cancel()
+      print("handle_task threw exception!",handle_task)
+      print (e)
+    # req.do_process(request_line, http_headers, http_body)
 
     try:
+      request = yield from request_line
+    except HTTPError as e:
+      print ("HTTPError!")
+  
+    print("Yielded the request line '{}'".format(request_line))
+    print("Yielded the request '{}'".format(request))
+
+    headarz = yield from http_headers
+    print("Yielded the http_headers '{}'".format(http_headers))
+    print("Yielded the headarz '{}'".format(headarz))
+    return
+
+    try:                    
       # process the request
       yield from req.process()
     except HTTPError as err:
@@ -80,11 +119,11 @@ class App(object):
     parsed_stream = parser.parse()
     try:
       request_line = next(parsed_stream)
-      print("[handle_connection] request_line", request_line)
+      print("[_handle_connection] request_line", request_line)
       headers = yield from parser.parse()
       body = yield from parser.parse()
     except HTTPError as err:
-      print ("Error in handle_connection")
+      print ("Error in _handle_connection")
       print(err)
       
       h = "HTTP/1.1 {} {}\n".format(err.code, err.phrase)
@@ -98,16 +137,23 @@ class App(object):
     self.send_message(writer, "", "")
     return None
       
-  def run(self):
-    self.loop.run_until_complete(self.GenerateServerListner())
-    try:
-      self.loop.run_forever()
-    finally:
-      print("Run Forever Ended!")
-      self.loop.close()
-      
+  def run(self, run_forever = True):
+    """
+    Starts the server and listens for new connections. If run_forever is true, the 
+    event loop is set to block.
+    """
+    self.loop.run_until_complete(self._server_listen())
+    if run_forever:
+      try:
+        self.loop.run_forever()
+      finally:
+        print("Run Forever Ended!")
+        self.loop.close()
+
   def after_route(self, f = None):
-    self.route_to_use.result()(self.req, self.res)
+    for mw in self.middleware:
+      mw()
+    # self.route_to_use.result()(self.req, self.res)
 
 
   # WARNING : This is hiding io, something we want to AVOID!
@@ -129,6 +175,14 @@ class App(object):
       print ("this is underscore running calling...")
       print(' _GET:: ', m) # regex.test(m))
     return wrap
+
+  def enable(self, name):
+    """Set setting 'name' to true"""
+    self.config[name] = True
+
+  def disbale(self, name):
+    """Set setting 'name' to false"""
+    self.config[name] = False
 
   def _find_route(self, method, path):
     found = None
@@ -153,16 +207,27 @@ class App(object):
     # self.req._parser.parse_body.close()
     pass
 
+  def use(self, middleware, path = None):
+    """
+    Use the middleware (a callable with parameters res, req, next) upon requests
+    match the provided path. A None path matches every request.
+    """
+    print("Adding middleware", middleware)
+    self.middleware.append(middleware)
+
+  def _middleware_boot(self, req, res, next):
+    """The initial middleware"""
+    pass
+
+
+
   #
   # Dict like configuration access
   #
   def __setitem__(self, key, value):
     print ("Setting", key)
-    self._config[key] = value
+    self.config[key] = value
 
   def __getitem__(self, key):
     print ("Getting", key)
-    return self._config[key]
-
-  def config(self):
-    return self._config
+    return self.config[key]
