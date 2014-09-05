@@ -84,8 +84,9 @@ class HTTPParser(object):
       line_ends_at = self._buffer.find(self.EOL_TOKEN)
 
     ## split!
-    line = self._buffer[:line_ends_at]
-    self._buffer = self._buffer[line_ends_at + len(self.EOL_TOKEN):]
+    line, self._buffer = self._buffer.split(self.EOL_TOKEN, 1)
+    # line = self._buffer[:line_ends_at]
+    # self._buffer = self._buffer[line_ends_at + len(self.EOL_TOKEN):]
     # next_line.set_result(line)
 
     yield from asyncio.sleep(0.75) # artificial delay
@@ -100,11 +101,12 @@ class HTTPParser(object):
     print("[_read_next_header] line '{}'".format(line))
     if line == '':
       return None
+
     try:
-      key, value = line.split(':', 1)
-    except Exception as e:
-      print (e)
-      print("ERROR : header missing colon! '{}'".format(line))
+      k_v = line.split(":", 1)
+      key, value = map(str.strip, k_v)
+    except ValueError as e:
+      print("ERROR parsing headers. Input '{}'".format(line))
       raise HTTPBadRequest(e)
     h_obj = {'key':key,'value':value}
     return h_obj
@@ -113,15 +115,10 @@ class HTTPParser(object):
     # asyncio.Task(_())
     # return header
 
-  def store_buffer(func):
-    def _store(self, data):
-      print('data', data)
-      self._buffer += data.decode()
-      func(self, data)
-    return _store
+  def parse_request_line(self, req_line):
+    req_lst = req_line.split()
+    return req_lst
 
-  # @asyncio.coroutine
-  @store_buffer
   def determine_line_ending(self, data):
     print('determine_line_ending {}'.format(data.decode()))
     # look for end of line
@@ -145,21 +142,6 @@ class HTTPParser(object):
       self._line_ending = "\r\n" if self._buffer[ending_at-1] == '\r' else "\n"
       print('determined line ending {}'.format(len(self._line_ending)))
       self.cb = self.next_step 
-    
-  @asyncio.coroutine
-  @store_buffer
-  def next_step(self, data):
-    pass
-    
-    
-  @asyncio.coroutine
-  def countdown(self, n):
-    print ("Counting down from", n)
-    while n > 0:
-        yield n
-        n -= 1
-    print ("Done counting down")
-
 
   @asyncio.coroutine
   def parse(self):
@@ -523,7 +505,6 @@ class HTTPParser(object):
     # yield None
 
 class HTTPRequest(object):
-
   def __init__(self, istream, app = None, delay_processing = False, parser_class = HTTPParser, loop = None):
     """
     The HTTPRequest object is all the information you could want about the 
@@ -537,44 +518,24 @@ class HTTPRequest(object):
     self._parser = parser_class(self, self._stream)
     self._loop = loop if loop != None else asyncio.get_event_loop()
     self.app = app
-    self.body = asyncio.Future()
 
   @asyncio.coroutine
-  def do_process(self, req_line, headers, body):
-    print("read next line")
+  def process(self):
+    
+    # Request Line
     first_line = yield from self._parser._read_next_line()
-    print('first_line', first_line)
-
-    req_lst = first_line.split()
-    # expand into the request's process_request_line function
-    header_processor = self.process_request_line(*req_lst)
-
-    req_line.set_result(req_lst)
-
-    # for nheader in self._parser._read_next_header():
-      # print ("header: ", nheader)
+    req = self._parser.parse_request_line(first_line)
+    print ("first_line", first_line, req)
+    self.process_request_line(*req)
+    
+    # Headers
     header_list = []
     nheader = yield from self._parser._read_next_header()
     while nheader != None:
       header_list.append(nheader)
       print ("header: ", nheader)
       nheader = yield from self._parser._read_next_header()
-    headers.set_result(header_list)
-    print ("Done with headers!")
 
-    # req_line.set_result(r_line)
-    # yield from asyncio.sleep(2.5)
-    body.set_result('Ohaio!')
-    yield from asyncio.sleep(2.5)
-
-  @asyncio.coroutine
-  def process(self):
-    # parsed_stream = self._loop.run_until_complete(self._parser.parse())
-    parsing_stream = self._parser.parse()
-    q = True
-    while q != None:
-      q = yield from parsing_stream
-      print ('parsing_stream yielded:',q)
     return ("DONE")
     # print("[HTTPRequest::process]")
     # print(" [parsed_stream]", parsed_stream)
@@ -590,7 +551,7 @@ class HTTPRequest(object):
     if version not in ('HTTP/1.1', 'HTTP/1.0'):
       raise HTTPErrorVersionNotSupported()
 
-    self.method = method;
+    self.method = method
     self._process_headers = {
       "GET" : self._process_get_request
     }.get(method, None)
@@ -604,7 +565,7 @@ class HTTPRequest(object):
     self.path = self.parsed_url.path
     self.query = parse_qs(self.parsed_url.query)
 
-    return (method, request_uri, version)
+    return
 
     # Find the route in its spare time
     asyncio.async(self.app._find_route(method, request_uri))
@@ -653,6 +614,16 @@ class HTTPRequest(object):
     except:
       return false
     return mimetypes.types_map[t] == mimetypes.types_map['.' + typename]
+
+  def header(self, field):
+    """Get the case-insensitive request header field"""
+    return self.get(field)
+
+  def xhr(self):
+    """Check if the request was issued with the "X-Requested-With" header set to XMLHttpRequest"""
+    return self.headers['x-requested-with'] == 'XMLHttpRequest'
+
+
 
 class HTTPResonse(object):
 
@@ -742,6 +713,10 @@ class HTTPResonse(object):
     for rel in links:
       s.push("<{}>; rel=\"{}\"".format(links[rel], rel))
     self.headers['Link'] = ','.join(s)
+
+  def json(self, body, status = 200):
+    self.headers['content-type'] = 'application/json'
+    self.write()
 
 class HTTPError(Exception):
 

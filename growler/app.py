@@ -10,6 +10,7 @@ from datetime import (datetime, timezone, timedelta)
 
 # from .http import (HTTPParser, HTTPError, HTTPRequest, HTTPResonse, Errors)
 from .http import *
+from .router import Router
 
 class App(object):
   """A Growler application object."""
@@ -17,7 +18,7 @@ class App(object):
   # default configuration goes here
   config = {'host':'127.0.0.1', 'port': '8000'}
 
-  def __init__(self, name, settings = {}, loop = None):
+  def __init__(self, name, settings = {}, loop = None, no_default_router = False):
     """
     Creates an application object.
     
@@ -31,6 +32,7 @@ class App(object):
 
     print(self.config)
 
+    # rendering engines
     self.engines = {}
     self.patterns = []
     self.loop = loop if loop != None else asyncio.get_event_loop()
@@ -38,8 +40,8 @@ class App(object):
 
     self.middleware = [{'path':None, 'cb' : self._middleware_boot}]
 
-    # Unknown at start
-    self.route_to_use = asyncio.Future()
+    # set the default router
+    self.routers = [] if no_default_router else [{'path':'/', 'router' : Router()}]
 
   @asyncio.coroutine
   def _server_listen(self):
@@ -55,6 +57,19 @@ class App(object):
 
     # create the response object
     res = res_class(writer, self)
+
+    # process the request
+    # request_process_task = 
+    try:
+      yield from asyncio.Task(req.process())
+    except:
+      print("caught exception")
+      
+    print ("Right after process!")
+    print(request_process_task.exception())
+
+
+    return
 
     # futures which will be filled in by the request 'processor'
     request_line = asyncio.Future()
@@ -212,7 +227,7 @@ class App(object):
     Use the middleware (a callable with parameters res, req, next) upon requests
     match the provided path. A None path matches every request.
     """
-    print("Adding middleware", middleware)
+    print("[App::use] Adding middleware", middleware)
     self.middleware.append(middleware)
 
   def _middleware_boot(self, req, res, next):
