@@ -8,7 +8,7 @@ import re
 from time import (time, sleep)
 from datetime import (datetime, timezone, timedelta)
 
-# from .http import (HTTPParser, HTTPError, HTTPRequest, HTTPResonse, Errors)
+# from .http import (HTTPParser, HTTPError, HTTPRequest, HTTPResponse, Errors)
 from .http import *
 
 class App(object):
@@ -35,7 +35,7 @@ class App(object):
     yield from asyncio.start_server(self.handle_connection, 'localhost', 8000)
 
   @asyncio.coroutine
-  def handle_connection(self, reader, writer, req_class = HTTPRequest, res_class = HTTPResonse):
+  def handle_connection(self, reader, writer, req_class = HTTPRequest, res_class = HTTPResponse):
     print('[handle_connection]', reader, writer, "\n")
 
     # create the request object

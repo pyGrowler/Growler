@@ -2,6 +2,8 @@
 # growler/http.py
 #
 
+__all__ = ['HTTPRequest', 'HTTPResponse', 'HTTPParser', 'HTTPError']
+
 import asyncio
 import sys
 import time
@@ -9,6 +11,7 @@ from urllib.parse import quote
 from pprint import PrettyPrinter
 
 from datetime import (datetime, timezone, timedelta)
+
 
 KB = 1024
 MB = KB ** 2
@@ -30,13 +33,19 @@ HTTPCodes = {
 }
 
 class HTTPParser(object):
-
+  """
+  Helper class which handles the parsing of an incoming http request.
+  The usage should only be from an HTTPRequest object calling the parse()
+  function.
+  """
   def __init__(self, req, instream):
     self._stream = instream
     self._req = req
     self._buffer = ''
     self.EOL_TOKEN = None
     self.read_buffer = ''
+    import growler
+    print('version', growler.__version__)
 
   def store_buffer(func):
     def _store(self, data):
@@ -111,7 +120,7 @@ class HTTPParser(object):
   @asyncio.coroutine
   def parse_headers(self):
     """
-      Read an HTTP request from stream object.
+    Read an HTTP request from stream object.
     """
     # for function in [self.determine_line_ending(), self.next_step()]:
       # print(function)
@@ -518,8 +527,12 @@ class HTTPRequest(object):
     print('[self.headers]', self.headers)
     yield
 
-class HTTPResonse(object):
-    
+class HTTPResponse(object):
+  """
+  Response class which handles writing to the client.
+  """
+  SERVER_INFO = 'Python/{0[0]}.{0[1]} growler/{1}'.format(sys.version_info, growler.__version__)
+
   def __init__(self, ostream, app = None):
     self._stream = ostream
     self.send = self.write
@@ -531,12 +544,18 @@ class HTTPResonse(object):
     self.headers = {}
     self.app = app
 
+  def _set_default_headers(self):
+    self.headers.setdefault('Date', datetime.now(timezone(timedelta())).strftime("%a, %d %b %Y %H:%M:%S %Z"))
+    self.headers.setdefault('Server', self.SERVER_INFO)
+    self.headers.setdefault('Content-Length', len(self.message))
+    
+
   def send_headers(self):
     EOL = "\r\n"
+
     headerstrings = [self.StatusLine()]
 
-    self.headers.setdefault('Date', datetime.now(timezone(timedelta())).strftime("%a, %d %b %Y %H:%M:%S %Z"))
-    self.headers.setdefault('Content-Length', len(self.message))
+    self._set_default_headers()
     
     headerstrings += ["{}: {}".format(k, self.headers[k]) for k in self.headers]
     self._stream.write(EOL.join(headerstrings).encode())
