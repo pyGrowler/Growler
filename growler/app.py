@@ -8,7 +8,7 @@ import re
 from time import (time, sleep)
 from datetime import (datetime, timezone, timedelta)
 
-# from .http import (HTTPParser, HTTPError, HTTPRequest, HTTPResonse, Errors)
+# from .http import (HTTPParser, HTTPError, HTTPRequest, HTTPResponse, Errors)
 from .http import *
 from .router import Router
 
@@ -21,7 +21,7 @@ class App(object):
   def __init__(self, name, settings = {}, loop = None, no_default_router = False, debug = True):
     """
     Creates an application object.
-    
+
     name - does nothing right now
     settings - server configuration
     loop - asyncio event loop to run on
@@ -51,7 +51,7 @@ class App(object):
     yield from asyncio.start_server(self._handle_connection, self.config['host'], self.config['port'])
 
   @asyncio.coroutine
-  def _handle_connection(self, reader, writer, req_class = HTTPRequest, res_class = HTTPResonse):
+  def _handle_connection(self, reader, writer, req_class = HTTPRequest, res_class = HTTPResponse):
     print('[_handle_connection]', self, reader, writer, "\n")
 
     # create the request object
@@ -98,7 +98,7 @@ class App(object):
       request = yield from request_line
     except HTTPError as e:
       print ("HTTPError!")
-  
+
     print("Yielded the request line '{}'".format(request_line))
     print("Yielded the request '{}'".format(request))
 
@@ -107,7 +107,7 @@ class App(object):
     print("Yielded the headarz '{}'".format(headarz))
     return
 
-    try:                    
+    try:
       # process the request
       yield from req.process()
     except HTTPError as err:
@@ -119,7 +119,7 @@ class App(object):
 
       res.headers['Content-Type'] = 'text/html'
       res.headers['Connection'] = 'close'
-      
+
       res.status_code = err.code
       res.phrase = err.phrase
       res.message = b
@@ -149,7 +149,7 @@ class App(object):
     except HTTPError as err:
       print ("Error in _handle_connection")
       print(err)
-      
+
       h = "HTTP/1.1 {} {}\n".format(err.code, err.phrase)
       h += "Date: {}\n".format(datetime.now(timezone(timedelta())).strftime("%a, %d %b %Y %H:%M:%S %Z"))
 
@@ -160,10 +160,10 @@ class App(object):
 
     self.send_message(writer, "", "")
     return None
-      
+
   def run(self, run_forever = True):
     """
-    Starts the server and listens for new connections. If run_forever is true, the 
+    Starts the server and listens for new connections. If run_forever is true, the
     event loop is set to block.
     """
     self.loop.run_until_complete(self._server_listen())

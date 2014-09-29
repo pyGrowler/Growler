@@ -2,6 +2,8 @@
 # growler/http.py
 #
 
+__all__ = ['HTTPRequest', 'HTTPResponse', 'HTTPParser', 'HTTPError']
+
 import asyncio
 import sys
 import time
@@ -15,6 +17,7 @@ from termcolor import colored
 
 mimetypes.init()
 
+import growler
 
 KB = 1024
 MB = KB ** 2
@@ -36,13 +39,13 @@ HTTPCodes = {
 }
 
 class HTTPParser(object):
-  
+
   def __init__(self, req, instream = None, color = 'white'):
     """
     Create a Growler HTTP Parser.
 
     req: a Growler HTTPRequest object
-    instream: the asyncio.streams.StreamReader (defaults to req._stream)" 
+    instream: the asyncio.streams.StreamReader (defaults to req._stream)"
     """
     self._stream = req._stream if not instream else instream
     self._req = req
@@ -54,7 +57,7 @@ class HTTPParser(object):
     self.max_bytes_read = MAX_REQUEST_LENGTH
     self.data_future = asyncio.Future()
     self.c = color
-  
+
   @asyncio.coroutine
   def read_data_task(self):
     chunk = asyncio.Future()
@@ -165,11 +168,11 @@ class HTTPParser(object):
     else:
       self._line_ending = "\r\n" if self._buffer[ending_at-1] == '\r' else "\n"
       print('determined line ending {}'.format(len(self._line_ending)))
-      self.cb = self.next_step 
+      self.cb = self.next_step
 
   @asyncio.coroutine
   def parse(self):
-    
+
     # yield from self.read_data()
 
     # Start Reading Data asynchronously
@@ -192,7 +195,7 @@ class HTTPParser(object):
   @asyncio.coroutine
   def parse_headers(self):
     """
-      Read an HTTP request from stream object.
+    Read an HTTP request from stream object.
     """
     # for function in [self.determine_line_ending(), self.next_step()]:
       # print(function)
@@ -240,7 +243,7 @@ class HTTPParser(object):
       # look for end of line
       line_ends_at = next_str.find("\n")
 
-      # no end of line in the current 
+      # no end of line in the current
       if line_ends_at == -1:
         # We must be still parsing the header - check for overflow
         if bytes_read >= MAX_REQUEST_LENGTH:
@@ -310,7 +313,7 @@ class HTTPParser(object):
           for hl in current_string[:header_ends_at].split(eol_token):
             header_lines.append(hl)
             # handle.send(hl)
-        # everything AFTER the header delimeter 
+        # everything AFTER the header delimeter
         body = current_string[header_ends_at+(len(eol_token)*2):]
         # we have no more use for chunks
         chunks.clear()
@@ -337,7 +340,7 @@ class HTTPParser(object):
     # print("")
     # print("body: '" + body + "'")
     # print("")
-    # 
+    #
 
     for line in header_lines:
       # split and strip the key and value
@@ -380,7 +383,7 @@ class HTTPParser(object):
       next_data = yield from self._stream.read(read_max - bytes_read)
       bytes_read += len(next_data)
       print ('[read_data]', next_data, bytes_read)
-      
+
       # transform bytes to string
       try:
         self.read_buffer += next_data.decode('latin_1','replace')
@@ -420,7 +423,7 @@ class HTTPParser(object):
       # look for end of line
       line_ends_at = next_chunk.find("\n")
 
-      # no end of line in the current 
+      # no end of line in the current
       if line_ends_at == -1:
         # We must be still parsing the header - check for overflow
         # if bytes_read >= MAX_REQUEST_LENGTH:
@@ -493,7 +496,7 @@ class HTTPParser(object):
     # return f
 
     for line in provider: # self.read_next_line():
-      
+
     # while True:
       # line = yield from provider
       # print ("[read_next_header] line ", line)
@@ -530,9 +533,14 @@ class HTTPParser(object):
 
 
 class HTTPRequest(object):
+  """
+  Helper class which handles the parsing of an incoming http request.
+  The usage should only be from an HTTPRequest object calling the parse()
+  function.
+  """
   def __init__(self, istream, app = None, delay_processing = False, parser_class = HTTPParser, loop = None):
     """
-    The HTTPRequest object is all the information you could want about the 
+    The HTTPRequest object is all the information you could want about the
     incoming http connection. It gets passed along with the HTTPResponse object
     to all the middleware of the app.
     :istream: an asyncio.StreamReader
@@ -543,7 +551,7 @@ class HTTPRequest(object):
     from random import randint
     self.c = colors[randint(0, len(colors)-1)]
     print (colored("Req", self.c))
-    
+
     self.ip = istream._transport.get_extra_info('socket').getpeername()[0]
     self._stream = istream
     self._parser = parser_class(self, self._stream, color = self.c)
@@ -579,9 +587,9 @@ class HTTPRequest(object):
     # parsed_stream.send(None)
     # request_line = next(parsed_stream)
     # print(" request_line", request_line)
-    
+
     # yield from self._parser
-    # import 
+    # import
 
   def process_request_line(self, method, request_uri, version):
     # method, request_uri, version = (yield)
@@ -592,7 +600,7 @@ class HTTPRequest(object):
     self._process_headers = {
       "GET" : self._process_get_request
     }.get(method, None)
-    
+
     if self._process_headers == None:
       print ("Unknown HTTP Method '{}'".format(method))
       raise HTTPErrorNotImplemented()
@@ -614,7 +622,7 @@ class HTTPRequest(object):
     print ("[_process_request_line] method :", method)
     print ("[_process_request_line] request_uri :", request_uri)
     print ("[_process_request_line] version :", version)
-      
+
     # This is required to return to the 'sending' function and not to
     # the 'yield from' function
     # return (yield self.process_headers)
@@ -636,33 +644,15 @@ class HTTPRequest(object):
       else:
         headers[key] = value
     self.headers = headers
-    
+
     print('[self.headers]', self.headers)
     yield
 
-  def get(self, key):
-    """Get the case-insensitive request header corresponding to key"""
-    return self.headers[key.lower()]
-
-  def istype(self, typename):
-    """Check if 'Content-Type' header was sent and matches typename"""
-    try:
-      t = self.headers['content-type']
-    except:
-      return false
-    return mimetypes.types_map[t] == mimetypes.types_map['.' + typename]
-
-  def header(self, field):
-    """Get the case-insensitive request header field"""
-    return self.get(field)
-
-  def xhr(self):
-    """Check if the request was issued with the "X-Requested-With" header set to XMLHttpRequest"""
-    return self.headers['x-requested-with'] == 'XMLHttpRequest'
-
-
-
-class HTTPResonse(object):
+class HTTPResponse(object):
+  """
+  Response class which handles writing to the client.
+  """
+  SERVER_INFO = 'Python/{0[0]}.{0[1]} growler/{1}'.format(sys.version_info, growler.__version__)
 
   def __init__(self, ostream, app = None):
     self._stream = ostream
@@ -675,13 +665,19 @@ class HTTPResonse(object):
     self.headers = {}
     self.app = app
 
+  def _set_default_headers(self):
+    self.headers.setdefault('Date', datetime.now(timezone(timedelta())).strftime("%a, %d %b %Y %H:%M:%S %Z"))
+    self.headers.setdefault('Server', self.SERVER_INFO)
+    self.headers.setdefault('Content-Length', len(self.message))
+
+
   def send_headers(self):
     EOL = "\r\n"
+
     headerstrings = [self.StatusLine()]
 
-    self.headers.setdefault('date', datetime.now(timezone(timedelta())).strftime("%a, %d %b %Y %H:%M:%S %Z"))
-    self.headers.setdefault('Content-Length', len(self.message))
-    
+    self._set_default_headers()
+
     headerstrings += ["{}: {}".format(k, self.headers[k]) for k in self.headers]
     print ("Sending headerstrings '{}'".format(headerstrings))
     self._stream.write(EOL.join(headerstrings).encode())
@@ -715,7 +711,7 @@ class HTTPResonse(object):
     self.headers = {'Location': url}
     self.message = ''
     self.end()
-    
+
   def set(self, header, value = None):
     """Set header to the key"""
     if value == None:
@@ -798,7 +794,7 @@ class HTTPErrorBadRequest(HTTPError):
   def __init__(self, ex = None):
     HTTPError.__init__(self, "Bad Request", 400, ex)
 
-class HTTPErrorUnauthorized(HTTPError):  
+class HTTPErrorUnauthorized(HTTPError):
   def __init__(self):
     HTTPError.__init__(self, "Unauthorized", 401)
 
@@ -819,11 +815,11 @@ class HTTPErrorGone(HTTPError):
     HTTPError.__init__(self, "Gone", 410)
 
 class HTTPErrorRequestTooLarge(HTTPError):
-  def __init__(self):    
+  def __init__(self):
     HTTPError.__init__(self, "Request-URI Too Large", 414)
 
 class HTTPErrorUnsupportedMediaType(HTTPError):
-  def __init__(self):    
+  def __init__(self):
     HTTPError.__init__(self, "Unsupported Media Type", 415)
 
 class HTTPErrorInternalServerError(HTTPError):
