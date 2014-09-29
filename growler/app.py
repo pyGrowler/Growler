@@ -42,7 +42,7 @@ class App(object):
     self.middleware = [{'path': None, 'cb' : self._middleware_boot}]
 
     # set the default router
-    self.routers = [] if no_default_router else [{'path':'/', 'router' : Router()}]
+    self.routers = [] if no_default_router else [Router('/')]
 
   @asyncio.coroutine
   def _server_listen(self):
@@ -61,104 +61,34 @@ class App(object):
     res = res_class(writer, self)
 
     # process the request
+    processing_task = asyncio.Task(req.process())
+
     try:
-      yield from asyncio.Task(req.process())
+      yield from processing_task
+    except HTTPError as err:
+      processing_task.cancel()
+      err.PrintSysMessage()
+      print (err)
     except Exception as e:
+      processing_task.cancel()
       print("[Growler::App::_handle_connection] Caught Exception ")
       print (e)
 
-    res.message = "HAI! 😃 - 😄 - 😅 - 😆 - 😇 - 😈 - 😉 - 😊 - 😋 - 😌 - 😍 - 😎 - 😏 - 😐."
-    res.send_headers()
-    res.send_message()
-    res.write_eof()
+    # res.message = "HAI! 😃 - 😄 - 😅 - 😆 - 😇 - 😈 - 😉 - 😊 - 😋 - 😌 - 😍 - 😎 - 😏 - 😐."
+    # res.send_headers()
+    # res.send_message()
+    # res.write_eof()
     # res.send("Text : ")
-    print ("Right after process!")
-    self.finish()
+    # print ("Right after process!")
+    # self.finish()
     # print(request_process_task.exception())
 
+    route_generator = self.routers[0].match_routes(req)
+    for route in route_generator:
+      waitforme = asyncio.Future()
+      route(req, res, lambda: waitforme.set_result(None))
+      yield from waitforme
 
-    return
-
-    # futures which will be filled in by the request 'processor'
-    request_line = asyncio.Future()
-    http_headers = asyncio.Future()
-    http_body = asyncio.Future()
-
-    # begin processing the request
-    try:
-      handle_task = asyncio.Task(req.do_process(request_line, http_headers, http_body))
-    except Exception as e:
-      handle_task.cancel()
-      print("handle_task threw exception!",handle_task)
-      print (e)
-    # req.do_process(request_line, http_headers, http_body)
-
-    try:
-      request = yield from request_line
-    except HTTPError as e:
-      print ("HTTPError!")
-
-    print("Yielded the request line '{}'".format(request_line))
-    print("Yielded the request '{}'".format(request))
-
-    headarz = yield from http_headers
-    print("Yielded the http_headers '{}'".format(http_headers))
-    print("Yielded the headarz '{}'".format(headarz))
-    return
-
-    try:
-      # process the request
-      yield from req.process()
-    except HTTPError as err:
-      err.PrintSysMessage()
-      print (err)
-
-      body_content = "<h1>{}</h1>".format(err.phrase)
-      b = "<!DOCTYPE html>\n<html><head><title>{}</title></head><body>{}</body></html>\n".format(err.phrase, body_content)
-
-      res.headers['Content-Type'] = 'text/html'
-      res.headers['Connection'] = 'close'
-
-      res.status_code = err.code
-      res.phrase = err.phrase
-      res.message = b
-      res.end()
-
-    if self.route_to_use.done():
-      print("We know which route to use!!!")
-      self.after_route()
-    else:
-      print ("We still do NOT know which route to use")
-      self.route_to_use.add_done_callback(self.after_route)
-
-    return None
-    # except Exception as e:
-      # print ("ERROR")
-      # print (e)
-      # res.send('There was an error!')
-      # return None
-    # return None
-    parser = HTTPParser(reader)
-    parsed_stream = parser.parse()
-    try:
-      request_line = next(parsed_stream)
-      print("[_handle_connection] request_line", request_line)
-      headers = yield from parser.parse()
-      body = yield from parser.parse()
-    except HTTPError as err:
-      print ("Error in _handle_connection")
-      print(err)
-
-      h = "HTTP/1.1 {} {}\n".format(err.code, err.phrase)
-      h += "Date: {}\n".format(datetime.now(timezone(timedelta())).strftime("%a, %d %b %Y %H:%M:%S %Z"))
-
-      body_content = "<h1>{}</h1>".format(err.phrase)
-      b = "<!DOCTYPE html>\n<html><head><title>{}</title></head><body>{}</body></html>\n".format(err.phrase, body_content)
-      self.send_message(writer, h, b)
-      return None
-
-    self.send_message(writer, "", "")
-    return None
 
   def run(self, run_forever = True):
     """
@@ -187,22 +117,25 @@ class App(object):
     output.write_eof()
 
 
-  def get(self, middleware, path = "/"):
+
+  def all(self, path="/", middleware = None):
     """
     An alias call for simple access to the default router. The middleware provided
     is called upon a GET HTTP request matching the path.
     """
-    # regex = re.compile(patt)
-    print("GET:", self, path)
+    return self.routers[0].all(path, middleware)
 
-    def wrap(a):
-      print ("wrap::", a)
-      self.patterns.append(('GET', path, a))
-
-    def _(req, res):
-      print ("this is underscore running calling...")
-      print(' _GET:: ', m) # regex.test(m))
-    return wrap
+  def get(self, path="/", middleware = None):
+    """
+    An alias call for simple access to the default router. The middleware provided
+    is called upon a GET HTTP request matching the path.
+    """
+    # This will not be set if used as a decorator - assume so
+    if middleware == None:
+      def wrap(func):
+        self.routers[0].get(path, func)
+      return wrap
+    self.routers[0].get(path, middleware)
 
   def post(self, middleware, path = "/"):
     """

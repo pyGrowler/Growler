@@ -79,7 +79,6 @@ class HTTPParser(object):
       self._buffer += next_str
       if line_end_pos != -1:
         self.EOL_TOKEN = "\r\n" if next_str[line_end_pos-1] == '\r' else "\n"
-        print ("len(self.EOL_TOKEN) : ", len(self.EOL_TOKEN))
 
     line_ends_at = self._buffer.find(self.EOL_TOKEN)
 
