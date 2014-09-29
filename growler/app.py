@@ -67,7 +67,6 @@ class App(object):
       print("[Growler::App::_handle_connection] Caught Exception ")
       print (e)
 
-    res.header("content-type", "text/plain; charset=latin-1")
     res.message = "HAI! 😃 - 😄 - 😅 - 😆 - 😇 - 😈 - 😉 - 😊 - 😋 - 😌 - 😍 - 😎 - 😏 - 😐."
     res.send_headers()
     res.send_message()

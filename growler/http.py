@@ -59,23 +59,22 @@ class HTTPParser(object):
     self.c = color
 
   @asyncio.coroutine
-  def read_data_task(self):
-    chunk = asyncio.Future()
-    def _():
-      data = yield from self._stream.read(self.max_read_size)
-      self.bytes_read += len(data)
-      chunk.set_result(data.decode())
-    asyncio.Task(_())
-    return chunk
+  def _read_data(self):
+    """Reads in a block of data (at most self.max_read_size bytes) and returns the decoded string"""
+    data = yield from self._stream.read(self.max_read_size)
+    self.bytes_read += len(data)
+    return data.decode()
 
   @asyncio.coroutine
-  def _read_next_line(self, line_future = None):
-    # the result
-    # next_line = line_future if line_future else asyncio.Future()
-
+  def read_next_line(self, line_future = None):
+    """
+    Returns a single line read from the stream. If the EOL char has not been 
+    determined, it will wait for '\n' and set EOL to either LF or CRLF. This
+    returns a single line, and stores the rest of the read in data in self._buffer
+    """
     ## Keep reading data until newline is found
     while self.EOL_TOKEN == None:
-      next_str = yield from self.read_data_task()
+      next_str = yield from self._read_data()
       line_end_pos = next_str.find("\n")
       self._buffer += next_str
       if line_end_pos != -1:
@@ -85,7 +84,7 @@ class HTTPParser(object):
     line_ends_at = self._buffer.find(self.EOL_TOKEN)
 
     while line_ends_at == -1:
-      self._buffer += yield from self.read_data_task()
+      self._buffer += yield from self._read_data()
       line_ends_at = self._buffer.find(self.EOL_TOKEN)
 
     ## split!
@@ -95,26 +94,27 @@ class HTTPParser(object):
     return line
 
   @asyncio.coroutine
-  def _read_next_header(self, header = None):
-    # if header == None: header = asyncio.Future()
+  def read_next_header(self, header = None):
+    """
+    A coroutine to generate headers. It uses read_next_line to get headers
+    line by line - allowing quick response to invalid requests.
+    """
+    line = yield from self.read_next_line()
 
-    # def _():
-    line = yield from self._read_next_line()
-    print( colored("[_read_next_header] line '{}'".format(line), self.c))
-    if line == '':
-      return None
+    # print( colored("[_read_next_header] line '{}'".format(line), self.c))
+
+    if line == '': return None
 
     try:
-      k_v = line.split(":", 1)
-      key, value = map(str.strip, k_v)
+      key, value = map(str.strip, line.split(":", 1))
     except ValueError as e:
       print (colored("ERROR parsing headers. Input '{}'".format(line), 'red'))
       raise HTTPBadRequest(e)
-    h_obj = {'key':key,'value':value}
-    return h_obj
+
+    return {'key':key, 'value':value}
 
   @asyncio.coroutine
-  def _read_body(self):
+  def read_body(self):
     """
     Finishes reading the request. This method expects content-length to be defined in self.headers, and will
     read that many bytes from the stream
@@ -131,7 +131,7 @@ class HTTPParser(object):
     self.max_read_size = self.headers['content-length'] - bytes_read
 
     while self.max_read_size != 0:
-      next_str = yield from self.read_data_task()
+      next_str = yield from self._read_data()
       bytes_read += len(next_str)
       self.max_read_size = self.headers['content-length'] - bytes_read
       self._buffer += next_str
@@ -139,388 +139,13 @@ class HTTPParser(object):
     res, self._buffer = self._buffer, ''
     return res
 
-  def parse_request_line(self, req_line):
+  def _parse_request_line(self, req_line):
+    """
+    Simply splits the request line into three components.
+    TODO: Check that there are 3 and validate the method/path/version
+    """
     req_lst = req_line.split()
     return req_lst
-
-  def determine_line_ending(self, data):
-    print('determine_line_ending {}'.format(data.decode()))
-    # look for end of line
-    ending_at = self._buffer.find("\n")
-
-    # Not found
-    if ending_at == -1:
-      print ("Not found, buffer length", len(self._buffer) )
-      # We must be still parsing the header - check for overflow
-      if len(self._buffer) >= MAX_REQUEST_LENGTH:
-        raise HTTPErrorRequestTooLarge()
-
-      print ("no end line read -- waiting for more data")
-
-    elif ending_at == 0:
-      # raise HTTPErrorBadRequest()
-      print("ERR")
-      raise HTTPError.GetFromCode(400)()
-
-    else:
-      self._line_ending = "\r\n" if self._buffer[ending_at-1] == '\r' else "\n"
-      print('determined line ending {}'.format(len(self._line_ending)))
-      self.cb = self.next_step
-
-  @asyncio.coroutine
-  def parse(self):
-
-    # yield from self.read_data()
-
-    # Start Reading Data asynchronously
-    # asyncio.async(self.read_data())
-
-    # print ("after read_data()", self.read_buffer)
-    # for h in self.read_next_header(): # self.read_next_line(self.read_data(MAX_REQUEST_LENGTH))):
-      # print ("[parse]", h)
-    # header_provider = self.read_next_header()
-    # header_provider.send(None)
-
-    # while True:
-      # next_header = yield from self.read_next_header()
-      # next_header = header_provider.send(None)
-      # print ("[parse] next_header : ", next_header)
-
-    res = yield from self.parse_headers()
-    asyncio.async(self.parse_body(res))
-
-  @asyncio.coroutine
-  def parse_headers(self):
-    """
-    Read an HTTP request from stream object.
-    """
-    # number of bytes read in 'so far'
-    bytes_read = 0
-
-    # list of lines in the header
-    header_lines = []
-
-    # list of read in data
-    chunks = []
-
-    # position of the end of the header (-1 to begin)
-    header_end = -1
-
-    # token for end of line
-    eol_token = None
-
-    request_line = ''
-
-    body = ''
-
-    # loop while we have not yet loaded the header
-    while header_end == -1:
-      # If stream is dead - raise a 'bad request' error
-      if self._stream.at_eof():
-        print ("self._stream.at_eof()")
-        raise HTTPErrorBadRequest()
-
-      # read in the next block of data
-      next_data = yield from self._stream.read(MAX_REQUEST_LENGTH - bytes_read)
-      bytes_read += len(next_data)
-
-      # transform bytes to string
-      try:
-        next_str = next_data.decode('latin_1','replace')
-      except UnicodeDecodeError:
-        raise HTTPErrorBadRequest()
-
-      # look for end of line
-      line_ends_at = next_str.find("\n")
-
-      # no end of line in the current
-      if line_ends_at == -1:
-        # We must be still parsing the header - check for overflow
-        if bytes_read >= MAX_REQUEST_LENGTH:
-          raise HTTPErrorRequestTooLarge()
-
-        #print ("no end line read -- waiting for more data")
-
-        # add string to the next_line
-        chunks.append(next_str)
-
-        # go back and wait for more data
-        continue
-
-      # the ending of the line has not been set - determine now (the first time encountered)
-      elif eol_token == None:
-        # special case where first character is newline
-        if line_ends_at == 0:
-          # ensure we have a non-empty string in the previous chunk of data
-          if len(chunks) != 0 and len(chunks[-1]) != 0:
-            eol_token = "\r\n" if chunks[-1][-1] == '\r' else "\n"
-          else:
-            raise HTTPErrorBadRequest()
-        else:
-          # set the end of line token to detected line
-          eol_token = "\r\n" if next_str[line_ends_at-1] == '\r' else "\n"
-
-        # Special handling if we have a partial header
-        if len(chunks):
-          # combine 'chunks'
-          next_str = ''.join(chunks + [next_str])
-          # remove everything from chunks
-          chunks.clear()
-          # find the 'new' endline location
-          line_ends_at = next_str.find('\n')
-
-        # print ("Detected ending as '{}' at {}".format("\\r\\n" if eol_token == "\r\n" else "\\n", line_ends_at))
-
-        # break into request and (rest)
-        request_str = next_str[:line_ends_at + 1 - len(eol_token)]
-        next_str = next_str[line_ends_at + 1:]
-
-        try:
-          # split into method, request_uri, version
-          req_lst = request_str.split()
-          # expand into the request's process_request_line function
-          header_processor = self._req.process_request_line(*req_lst)
-        except ValueError as e:
-          print ('error', e)
-          raise HTTPErrorBadRequest(e)
-        except TypeError as e:
-          print ('TypeError', e)
-          raise HTTPErrorBadRequest(e)
-
-      # we have an end of line in current string - join together everything and split it up
-      current_string = ''.join(chunks + [next_str])
-
-      # check for the end of header (double eol)
-      header_ends_at = current_string.find(eol_token * 2)
-      # print ("current_string:: '{}'".format(current_string))
-      # print ("header_ends_at::", header_ends_at)
-
-      # The header delimiter has been found
-      if header_ends_at != -1:
-        # split up "current string" into headers and body
-        if header_ends_at != 0:
-          # header_lines += current_string[:header_ends_at].split(eol_token)
-          for hl in current_string[:header_ends_at].split(eol_token):
-            header_lines.append(hl)
-            # handle.send(hl)
-        # everything AFTER the header delimeter
-        body = current_string[header_ends_at+(len(eol_token)*2):]
-        # we have no more use for chunks
-        chunks.clear()
-        # break out of loop
-        break
-
-      # still in the header -
-      #  split the current string into lines
-      #  add those completed into header_lines
-      #  put last one back into chunks
-      new_headers = current_string.split(eol_token)
-      # header_lines += new_headers[:-1]
-      for hl in new_headers[:-1]:
-        # empty strings are no good
-        if hl != '':
-          header_lines.append(hl)
-        # handle.send(hl)
-
-      chunks = [eol_token] if new_headers[-1] == '' else [new_headers[-1]]
-
-    # At this point we have a list of headers in header_lines and maybe some data in body
-
-    # print("header_lines", header_lines)
-    # print("")
-    # print("body: '" + body + "'")
-    # print("")
-    #
-
-    for line in header_lines:
-      # split and strip the key and value
-      try:
-        k_v = map(str.strip, line.split(":", 1))
-      except ValueError as e:
-        raise HTTPErrorBadRequest(e)
-      header_processor.send(k_v)
-
-    # Inform _req we have finished sending the headers
-    header_processor.send(None)
-    header_processor.close()
-    return body
-
-  @asyncio.coroutine
-  def parse_body(self, body_str):
-    print('parsing body')
-    bytes_read = len(body_str)
-    while True:
-      next_data = yield from self._stream.read(MAX_POST_LENGTH - bytes_read)
-      if len(next_data) == 0: break
-      bytes_read += len(next_data)
-      body_str += next_data.decode()
-    # yield body_str
-    self.body_str = body_str
-
-  @asyncio.coroutine
-  def read_data(self, buffer, read_max):
-    bytes_read = 0
-    next_line = ''
-    print("[read_data] {begin}")
-    # run forever
-    while True:
-      # If stream is dead - raise a 'bad request' error
-      if self._stream.at_eof():
-        print ("self._stream.at_eof()")
-        raise HTTPErrorBadRequest()
-
-      # read in the next block of data
-      next_data = yield from self._stream.read(read_max - bytes_read)
-      bytes_read += len(next_data)
-      print ('[read_data]', next_data, bytes_read)
-
-      # transform bytes to string
-      try:
-        self.read_buffer += next_data.decode('latin_1','replace')
-      except UnicodeDecodeError:
-        raise HTTPErrorBadRequest()
-
-      if self.read_cb != None:
-        self.read_cb.send(None)
-
-
-  @asyncio.coroutine
-  def read_next_line(self, provider = None):
-    """Reads the next line coming through the stream."""
-
-    # The chunk to be returned at some time
-    next_chunk = asyncio.Future()
-    yield from self.read_data(next_chunk, read_max)
-    # buffer of read data
-    chunks = []
-    # loop through data
-    # for next_chunk in provider: # self.read_data(MAX_REQUEST_LENGTH):
-    if provider == None:
-      provider = self.read_data(MAX_REQUEST_LENGTH)
-    print ("[read_next_header] {begin}")
-    while True:
-      # set the next thing to parse to 'next_chunk' of data
-      next_chunk, self.read_buffer = self.read_buffer, ''
-      if next_chunk == '':
-        self.read_cb = self.read_next_line()
-        break
-      # next_chunk = provider.send(None)
-      print("[read_next_line] next_chunk:",next_chunk)
-      # self._req._loop.run_until_complete(next_chunk)
-      asyncio.wait(next_chunk)
-      ych = yield from next_chunk
-      print("[read_next_line] next_chunk:",next_chunk)
-      # look for end of line
-      line_ends_at = next_chunk.find("\n")
-
-      # no end of line in the current
-      if line_ends_at == -1:
-        # We must be still parsing the header - check for overflow
-        # if bytes_read >= MAX_REQUEST_LENGTH:
-          # raise HTTPErrorRequestTooLarge()
-
-        #print ("no end line read -- waiting for more data")
-
-        # add string to the next_line
-        chunks.append(next_chunk)
-
-        # go back and wait for more data
-        continue
-
-      # the ending of the line has not been set - determine now (the first time encountered)
-      elif self.EOL_TOKEN == None:
-        # special case where first character is newline
-        if line_ends_at == 0:
-          # ensure we have a non-empty string in the previous chunk of data
-          if len(chunks) != 0 and len(chunks[-1]) != 0:
-            self.EOL_TOKEN = "\r\n" if chunks[-1][-1] == '\r' else "\n"
-          else:
-            raise HTTPErrorBadRequest()
-        else:
-          # set the end of line token to detected line
-          self.EOL_TOKEN = "\r\n" if next_chunk[line_ends_at-1] == '\r' else "\n"
-
-        # Special handling if we have a partial line
-        if len(chunks):
-          # combine 'chunks'
-          next_chunk = ''.join(chunks + [next_chunk])
-          # remove everything from chunks
-          chunks.clear()
-          # find the 'new' endline location
-          line_ends_at = next_chunk.find('\n')
-
-        first_line = next_chunk[:line_ends_at + 1 - len(self.EOL_TOKEN)]
-        next_chunk = next_chunk[line_ends_at + 1:]
-        print ("First Line:", first_line)
-        print ("Next Data:", next_chunk)
-        yield  first_line
-
-      split_lines = next_chunk.split(self.EOL_TOKEN)
-
-      # yield each next new line
-      for nl in split_lines[:-1]:
-        # empty strings are no good
-        if nl != '':
-          yield nl
-
-      chunks = [self.EOL_TOKEN] if split_lines[-1] == '' else [split_lines[-1]]
-
-
-
-  @asyncio.coroutine
-  def read_next_header(self, provider = None):
-    line_buffer = None
-
-    print ("[read_next_header] {begin}")
-
-    if provider == None:
-      provider = self.read_next_line()
-    #
-    # i = 0
-    # while True:
-    #   # f = yield from asyncio.Future()
-    #   print ("[read_next_header]")
-    #   # yield from asyncio.sleep(2)
-    #   yield i
-    #   i += 1
-    # return f
-
-    for line in provider: # self.read_next_line():
-
-    # while True:
-      # line = yield from provider
-      # print ("[read_next_header] line ", line)
-      # sline = yield from line
-      # print ("[read_next_header] sline", sline)
-      # self.req.loop.run_until_complete(line)
-      # line = provider.send(None)
-      # print('[read_next_header]', line.result())
-      # end of the headers!
-      if line == '':
-        if line_buffer != None:
-          yield line_buffer
-        break
-      try:
-        # split the header into key, value
-        k_v = line.split(":", 1)
-        key, value = map(str.strip, k_v)
-      except ValueError as e:
-        # Could not split
-        # If line begins with space, add to previous line
-        if line[0].isspace():
-          if isinstance(list, line_buffer['value']):
-            line_buffer['value'] += [value]
-          else:
-            line_buffer['value'] = [line_buffer['value'], value]
-        # malformed request
-        else:
-          raise HTTPErrorBadRequest(e)
-      # return the previous line buffer HERE
-      yield line_buffer
-      # store the key + value
-      line_buffer = {'key':key, 'value': value}
-    # yield None
-
 
 class HTTPRequest(object):
   """
@@ -528,12 +153,15 @@ class HTTPRequest(object):
   The usage should only be from an HTTPRequest object calling the parse()
   function.
   """
-  def __init__(self, istream, app = None, delay_processing = False, parser_class = HTTPParser, loop = None):
+  def __init__(self, istream, app = None, delay_processing = False, parser_class = HTTPParser):
     """
     The HTTPRequest object is all the information you could want about the
     incoming http connection. It gets passed along with the HTTPResponse object
     to all the middleware of the app.
     :istream: an asyncio.StreamReader
+    :app: the Growler app which created this reqest
+    :delay_processing: debug stuff
+    :parser_class: A class which behaves as HTTPParser
     """
 
     # colors = ['grey', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']
@@ -545,41 +173,49 @@ class HTTPRequest(object):
     self.ip = istream._transport.get_extra_info('socket').getpeername()[0]
     self._stream = istream
     self._parser = parser_class(self, self._stream, color = self.c)
-    self._loop = loop if loop != None else asyncio.get_event_loop()
     self.app = app
     self.headers = {}
+    self.body = asyncio.Future()
 
   @asyncio.coroutine
   def process(self):
-
+    """
+    Begins processing the incoming stream - first reading in headers. Then if body
+    data is expected, asynchronously read it in.
+    """
     # Request Line
-    first_line = yield from self._parser._read_next_line()
-    req = self._parser.parse_request_line(first_line)
+    first_line = yield from self._parser.read_next_line()
+    req = self._parser._parse_request_line(first_line)
     self.process_request_line(*req)
 
     # Headers
     header_list = []
-    nheader = yield from self._parser._read_next_header()
+    nheader = yield from self._parser.read_next_header()
     while nheader != None:
       header_list.append(nheader)
       self.headers[nheader['key'].lower()] = nheader['value']
       print ( colored("header: {}".format(nheader), self.c))
-      nheader = yield from self._parser._read_next_header()
+      nheader = yield from self._parser.read_next_header()
 
     if not 'content-length' in self.headers:
       self.headers['content-length'] = 0
+      self.body.set_result('')
     else:
       print("Body Length:", self.headers['content-length'])
+      def async_read_body(body_reader_func):
+        body_text = yield from body_reader_func()
+        self.body.set_result(body_text)
+      # Asynchronously call the parsers' read_body
+      asyncio.async(async_read_body(self._parser.read_body))
 
-    return ("DONE")
-    # print("[HTTPRequest::process]")
-    # print(" [parsed_stream]", parsed_stream)
-    # parsed_stream.send(None)
-    # request_line = next(parsed_stream)
-    # print(" request_line", request_line)
+  @asyncio.coroutine
+  def bodytext(self):
+    """
+    Returns the result from the body. This is an alternate to 'yield from req.body'
+    """
+    body_txt = yield from self.body
+    return body_txt
 
-    # yield from self._parser
-    # import
 
   def process_request_line(self, method, request_uri, version):
     # method, request_uri, version = (yield)
@@ -600,23 +236,9 @@ class HTTPRequest(object):
     self.path = self.parsed_url.path
     self.query = parse_qs(self.parsed_url.query)
 
-    return
-
-    # Find the route in its spare time
-    asyncio.async(self.app._find_route(method, request_uri))
-
-    # setup the header receiver
-    self.process_headers = self._process_headers()
-    self.process_headers.send(None)
-    print ("[_process_request_line] :", self.process_headers)
-    print ("[_process_request_line] method :", method)
-    print ("[_process_request_line] request_uri :", request_uri)
-    print ("[_process_request_line] version :", version)
-
-    # This is required to return to the 'sending' function and not to
-    # the 'yield from' function
-    # return (yield self.process_headers)
-    return self.process_headers
+  def param(self, name, default = None):
+    """Return value of 'name' if found, else return provided 'default'"""
+    return self.query[name] if name in self.query.keys() else default
 
   def _process_get_request(self):
     headers = {}
@@ -644,7 +266,12 @@ class HTTPResponse(object):
   """
   SERVER_INFO = 'Python/{0[0]}.{0[1]} growler/{1}'.format(sys.version_info, growler.__version__)
 
-  def __init__(self, ostream, app = None):
+  def __init__(self, ostream, app = None, EOL = "\r\n"):
+    """
+    Create the response
+    :ostream: Output stream, expected asyncio.StreamWriter
+    :app: The growler app creating the response
+    """
     self._stream = ostream
     self.send = self.write
     # Assume we are OK
@@ -654,15 +281,15 @@ class HTTPResponse(object):
     self.message = ''
     self.headers = {}
     self.app = app
+    self.EOL = EOL
 
   def _set_default_headers(self):
+    """Create some default headers that should be sent along with every HTTP response"""
     self.headers.setdefault('Date', datetime.now(timezone(timedelta())).strftime("%a, %d %b %Y %H:%M:%S %Z"))
     self.headers.setdefault('Server', self.SERVER_INFO)
     self.headers.setdefault('Content-Length', len(self.message))
 
-
   def send_headers(self):
-    EOL = "\r\n"
 
     headerstrings = [self.StatusLine()]
 
@@ -670,8 +297,8 @@ class HTTPResponse(object):
 
     headerstrings += ["{}: {}".format(k, self.headers[k]) for k in self.headers]
     print ("Sending headerstrings '{}'".format(headerstrings))
-    self._stream.write(EOL.join(headerstrings).encode())
-    self._stream.write((EOL * 2).encode())
+    self._stream.write(self.EOL.join(headerstrings).encode())
+    self._stream.write((self.EOL * 2).encode())
 
   def send_message(self):
     # self._stream.write(self.message.encode())
