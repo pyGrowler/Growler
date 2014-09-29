@@ -15,6 +15,6 @@ def middleware(cls):
   return cls
 
 from .logger import Logger
-
+from .cookieparser import CookieParser
 
 __all__ = ['Logger']

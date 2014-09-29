@@ -187,25 +187,36 @@ class App(object):
     output.write(msg)
     output.write_eof()
 
-  def get(self, patt):
-    """A 'VERB' function which is called upon a GET HTTP request"""
+
+  def get(self, middleware, path = "/"):
+    """
+    An alias call for simple access to the default router. The middleware provided
+    is called upon a GET HTTP request matching the path.
+    """
     # regex = re.compile(patt)
-    print("GET:", self, patt)
+    print("GET:", self, path)
 
     def wrap(a):
       print ("wrap::", a)
-      self.patterns.append(('GET', patt, a))
+      self.patterns.append(('GET', path, a))
 
     def _(req, res):
       print ("this is underscore running calling...")
       print(' _GET:: ', m) # regex.test(m))
     return wrap
 
+  def post(self, middleware, path = "/"):
+    """
+    An alias call for simple access to the default router. The middleware provided
+    is called upon a POST HTTP request matching the path.
+    """
+
+
   def enable(self, name):
     """Set setting 'name' to true"""
     self.config[name] = True
 
-  def disbale(self, name):
+  def disable(self, name):
     """Set setting 'name' to false"""
     self.config[name] = False
 

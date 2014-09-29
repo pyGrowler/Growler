@@ -6,3 +6,5 @@ dist
 bin
 lib
 pyvenv.cfg
+
+nbproject

@@ -90,11 +90,8 @@ class HTTPParser(object):
 
     ## split!
     line, self._buffer = self._buffer.split(self.EOL_TOKEN, 1)
-    # line = self._buffer[:line_ends_at]
-    # self._buffer = self._buffer[line_ends_at + len(self.EOL_TOKEN):]
-    # next_line.set_result(line)
 
-    yield from asyncio.sleep(0.75) # artificial delay
+    # yield from asyncio.sleep(0.75) # artificial delay
     return line
 
   @asyncio.coroutine
@@ -197,13 +194,6 @@ class HTTPParser(object):
     """
     Read an HTTP request from stream object.
     """
-    # for function in [self.determine_line_ending(), self.next_step()]:
-      # print(function)
-    # set the callback read_data will have to use
-    # self.cb = self.determine_line_ending
-    # yield from self.read_data()
-    # print ("xxxx")
-
     # number of bytes read in 'so far'
     bytes_read = 0
 
