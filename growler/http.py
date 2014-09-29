@@ -520,8 +520,8 @@ class HTTPRequest(object):
     # colors = ['grey', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']
     colors = ['red', 'yellow', 'blue', 'magenta', 'cyan', 'white']
     from random import randint
-    c = colors[randint(0, len(colors))]
-    print (colored("Req", c))
+    self.c = colors[randint(0, len(colors))]
+    print (colored("Req", self.c))
     
     self.ip = istream._transport.get_extra_info('socket').getpeername()[0]
     self._stream = istream
@@ -542,7 +542,7 @@ class HTTPRequest(object):
     nheader = yield from self._parser._read_next_header()
     while nheader != None:
       header_list.append(nheader)
-      print ("header: ", nheader)
+      print ( colored("header: %" % nheader, self.c))
       nheader = yield from self._parser._read_next_header()
 
     return ("DONE")
