@@ -61,13 +61,20 @@ class App(object):
     res = res_class(writer, self)
 
     # process the request
-    # request_process_task = 
     try:
       yield from asyncio.Task(req.process())
-    except:
-      print("[Growler::App::_handle_connection] Caught Exception In ")
-      
+    except Exception as e:
+      print("[Growler::App::_handle_connection] Caught Exception ")
+      print (e)
+
+    res.header("content-type", "text/plain; charset=latin-1")
+    res.message = "HAI! 😃 - 😄 - 😅 - 😆 - 😇 - 😈 - 😉 - 😊 - 😋 - 😌 - 😍 - 😎 - 😏 - 😐."
+    res.send_headers()
+    res.send_message()
+    res.write_eof()
+    # res.send("Text : ")
     print ("Right after process!")
+    self.finish()
     # print(request_process_task.exception())
 
 

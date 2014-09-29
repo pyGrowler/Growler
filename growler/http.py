@@ -61,7 +61,6 @@ class HTTPParser(object):
     def _():
       data = yield from self._stream.read(self.max_read_size)
       self.bytes_read += len(data)
-      # print ("[read_data_task]", data)
       chunk.set_result(data.decode())
     asyncio.Task(_())
     return chunk
@@ -114,9 +113,31 @@ class HTTPParser(object):
     h_obj = {'key':key,'value':value}
     return h_obj
 
-    # header.set_result()
-    # asyncio.Task(_())
-    # return header
+  @asyncio.coroutine
+  def _read_body(self):
+    """
+    Finishes reading the request. This method expects content-length to be defined in self.headers, and will
+    read that many bytes from the stream
+    """
+    # There is no body - return None
+    if self.headers['content-length'] == 0:
+      return None
+
+    # Get length of whatever is already read into the buffer
+    bytes_read = len(self._buffer)
+    if self.headers['content-length'] < bytes_read:
+      raise "Body too large!"
+
+    self.max_read_size = self.headers['content-length'] - bytes_read
+
+    while self.max_read_size != 0:
+      next_str = yield from self.read_data_task()
+      bytes_read += len(next_str)
+      self.max_read_size = self.headers['content-length'] - bytes_read
+      self._buffer += next_str
+
+    res, self._buffer = self._buffer, ''
+    return res
 
   def parse_request_line(self, req_line):
     req_lst = req_line.split()
@@ -520,30 +541,37 @@ class HTTPRequest(object):
     # colors = ['grey', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']
     colors = ['red', 'yellow', 'blue', 'magenta', 'cyan', 'white']
     from random import randint
-    self.c = colors[randint(0, len(colors))]
+    self.c = colors[randint(0, len(colors)-1)]
     print (colored("Req", self.c))
     
     self.ip = istream._transport.get_extra_info('socket').getpeername()[0]
     self._stream = istream
-    self._parser = parser_class(self, self._stream, color = c)
+    self._parser = parser_class(self, self._stream, color = self.c)
     self._loop = loop if loop != None else asyncio.get_event_loop()
     self.app = app
+    self.headers = {}
 
   @asyncio.coroutine
   def process(self):
-    
+
     # Request Line
     first_line = yield from self._parser._read_next_line()
     req = self._parser.parse_request_line(first_line)
     self.process_request_line(*req)
-    
+
     # Headers
     header_list = []
     nheader = yield from self._parser._read_next_header()
     while nheader != None:
       header_list.append(nheader)
-      print ( colored("header: %" % nheader, self.c))
+      self.headers[nheader['key'].lower()] = nheader['value']
+      print ( colored("header: {}".format(nheader), self.c))
       nheader = yield from self._parser._read_next_header()
+
+    if not 'content-length' in self.headers:
+      self.headers['content-length'] = 0
+    else:
+      print("Body Length:", self.headers['content-length'])
 
     return ("DONE")
     # print("[HTTPRequest::process]")
@@ -655,6 +683,7 @@ class HTTPResonse(object):
     self.headers.setdefault('Content-Length', len(self.message))
     
     headerstrings += ["{}: {}".format(k, self.headers[k]) for k in self.headers]
+    print ("Sending headerstrings '{}'".format(headerstrings))
     self._stream.write(EOL.join(headerstrings).encode())
     self._stream.write((EOL * 2).encode())
 
@@ -694,6 +723,9 @@ class HTTPResonse(object):
     else:
       self.headers[header] = value
 
+  def header(self, header, value = None):
+    self.set(header, value)
+
   def get(self, field):
     """Get a header"""
     return self.headers[field]
@@ -726,6 +758,15 @@ class HTTPResonse(object):
   def json(self, body, status = 200):
     self.headers['content-type'] = 'application/json'
     self.write()
+
+  def send(self, obj):
+    if isinstance(str, obj):
+      print ("Sending String: " + obj)
+      self.headers.setdefault('content-type', 'text/plain')
+      self.message = obj
+    else:
+      self.message = "{}".format(obj)
+    self.end()
 
 class HTTPError(Exception):
 
