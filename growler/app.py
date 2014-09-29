@@ -18,27 +18,28 @@ class App(object):
   # default configuration goes here
   config = {'host':'127.0.0.1', 'port': '8000'}
 
-  def __init__(self, name, settings = {}, loop = None, no_default_router = False):
+  def __init__(self, name, settings = {}, loop = None, no_default_router = False, debug = True):
     """
     Creates an application object.
     
-    name - does nothing
+    name - does nothing right now
     settings - server configuration
     loop - asyncio event loop to run on
     """
-    self.cache = {};
+    self.name = name
+    self.cache = {}
 
     self.config.update(settings)
 
-    print(self.config)
+    print(__name__, self.config)
 
     # rendering engines
     self.engines = {}
     self.patterns = []
-    self.loop = loop if loop != None else asyncio.get_event_loop()
-    self.loop.set_debug(True)
+    self.loop = loop if loop else asyncio.get_event_loop()
+    self.loop.set_debug(debug)
 
-    self.middleware = [{'path':None, 'cb' : self._middleware_boot}]
+    self.middleware = [{'path': None, 'cb' : self._middleware_boot}]
 
     # set the default router
     self.routers = [] if no_default_router else [{'path':'/', 'router' : Router()}]
@@ -46,6 +47,7 @@ class App(object):
   @asyncio.coroutine
   def _server_listen(self):
     """Starts the server. Should be called from 'app.run()'."""
+    print ("Server {} listening on {}:{}".format (self.name, self.config['host'], self.config['port']))
     yield from asyncio.start_server(self._handle_connection, self.config['host'], self.config['port'])
 
   @asyncio.coroutine
@@ -63,10 +65,10 @@ class App(object):
     try:
       yield from asyncio.Task(req.process())
     except:
-      print("caught exception")
+      print("[Growler::App::_handle_connection] Caught Exception In ")
       
     print ("Right after process!")
-    print(request_process_task.exception())
+    # print(request_process_task.exception())
 
 
     return
@@ -179,6 +181,7 @@ class App(object):
     output.write_eof()
 
   def get(self, patt):
+    """A 'VERB' function which is called upon a GET HTTP request"""
     # regex = re.compile(patt)
     print("GET:", self, patt)
 
@@ -234,7 +237,13 @@ class App(object):
     """The initial middleware"""
     pass
 
+  def add_router(self, path, router):
+    """Adds a router to the list of routers"""
+    self.routers.append(router)
 
+  def print_router_tree(self):
+    for r in self.routers:
+      r.print_tree()
 
   #
   # Dict like configuration access

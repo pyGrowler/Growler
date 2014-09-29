@@ -11,6 +11,8 @@ from pprint import PrettyPrinter
 from datetime import (datetime, timezone, timedelta)
 
 import mimetypes
+from termcolor import colored
+
 mimetypes.init()
 
 
@@ -34,8 +36,8 @@ HTTPCodes = {
 }
 
 class HTTPParser(object):
-
-  def __init__(self, req, instream = None):
+  
+  def __init__(self, req, instream = None, color = 'white'):
     """
     Create a Growler HTTP Parser.
 
@@ -51,7 +53,8 @@ class HTTPParser(object):
     self.max_read_size = MAX_REQUEST_LENGTH
     self.max_bytes_read = MAX_REQUEST_LENGTH
     self.data_future = asyncio.Future()
-
+    self.c = color
+  
   @asyncio.coroutine
   def read_data_task(self):
     chunk = asyncio.Future()
@@ -98,7 +101,7 @@ class HTTPParser(object):
 
     # def _():
     line = yield from self._read_next_line()
-    print("[_read_next_header] line '{}'".format(line))
+    print( colored("[_read_next_header] line '{}'".format(line), self.c))
     if line == '':
       return None
 
@@ -106,7 +109,7 @@ class HTTPParser(object):
       k_v = line.split(":", 1)
       key, value = map(str.strip, k_v)
     except ValueError as e:
-      print("ERROR parsing headers. Input '{}'".format(line))
+      print (colored("ERROR parsing headers. Input '{}'".format(line), 'red'))
       raise HTTPBadRequest(e)
     h_obj = {'key':key,'value':value}
     return h_obj
@@ -504,6 +507,7 @@ class HTTPParser(object):
       line_buffer = {'key':key, 'value': value}
     # yield None
 
+
 class HTTPRequest(object):
   def __init__(self, istream, app = None, delay_processing = False, parser_class = HTTPParser, loop = None):
     """
@@ -512,10 +516,16 @@ class HTTPRequest(object):
     to all the middleware of the app.
     :istream: an asyncio.StreamReader
     """
+
+    # colors = ['grey', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']
+    colors = ['red', 'yellow', 'blue', 'magenta', 'cyan', 'white']
+    from random import randint
+    c = colors[randint(0, len(colors))]
+    print (colored("Req", c))
     
     self.ip = istream._transport.get_extra_info('socket').getpeername()[0]
     self._stream = istream
-    self._parser = parser_class(self, self._stream)
+    self._parser = parser_class(self, self._stream, color = c)
     self._loop = loop if loop != None else asyncio.get_event_loop()
     self.app = app
 
@@ -525,7 +535,6 @@ class HTTPRequest(object):
     # Request Line
     first_line = yield from self._parser._read_next_line()
     req = self._parser.parse_request_line(first_line)
-    print ("first_line", first_line, req)
     self.process_request_line(*req)
     
     # Headers

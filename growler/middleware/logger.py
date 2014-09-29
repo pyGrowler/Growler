@@ -2,6 +2,11 @@
 # growler/middleware/logger.py
 #
 
+from . import middleware
+
+import growler
+
+@middleware
 class Logger():
   
   DEFAULT = '/033[30m'
@@ -16,6 +21,23 @@ class Logger():
   def __init__(self):
     pass
 
+  def info(self, message):
+    return " {} info {} - {} ".format(self.CYAN, self.DEFAULT, message)
+
+  def warn(self, message):
+    return " {} warning {} - {} ".format(self.YELLOW, self.DEFAULT, message)
+
+  def error(self, message):
+    return " {} error {} - {} ".format(self.RED, self.DEFAULT, message)
+
+  def critical_error(self, message):
+    return " {} ERROR {} - {} ".format(self.RED, self.DEFAULT, message)
+
   def __call__(self, req, res, next):
-    print (" {} info {} - Connection from {} ".format(self.CYAN, self.DEFAULT, req.ip))
+    print (self.info("Connection from {}".format(req.ip)))
     next()
+
+  @middleware
+  def mw(self, req, res, next):
+    print("[mw] % %" % (req, res))
+
