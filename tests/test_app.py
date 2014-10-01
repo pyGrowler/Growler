@@ -1,10 +1,11 @@
 
 import growler
 
-from growler.middleware import ResponseTime
+from growler.middleware import (ResponseTime, Logger)
 
 app = growler.App(__name__)
 
+app.use(Logger())
 app.use(ResponseTime())
 
 @app.get("/")

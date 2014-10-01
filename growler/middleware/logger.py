@@ -4,6 +4,8 @@
 
 from . import middleware
 
+from termcolor import colored
+
 import growler
 
 @middleware
@@ -22,16 +24,16 @@ class Logger():
     pass
 
   def info(self, message):
-    return " {} info {} - {} ".format(self.CYAN, self.DEFAULT, message)
+    return colored("  info  ", 'cyan') + message
 
   def warn(self, message):
-    return " {} warning {} - {} ".format(self.YELLOW, self.DEFAULT, message)
+    return colored("  warning  ", 'yellow') + message
 
   def error(self, message):
-    return " {} error {} - {} ".format(self.RED, self.DEFAULT, message)
+    return colored("  error  ", 'red') + message
 
   def critical_error(self, message):
-    return " {} ERROR {} - {} ".format(self.RED, self.DEFAULT, message)
+    return colored("  ERROR  ", 'red') + message
 
   def __call__(self, req, res, next):
     print (self.info("Connection from {}".format(req.ip)))
