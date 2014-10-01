@@ -58,6 +58,7 @@ class HTTPParser(object):
     self.max_bytes_read = MAX_REQUEST_LENGTH
     self.data_future = asyncio.Future()
     self.c = color
+    self._header_buffer = ''
 
   @asyncio.coroutine
   def _read_data(self):
@@ -99,9 +100,35 @@ class HTTPParser(object):
     A coroutine to generate headers. It uses read_next_line to get headers
     line by line - allowing quick response to invalid requests.
     """
-    line = yield from self.read_next_line()
+    # A _header_buffer set to None is the key that we've hit the end of headers
+    if self._header_buffer == None:
+      return None
+    # if there was a header saved, use that (and clear the buffer)
+    elif self._header_buffer != '':
+      line, self._header_buffer = self._header_buffer, ''
+    else:
+      line = yield from self.read_next_line()
 
     if line == '': return None
+
+    if line[0] == ' ':
+      print ("WARNING: Header leads with whitespace")
+
+    next_line = yield from self.read_next_line()
+    
+    # Loop through 
+    if next_line == '':
+      self._header_buffer = None
+    else:
+      while next_line[0] == ' ':
+        line += next_line
+        next_line = yield from self.read_next_line()
+        if next_line == '':
+          self._header_buffer = None
+          break
+
+    if self._header_buffer != None:
+      self._header_buffer = next_line
 
     try:
       key, value = map(str.strip, line.split(":", 1))
