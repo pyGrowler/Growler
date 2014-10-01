@@ -39,7 +39,7 @@ class App(object):
     self.loop = loop if loop else asyncio.get_event_loop()
     self.loop.set_debug(debug)
 
-    self.middleware = [{'path': None, 'cb' : self._middleware_boot}]
+    self.middleware = [] # [{'path': None, 'cb' : self._middleware_boot}]
 
     # set the default router
     self.routers = [] if no_default_router else [Router('/')]
@@ -83,12 +83,26 @@ class App(object):
     # self.finish()
     # print(request_process_task.exception())
 
+    for md in self.middleware:
+      print ("MD : ",md)
+      waitforme = asyncio.Future()
+      md(req, res, lambda: waitforme.set_result(None))
+      print ("finished calling md", res.finished)
+      if res.finished:
+        break
+      else:
+        yield from waitforme
+      
+
     route_generator = self.routers[0].match_routes(req)
     for route in route_generator:
       waitforme = asyncio.Future()
       route(req, res, lambda: waitforme.set_result(None))
-      yield from waitforme
-
+      print ("finished calling route", res.finished)
+      if res.finished:
+        break
+      else:
+        yield from waitforme
 
   def run(self, run_forever = True):
     """
@@ -130,19 +144,17 @@ class App(object):
     An alias call for simple access to the default router. The middleware provided
     is called upon a GET HTTP request matching the path.
     """
-    # This will not be set if used as a decorator - assume so
     if middleware == None:
-      def wrap(func):
-        self.routers[0].get(path, func)
-      return wrap
+      return self.routers[0].get(path, middleware)
     self.routers[0].get(path, middleware)
+    
 
-  def post(self, middleware, path = "/"):
+  def post(self, path = "/", middleware = None):
     """
     An alias call for simple access to the default router. The middleware provided
     is called upon a POST HTTP request matching the path.
     """
-
+    return self.routers[0].post(path, middleware)
 
   def enable(self, name):
     """Set setting 'name' to true"""
@@ -170,10 +182,6 @@ class App(object):
     # return self.route_to_use
     # yield from asyncio.sleep(1)
     # yield
-
-  def finish(self):
-    # self.req._parser.parse_body.close()
-    pass
 
   def use(self, middleware, path = None):
     """

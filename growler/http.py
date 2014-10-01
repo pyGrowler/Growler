@@ -7,6 +7,7 @@ __all__ = ['HTTPRequest', 'HTTPResponse', 'HTTPParser', 'HTTPError']
 import asyncio
 import sys
 import time
+import json
 from urllib.parse import (quote, urlparse, parse_qs)
 from pprint import PrettyPrinter
 
@@ -68,7 +69,7 @@ class HTTPParser(object):
   @asyncio.coroutine
   def read_next_line(self, line_future = None):
     """
-    Returns a single line read from the stream. If the EOL char has not been 
+    Returns a single line read from the stream. If the EOL char has not been
     determined, it will wait for '\n' and set EOL to either LF or CRLF. This
     returns a single line, and stores the rest of the read in data in self._buffer
     """
@@ -99,8 +100,6 @@ class HTTPParser(object):
     line by line - allowing quick response to invalid requests.
     """
     line = yield from self.read_next_line()
-
-    # print( colored("[_read_next_header] line '{}'".format(line), self.c))
 
     if line == '': return None
 
@@ -138,7 +137,7 @@ class HTTPParser(object):
     res, self._buffer = self._buffer, ''
     return res
 
-  def _parse_request_line(self, req_line):
+  def parse_request_line(self, req_line):
     """
     Simply splits the request line into three components.
     TODO: Check that there are 3 and validate the method/path/version
@@ -184,7 +183,7 @@ class HTTPRequest(object):
     """
     # Request Line
     first_line = yield from self._parser.read_next_line()
-    req = self._parser._parse_request_line(first_line)
+    req = self._parser.parse_request_line(first_line)
     self.process_request_line(*req)
 
     # Headers
@@ -281,6 +280,8 @@ class HTTPResponse(object):
     self.headers = {}
     self.app = app
     self.EOL = EOL
+    self.finished = False
+    self._do_before_headers = []
 
   def _set_default_headers(self):
     """Create some default headers that should be sent along with every HTTP response"""
@@ -289,6 +290,9 @@ class HTTPResponse(object):
     self.headers.setdefault('Content-Length', len(self.message))
 
   def send_headers(self):
+    print ("*** Calling %d functions" % len(self._do_before_headers))
+    for func in self._do_before_headers:
+      func()
 
     headerstrings = [self.StatusLine()]
 
@@ -308,17 +312,16 @@ class HTTPResponse(object):
 
   def write_eof(self):
     self._stream.write_eof()
+    self.finished = True
 
   def StatusLine(self):
     return "{} {} {}".format("HTTP/1.1", self.status_code, self.phrase)
-
 
   def end(self):
     """Ends the response.  Useful for quickly ending connection with no data sent"""
     self.send_headers()
     self.send_message()
     self.write_eof()
-    self.app.finish()
 
   def redirect(self, url, status = 302):
     """Redirect to the specified url, optional status code defaults to 302"""
@@ -371,14 +374,39 @@ class HTTPResponse(object):
     self.headers['content-type'] = 'application/json'
     self.write()
 
-  def send(self, obj):
-    if isinstance(str, obj):
-      print ("Sending String: " + obj)
+  def send_json(self, obj):
+    self.headers['content-type'] = 'application/json'
+    self.send_text(json.dumps(obj))
+
+  def send_html(self, html):
+    self.headers.setdefault('content-type', 'text/html')
+    self.message = html
+    self.send_headers()
+    self.send_message()
+    self.write_eof()
+
+  def send_text(self, obj):
+    if isinstance(obj, str):
       self.headers.setdefault('content-type', 'text/plain')
       self.message = obj
     else:
       self.message = "{}".format(obj)
     self.end()
+
+  def send_file(self, filename):
+    """Reads in the file 'filename' and sends string."""
+    f = open(filename, 'r')
+    print ("sending file :", filename)
+    self.headers.setdefault('content-type', 'text/html')
+    self.message = f.read()
+    print ('string :', self.message)
+    self.send_headers()
+    self.send_message()
+    self.write_eof()
+    print ("state:", self.finished)
+    
+  def on_headers(self, cb):
+    self._do_before_headers.append(cb)
 
 class HTTPError(Exception):
 

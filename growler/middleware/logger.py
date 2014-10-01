@@ -39,5 +39,5 @@ class Logger():
 
   @middleware
   def mw(self, req, res, next):
-    print("[mw] % %" % (req, res))
-
+    print("[Logger] % %" % (req, res))
+    next()

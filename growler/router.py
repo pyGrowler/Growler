@@ -8,11 +8,13 @@ class Router():
       The router class which contains a tree of routes which a path is chosen to.
   """
   def __init__(self, path = '/'):
+    """Create a router mounted at 'path'"""
     self.path = path
     self.subrouters = []
     self.routes = [];
 
   def add_router(self, router):
+    """Add a router to the list of subrouters."""
     self.subrouters.append(router)
 
   def all(self, path = '/', middleware = None):
@@ -23,11 +25,17 @@ class Router():
       def wrap(func):
         self.routes.append(('ALL', path, func))
       return wrap
-    self.routes.append(('ALL', path, middleware))
+    else:
+      self.routes.append(('ALL', path, middleware))
 
   def get(self, path = '/', middleware = None):
     print (__name__, path)
-    self.routes.append(('GET', path, middleware))
+    if middleware == None: # assume decorator
+      def wrap(func):
+        self.routes.append(('GET', path, func))
+      return wrap
+    else:
+      self.routes.append(('GET', path, middleware))
 
   def post(self, path = '/', middleware = None):
     print (__name__, path)
@@ -55,8 +63,9 @@ class Router():
     print ("matching routes to", req)
     for method, path, func in self.routes:
       if method == "ALL" or method.upper() == req.method.upper():
-        print ("MATCHED", method, "checking",req.path, path)
+        print ("MATCHED method ", method)
         if self.match_path(req.path, path):
+          print ("MATCHED path", req.path, path, ' yielding', func)
           yield func
     yield None
 

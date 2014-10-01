@@ -20,8 +20,6 @@ from .http import *
 from .router import Router
 from .middleware import (middleware)
 
-__all__ = (http.__all__, ['__version__'])
-
 DEFAULT_HTTP_OPTS = {'backlog': 100}
 
 
