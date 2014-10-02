@@ -5,7 +5,7 @@
 
 class Router():
   """
-      The router class which contains a tree of routes which a path is chosen to.
+  The router class which contains a tree of routes which a path is chosen to.
   """
   def __init__(self, path = '/'):
     """Create a router mounted at 'path'"""
@@ -29,6 +29,7 @@ class Router():
       self.routes.append(('ALL', path, middleware))
 
   def get(self, path = '/', middleware = None):
+    """Add a route in response to the GET HTTP method."""
     print (__name__, path)
     if middleware == None: # assume decorator
       def wrap(func):
@@ -38,10 +39,12 @@ class Router():
       self.routes.append(('GET', path, middleware))
 
   def post(self, path = '/', middleware = None):
+    """Add a route in response to the POST HTTP method."""
     print (__name__, path)
     self.routes.append(('POST', path, middleware))
 
   def delete(self, path = '/', middleware = None):
+    """Add a route in response to the DELETE HTTP method."""
     print (__name__, path)
     self.routes.append(('DELETE', path, middleware))
 

@@ -235,7 +235,7 @@ class HTTPRequest(object):
 
 
   def process_request_line(self, method, request_uri, version):
-    # method, request_uri, version = (yield)
+    """Checks the values of the three elements of the HTTP header."""
     if version not in ('HTTP/1.1', 'HTTP/1.0'):
       raise HTTPErrorVersionNotSupported()
 
@@ -304,14 +304,15 @@ class HTTPResponse(object):
 
   def _set_default_headers(self):
     """Create some default headers that should be sent along with every HTTP response"""
-    self.headers.setdefault('Date', datetime.now(timezone(timedelta())).strftime("%a, %d %b %Y %H:%M:%S %Z"))
+    time_string = time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime())
+    self.headers.setdefault('Date', time_string)
     self.headers.setdefault('Server', self.SERVER_INFO)
     self.headers.setdefault('Content-Length', len(self.message))
 
   def send_headers(self):
     print ("*** Calling %d functions" % len(self._do_before_headers))
     for func in self._do_before_headers:
-      func()
+      func(res)
 
     headerstrings = [self.StatusLine()]
 
@@ -358,6 +359,7 @@ class HTTPResponse(object):
       self.headers[header] = value
 
   def header(self, header, value = None):
+    """Alias for 'set()'"""
     self.set(header, value)
 
   def get(self, field):
