@@ -65,10 +65,8 @@ def create_http_server(options = {}, callback = None, loop = None):
 def create_https_server(options, callback = None, loop = None):
   """Creates an https 'server' object which may listen on multiple ports."""
   loop = loop or asyncio.get_event_loop()
-  if not 'cert' in options.keys():
-    priv = options['key']
-  else:
-    priv, pub = options['key'], options['cert']
+  priv = options['key']
+  pub = options['cert'] if 'cert' in options.keys() else None
 
   sslctx = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
   if pub == None:
