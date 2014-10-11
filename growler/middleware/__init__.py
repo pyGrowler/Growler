@@ -10,8 +10,6 @@ def middleware(cls):
     print ("class middleware: ", cls, cls.__name__, cls.__qualname__)
   else:
     print ("      middleware: ", cls, cls.__name__, cls.__qualname__)
-  # for x in cls:
-    # pass
   return cls
 
 from .logger import Logger

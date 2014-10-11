@@ -308,9 +308,12 @@ class HTTPResponse(object):
     self.headers.setdefault('Date', time_string)
     self.headers.setdefault('Server', self.SERVER_INFO)
     self.headers.setdefault('Content-Length', len(self.message))
+    if self.app.enabled('x-powered-by'):
+      self.headers.setdefault('X-Powered-By', 'Growler')
 
   def send_headers(self):
     print ("*** Calling %d functions" % len(self._do_before_headers))
+
     for func in self._do_before_headers:
       func(res)
 

@@ -4,6 +4,7 @@
 
 import asyncio
 import re
+import os
 
 from time import (time, sleep)
 from datetime import (datetime, timezone, timedelta)
@@ -31,7 +32,7 @@ class App(object):
 
     self.config.update(settings)
 
-    print(__name__, self.config)
+    print('name:', self.name, self.config)
 
     # rendering engines
     self.engines = {}
@@ -43,6 +44,9 @@ class App(object):
 
     # set the default router
     self.routers = [] if no_default_router else [Router('/')]
+
+    self.enable('x-powered-by')
+    self.set('env', os.getenv('GROWLER_ENV', 'development'))
 
   @asyncio.coroutine
   def _server_listen(self):
@@ -148,6 +152,8 @@ class App(object):
       return self.routers[0].get(path, middleware)
     self.routers[0].get(path, middleware)
     
+  def set(self, key, value):
+    self.config[key] = value
 
   def post(self, path = "/", middleware = None):
     """
@@ -163,6 +169,9 @@ class App(object):
   def disable(self, name):
     """Set setting 'name' to false"""
     self.config[name] = False
+
+  def enabled(self, name):
+    return self.config[name] == True
 
   def _find_route(self, method, path):
     found = None
