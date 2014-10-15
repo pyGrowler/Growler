@@ -42,7 +42,7 @@ runfile_contents = """#!/usr/bin/env python3
 #
 
 from configparser import ConfigParser
-from .app import {0}
+from app import {0}
 
 conf = ConfigParser()
 conf.read('config.ini')
