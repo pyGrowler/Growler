@@ -7,13 +7,15 @@ imitates Nodejs's express framework, allowing easy creation of complex websites
 using a middleware-based configuration.
 """
 
+__version__ = "0.0.0"
+__author__ = "Andrew Kubera"
+__date__ = "Oct 11, 2014"
+__copyright__ = "Copyright 2014, Andrew Kubera"
+
 import asyncio
 import ssl
 
 from copy import copy
-
-__version__ = '0.0.1a'
-
 
 from .app import App
 from .http import *
@@ -24,26 +26,39 @@ DEFAULT_HTTP_OPTS = {'backlog': 100}
 
 
 class http_proto(asyncio.Protocol):
+  """Growler implementation of HTTP"""
 
   def connection_made(self, transport):
-      print('HTTP connection from {}'.format(transport.get_extra_info('peername')))
-      self.transport = transport
+    """@type transport: asyncio.Transport"""
+    self.transport = transport
+    self.hostname = transport.get_extra_info('peername')
+    self.socket = transport.get_extra_info('socket')
+    print('HTTP connection from {}'.format(self.hostname))
+    transport.write("data")
 
   def data_received(self, data):
-      print('data received: {}'.format(data.decode()))
-      self.transport.write(data)
+    """@type data: bytes"""
+    print('data received: {}'.format(data.decode()))
+    self.transport.write(data)
 
-      # close the socket
-      self.transport.close()
+    # close the socket
+    self.transport.close()
 
-class http_server():
+class http_server(object):
+  """HTTP Server"""
+
   def __init__(self, cb, loop, ssl = None, message="Creating HTTP server"):
+    """
+    @type loop: asyncio.BaseEventLoop
+    @type ssl: ssl.SSLContext
+    """
     print (message)
     self.callback = cb
     self.loop = loop
     self.ssl = ssl
 
   def listen(self, host, port):
+    """ """
     self.coro = self.loop.create_server(http_proto, host, port, ssl=self.ssl)
     self.srv = self.loop.run_until_complete(self.coro)
     # print('securing with',self.private_key, self.public_key)

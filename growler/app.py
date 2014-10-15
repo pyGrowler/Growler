@@ -88,20 +88,31 @@ class App(object):
     # print(request_process_task.exception())
 
     for md in self.middleware:
-      print ("MD : ",md)
+      print ("Running Middleware : ", md)
       waitforme = asyncio.Future()
-      md(req, res, lambda: waitforme.set_result(None))
+
+      def on_next(err):
+        if (err):
+          if (err['status']):
+            res.end(err['status'])
+          else:
+            res.end(500)
+
+#       md(req, res, lambda: waitforme.set_result(None))
+      md(req, res, on_next)
       print ("finished calling md", res.finished)
       if res.finished:
         break
       else:
         yield from waitforme
-      
 
     route_generator = self.routers[0].match_routes(req)
     for route in route_generator:
       waitforme = asyncio.Future()
-      route(req, res, lambda: waitforme.set_result(None))
+      if route.__code__.co_argcount == 2:
+        route(req, res)
+      else:
+        route(req, res, lambda: waitforme.set_result(None))
       print ("finished calling route", res.finished)
       if res.finished:
         break
@@ -205,7 +216,11 @@ class App(object):
     pass
 
   def add_router(self, path, router):
-    """Adds a router to the list of routers"""
+    """
+    Adds a router to the list of routers
+    @type path: str
+    @type router: growler.Router
+    """
     self.routers.append(router)
 
   def print_router_tree(self):

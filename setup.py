@@ -11,12 +11,14 @@ if sys.version_info < (3, 4):
   install_requires.append('asyncio==0.2.1')
 
 
+
 setup(
   name="growler",
-  version="0.1.0",
+  version="0.0.0",
   author="Andrew Kubera",
   author_email="andrew.kubera@gmail.com",
-  description = "A web framework covering the asyncio module (PEP 3156), intending to be similar to the nodejs 'Express' module.",
+  summary = 'A micro web-framework using asyncio coroutines.',
+  long_description = """A web framework covering the asyncio module (PEP 3156), intending to be similar to the nodejs 'Express' module.""",
   classifiers=[
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",

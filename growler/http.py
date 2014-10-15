@@ -45,8 +45,9 @@ class HTTPParser(object):
     """
     Create a Growler HTTP Parser.
 
-    req: a Growler HTTPRequest object
-    instream: the asyncio.streams.StreamReader (defaults to req._stream)"
+    @type req: growler.HTTPRequest
+    @type instream: asyncio.StreamReader
+    @type color: str  
     """
     self._stream = req._stream if not instream else instream
     self._req = req
@@ -73,14 +74,16 @@ class HTTPParser(object):
     Returns a single line read from the stream. If the EOL char has not been
     determined, it will wait for '\n' and set EOL to either LF or CRLF. This
     returns a single line, and stores the rest of the read in data in self._buffer
+    
+    @type line_future: asyncio.Future
     """
-    ## Keep reading data until newline is found
+    ## Keep reading data until a newline is found
     while self.EOL_TOKEN == None:
       next_str = yield from self._read_data()
       line_end_pos = next_str.find("\n")
       self._buffer += next_str
       if line_end_pos != -1:
-        self.EOL_TOKEN = "\r\n" if next_str[line_end_pos-1] == '\r' else "\n"
+        self.EOL_TOKEN = '\r\n' if next_str[line_end_pos-1] == '\r' else '\n'
 
     line_ends_at = self._buffer.find(self.EOL_TOKEN)
 
@@ -95,10 +98,10 @@ class HTTPParser(object):
     return line
 
   @asyncio.coroutine
-  def read_next_header(self, header = None):
+  def read_next_header(self):
     """
     A coroutine to generate headers. It uses read_next_line to get headers
-    line by line - allowing quick response to invalid requests.
+    line by line - allowing a quick response to invalid requests.
     """
     # No buffer has been saved - get the next line
     if self._header_buffer == None:
@@ -107,19 +110,22 @@ class HTTPParser(object):
     else:
       line, self._header_buffer = self._header_buffer, None
 
+    # end of the headers - 'None' will end an iteration
     if line == '':
       return None
 
+    # TODO: warn better than a print statement
     if line[0] == ' ':
       print ("WARNING: Header leads with whitespace")
 
     next_line = yield from self.read_next_line()
-    
-    # Loop through 
+
+    # if next_line starts with a space, append this line to the previous
     while next_line != '' and next_line[0] == ' ':
       line += next_line
       next_line = yield from self.read_next_line()
 
+    # next_line is now the beginning of the 'next_header', while 'line' is the current header
     self._header_buffer = next_line
 
     try:
@@ -286,8 +292,8 @@ class HTTPResponse(object):
   def __init__(self, ostream, app = None, EOL = "\r\n"):
     """
     Create the response
-    :ostream: Output stream, expected asyncio.StreamWriter
-    :app: The growler app creating the response
+    @param ostream: asyncio.StreamWriter Output stream, expected
+    @type growler.App: The growler app creating the response
     """
     self._stream = ostream
     self.send = self.write
@@ -377,11 +383,6 @@ class HTTPResponse(object):
     """Removes a cookie"""
     options.setdefault("path", "/")
     del self.cookies[name]
-
-  def redirect(self, url, status = 302):
-    """Redirects request to a different url"""
-    self.status = status
-    self.phrase = "Redirect"
 
   def location(self, location):
     """Set the location header"""

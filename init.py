@@ -36,15 +36,15 @@ app_classname = "%sApp" % (dirname)
 os.chdir(dirname)
 
 runfile = open(run_filename, "w")
-runfile_contents = """#
+runfile_contents = """#!/usr/bin/env python3
+#
 # run.py
 #
 
 from configparser import ConfigParser
-from app import {0}
+from .app import {0}
 
 conf = ConfigParser()
-#conf.read_file(open('config.ini'))
 conf.read('config.ini')
 
 app = {0}(conf)
@@ -76,7 +76,12 @@ class {0}(App):
 
   def __init__(self, config):
     super().__init__(__class__.__name__, settings = config)
-    print ("Running {0}")
+    self.get("/", self.get_index)
+
+  def get_index(self, req, res, next):
+    print('[get_index]')
+    res.send_text("{0}");
+
 """.format(app_classname))
 appfile.close()
 
