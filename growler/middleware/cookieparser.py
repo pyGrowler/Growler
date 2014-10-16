@@ -6,19 +6,33 @@
 from http.cookies import (SimpleCookie)
 
 from . import middleware
+import uuid
 
 @middleware
-def CookieParser(self, req, res, next):
-  """Parses cookies"""
-  # Do not clobber cookies
-  if req.cookies: return next()
+class CookieParser():
 
-  # Create an empty cookie state
-  req.cookies = SimpleCookie()
+  def __init__(self, opts = {}):
+    print ("[CookieParser]")
 
-  # If the request had a cookie, load it!
-  if 'cookie' in req.headers.keys():
-    req.cookies.load(req.headers['cookie'])
 
-  print ("Loaded in cookies :", req.cookies)
-  return next()
+  def __call__(self, req, res, next):
+    """Parses cookies"""
+    # Do not clobber cookies
+    try:
+      req.cookies
+      return next()
+    except AttributeError:
+      print ("Caught req.cookies")
+      req.cookies = SimpleCookie()
+
+    # Create an empty cookie state
+    print ("Headers", req.headers)
+
+    # If the request had a cookie, load it!
+    if 'cookie' in req.headers.keys():
+      req.cookies.load(req.headers['cookie'])
+    else:
+      req.cookies['qid'] = uuid.uuid4()
+
+    print ("Loaded in cookies :", req.cookies)
+    return next()
