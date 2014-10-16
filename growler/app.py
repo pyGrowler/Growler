@@ -47,6 +47,7 @@ class App(object):
 
     self.enable('x-powered-by')
     self.set('env', os.getenv('GROWLER_ENV', 'development'))
+    self._on_start = []
 
   @asyncio.coroutine
   def _server_listen(self):
@@ -88,18 +89,26 @@ class App(object):
     # print(request_process_task.exception())
 
     for md in self.middleware:
-      print ("Running Middleware : ", md)
+      print ("Running Middleware : ", md, asyncio.iscoroutine(md), asyncio.iscoroutinefunction(md))
       waitforme = asyncio.Future()
 
-      def on_next(err):
+      def on_next(err = None):
         if (err):
           if (err['status']):
             res.end(err['status'])
           else:
             res.end(500)
+        waitforme.set_result(None)
 
 #       md(req, res, lambda: waitforme.set_result(None))
-      md(req, res, on_next)
+
+      if asyncio.iscoroutine(md):
+        yield from md(req, res, on_next)
+      else:
+        print (" -- Not a coroutine - running as 'usual'")
+        md(req, res, on_next)
+        print (" -- Done")
+
       print ("finished calling md", res.finished)
       if res.finished:
         break
@@ -119,11 +128,20 @@ class App(object):
       else:
         yield from waitforme
 
+  def onstart(self, cb):
+    print ("Callback : ", cb)
+    self._on_start.append(cb)
+
+
   def run(self, run_forever = True):
     """
     Starts the server and listens for new connections. If run_forever is true, the
     event loop is set to block.
     """
+    for func in self._on_start:
+      # self.loop.async(func)
+      asyncio.async(func())
+
     self.loop.run_until_complete(self._server_listen())
     if run_forever:
       try:
