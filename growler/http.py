@@ -306,6 +306,7 @@ class HTTPResponse(object):
     self.app = app
     self.EOL = EOL
     self.finished = False
+    self.has_ended = False
     self._do_before_headers = []
 
   def _set_default_headers(self):
@@ -351,6 +352,7 @@ class HTTPResponse(object):
     self.send_headers()
     self.send_message()
     self.write_eof()
+    self.has_ended = True
 
   def redirect(self, url, status = 302):
     """Redirect to the specified url, optional status code defaults to 302"""

@@ -1,5 +1,5 @@
 #
-# growler/middleware/logger
+# growler/middleware/__init__.py
 #
 
 import growler

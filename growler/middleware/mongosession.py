@@ -32,4 +32,12 @@ class MongoSession:
   def __call__(self, req, res, next):
     print ("[MongoSession::()]")
     print ("  Request Quick ID: ", req.cookies['qid'].value)
+
+    sess = yield from self.sessions.find_one({"sid": req.cookies['qid'].value})
+    
+    # No Session Found
+    if sess == {}:
+      sess["qid"] = req.cookies['qid'].value
+      yield from self.sessions.insert(sess)
+
     return next()

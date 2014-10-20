@@ -6,6 +6,8 @@ import asyncio
 import re
 import os
 
+import inspect
+
 from time import (time, sleep)
 from datetime import (datetime, timezone, timedelta)
 
@@ -23,16 +25,14 @@ class App(object):
     """
     Creates an application object.
 
-    name - does nothing right now
-    settings - server configuration
-    loop - asyncio event loop to run on
+    @type name: str does nothing right now
+    @type settings: dict server configuration
+    @type loop: asyncio.AbstractEventLoop
     """
     self.name = name
     self.cache = {}
 
     self.config.update(settings)
-
-    print('name:', self.name, self.config)
 
     # rendering engines
     self.engines = {}
@@ -48,6 +48,7 @@ class App(object):
     self.enable('x-powered-by')
     self.set('env', os.getenv('GROWLER_ENV', 'development'))
     self._on_start = []
+    self._wait_for = [asyncio.sleep(0.1)]
 
   @asyncio.coroutine
   def _server_listen(self):
@@ -89,28 +90,31 @@ class App(object):
     # print(request_process_task.exception())
 
     for md in self.middleware:
-      print ("Running Middleware : ", md, asyncio.iscoroutine(md), asyncio.iscoroutinefunction(md))
+      print ("Running Middleware : ", md, asyncio.iscoroutine(md.__call__), asyncio.iscoroutinefunction(md.__call__))
       waitforme = asyncio.Future()
 
       def on_next(err = None):
         if (err):
-          if (err['status']):
-            res.end(err['status'])
-          else:
-            res.end(500)
+          res.end(err['status'] if 'status' in err else 500)
         waitforme.set_result(None)
 
 #       md(req, res, lambda: waitforme.set_result(None))
 
-      if asyncio.iscoroutine(md):
+
+      if asyncio.iscoroutinefunction(md.__call__):
         yield from md(req, res, on_next)
       else:
-        print (" -- Not a coroutine - running as 'usual'")
         md(req, res, on_next)
-        print (" -- Done")
+
+     # if asyncio.iscoroutine(md.):
+#      else:
+#        print (" -- Not a coroutine - running as 'usual'")
+#        md(req, res, on_next)
+#        print (" -- Done")
 
       print ("finished calling md", res.finished)
-      if res.finished:
+      if res.has_ended:
+        print ("Res has ended.")
         break
       else:
         yield from waitforme
@@ -123,7 +127,8 @@ class App(object):
       else:
         route(req, res, lambda: waitforme.set_result(None))
       print ("finished calling route", res.finished)
-      if res.finished:
+      if res.has_ended:
+        print ("Res has ended.")
         break
       else:
         yield from waitforme
@@ -138,9 +143,13 @@ class App(object):
     Starts the server and listens for new connections. If run_forever is true, the
     event loop is set to block.
     """
-    for func in self._on_start:
-      # self.loop.async(func)
-      asyncio.async(func())
+    # for func in self._on_start:
+      # self.loop.run_until_complete(f)
+      # self.loop.async(func):
+    # self.loop.run_until_complete(asyncio.Task(self.wait_for_all()))
+    # print ("RUN ::")
+
+    self.loop.run_until_complete(self.wait_for_required())
 
     self.loop.run_until_complete(self._server_listen())
     if run_forever:
@@ -163,7 +172,13 @@ class App(object):
     output.write(msg)
     output.write_eof()
 
+  @asyncio.coroutine
+  def wait_for_required(self):
+    """Called before running the server, ensures all required coroutines have finished running."""
+    # print ("[wait_for_all] Begin ", self._wait_for)
 
+    for x in self._wait_for:
+      yield from x
 
   def all(self, path="/", middleware = None):
     """
@@ -182,6 +197,7 @@ class App(object):
     self.routers[0].get(path, middleware)
     
   def set(self, key, value):
+    """Set a configuration option (Alias of app[key] = value)"""
     self.config[key] = value
 
   def post(self, path = "/", middleware = None):
@@ -200,7 +216,22 @@ class App(object):
     self.config[name] = False
 
   def enabled(self, name):
+    """Returns whether a setting has been enabled"""
     return self.config[name] == True
+    
+  def require(self, future):
+    """Will wait for the future before beginning to serve web pages. Useful for database connections."""
+    # if type(future) is asyncio.Future:
+      # self._wait_for['futures'].append(future)
+    # elif inspect.isgeneratorfunction(future):
+      # print ("GeneratorFunction!")
+      # self._wait_for['generators'].append(future)
+    # elif inspect.isgenerator(future):
+      # print ("Generator!")
+      # self._wait_for['generators'].append(future)
+    # else:
+      # print ("[require] Unknown Type of 'Future'", future, type(future))
+    self._wait_for.append(future)
 
   def _find_route(self, method, path):
     found = None

@@ -6,7 +6,7 @@ import sys
 
 from setuptools import setup, find_packages
 
-install_requires = []
+install_requires = ['termcolor']
 if sys.version_info < (3, 4):
   install_requires.append('asyncio==0.2.1')
 
@@ -14,10 +14,10 @@ if sys.version_info < (3, 4):
 
 setup(
   name="growler",
-  version="0.0.0",
+  version="0.0.1",
   author="Andrew Kubera",
   author_email="andrew.kubera@gmail.com",
-  summary = 'A micro web-framework using asyncio coroutines.',
+  description = 'A micro web-framework using asyncio coroutines.',
   long_description = """A web framework covering the asyncio module (PEP 3156), intending to be similar to the nodejs 'Express' module.""",
   classifiers=[
     "Programming Language :: Python",
