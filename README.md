@@ -15,7 +15,7 @@ import asyncio
 from growler import (App)
 from growler.middleware import (Logger, Static, Renderer)
 
-app = App('GrowlerServer', {'host':'127.0.0.1', port: 8000}))
+app = App('GrowlerServer', {'host':'127.0.0.1', 'port': 8000}))
 
 app.use(Logger())
 app.use(Renderer("views/", "jade"))
