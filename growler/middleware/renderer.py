@@ -69,9 +69,22 @@ class JadeRenderer():
   
   def __init__(self, source):
     print ("[JadeRenderer]")
+    # from pyjade.ext import mako 
+    from pyjade.ext.mako import preprocessor as mako_preprocessor
+    from mako.template import Template
+
+    self._render = Template
+    self._engine = mako
+    self._preprocessor = mako_preprocessor
 
   def default_file_extension(self):
     return ".jade"
+    
+  def __call__(self, filename, res):
+    print ("[JadeRenderer] ::", filename)
+    tmpl = self._render(filename= filename, preprocessor=self._preprocessor)
+    html = tmpl.render()
+    return html
     
 render_engine_map = {
   "mako" : MakoRenderer,
