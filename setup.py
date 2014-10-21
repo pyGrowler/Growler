@@ -6,7 +6,8 @@ import sys
 
 from setuptools import setup, find_packages
 
-install_requires = ['termcolor']
+install_requires = ['termcolor', 'mako', 'pyjade']
+
 if sys.version_info < (3, 4):
   install_requires.append('asyncio==0.2.1')
 

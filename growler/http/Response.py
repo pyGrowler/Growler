@@ -168,6 +168,6 @@ class HTTPResponse(object):
     self.write()
     self.write_eof()
     print ("state:", self.finished)
-    
+
   def on_headers(self, cb):
     self._do_before_headers.append(cb)

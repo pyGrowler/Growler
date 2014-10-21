@@ -14,6 +14,7 @@ def middleware(cls):
 
 from .static import Static
 from .logger import Logger
+from .renderer import Renderer
 from .cookieparser import CookieParser
 from .responsetime import ResponseTime
 from .mongosession import MongoSession

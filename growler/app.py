@@ -119,7 +119,7 @@ class App(object):
 
     # Call each action for the event 'OnHeaders'
     for f in self._on_headers:
-      yield from _call_and_handle_error(f, req, res)
+      yield from self._call_and_handle_error(f, req, res)
 
       if res.has_ended:
         print ("[OnHeaders] Res has ended.")
@@ -177,7 +177,7 @@ class App(object):
         f(e, req, res)
       return
     except Exception as e:
-      func.cancel()
+      # func.cancel()
       print("[Growler::App::_handle_connection] Caught Exception ")
       print (e)
       for f in self._on_error:
