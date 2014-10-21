@@ -32,7 +32,7 @@ class HTTPRequest(object):
 
     self.ip = istream._transport.get_extra_info('socket').getpeername()[0]
     self._stream = istream
-    self._parser = parser_class(self, self._stream, color = self.c)
+    self._parser = parser_class(self, self._stream)
     self.app = app
     self.headers = {}
     self.body = asyncio.Future()
@@ -103,6 +103,7 @@ class HTTPRequest(object):
     return self.query[name] if name in self.query.keys() else default
 
   def _process_get_request(self):
+    """What to do upon """
     headers = {}
     while True:
       header = (yield)
