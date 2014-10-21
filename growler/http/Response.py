@@ -120,27 +120,38 @@ class HTTPResponse(object):
       s.push("<{}>; rel=\"{}\"".format(links[rel], rel))
     self.headers['Link'] = ','.join(s)
 
-  def json(self, body, status = 200):
-    self.headers['content-type'] = 'application/json'
-    self.write()
+  #def send(self, obj, status = 200):
+  #  """
+  #    Responds to request with obj; action is dependent on type of obj.
+  #    If obj is a string, it sends text,
+  #
+  #  """
+  #  func = {
+  #    str: self.send_text
+  #  }.get(type(obj), self.send_json)
+  #  func(obj, status)
 
-  def send_json(self, obj):
+  def json(self, body, status = 200):
+    """Alias of send_json"""
+    return self.send_json(body, status)
+
+  def send_json(self, obj, status = 200):
     self.headers['content-type'] = 'application/json'
     self.send_text(json.dumps(obj))
 
-  def send_html(self, html):
+  def send_html(self, html, status = 200):
     self.headers.setdefault('content-type', 'text/html')
     self.message = html
     self.send_headers()
     self.send_message()
     self.write_eof()
 
-  def send_text(self, obj):
-    if isinstance(obj, str):
+  def send_text(self, txt, status = 200):
+    if isinstance(txt, str):
       self.headers.setdefault('content-type', 'text/plain')
-      self.message = obj
+      self.message = txt
     else:
-      self.message = "{}".format(obj)
+      self.message = "{}".format(txt)
     self.end()
 
   def send_file(self, filename):
