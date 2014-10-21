@@ -7,8 +7,9 @@ from . import middleware
 from termcolor import colored
 
 import growler
+import asyncio
 
-@middleware
+# @middleware
 class Logger():
   
   DEFAULT = '/033[30m'
@@ -35,11 +36,10 @@ class Logger():
   def critical_error(self, message):
     return colored("  ERROR  ", 'red') + message
 
-  def __call__(self, req, res, next):
+  @asyncio.coroutine
+  def __call__(self, req, res):
     print (self.info("Connection from {}".format(req.ip)))
-    next()
 
   @middleware
-  def mw(self, req, res, next):
+  def mw(self, req, res):
     print("[Logger] % %" % (req, res))
-    next()

@@ -27,6 +27,7 @@ class Router():
       return wrap
     else:
       self.routes.append(('ALL', path, middleware))
+    return self
 
   def get(self, path = '/', middleware = None):
     """Add a route in response to the GET HTTP method."""
@@ -37,16 +38,19 @@ class Router():
       return wrap
     else:
       self.routes.append(('GET', path, middleware))
+    return self
 
   def post(self, path = '/', middleware = None):
     """Add a route in response to the POST HTTP method."""
     print (__name__, path)
     self.routes.append(('POST', path, middleware))
+    return self
 
   def delete(self, path = '/', middleware = None):
     """Add a route in response to the DELETE HTTP method."""
     print (__name__, path)
     self.routes.append(('DELETE', path, middleware))
+    return self
 
   def use(self, middleware, path = None):
     """
@@ -55,6 +59,7 @@ class Router():
     """
     print("[Router::use] Adding middleware", middleware)
     self.middleware.append(middleware)
+    return self
 
   def print_tree(self, prefix = ''):
     for x in self.routes:

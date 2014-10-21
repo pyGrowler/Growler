@@ -8,14 +8,14 @@ from http.cookies import (SimpleCookie)
 from . import middleware
 import uuid
 
-@middleware
+# @middleware
 class CookieParser():
 
   def __init__(self, opts = {}):
     print ("[CookieParser]")
 
 
-  def __call__(self, req, res, next):
+  def __call__(self, req, res):
     """Parses cookies"""
     # Do not clobber cookies
     try:
@@ -40,4 +40,3 @@ class CookieParser():
 
     print ("Loaded in cookies :", req.cookies)
     print ("Loaded in cookies quick id :", req.cookies['qid'].value)
-    return next()

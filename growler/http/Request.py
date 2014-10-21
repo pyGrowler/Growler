@@ -63,6 +63,7 @@ class HTTPRequest(object):
       self.body.set_result('')
     else:
       print("Body Length:", self.headers['content-length'])
+      @asyncio.coroutine
       def async_read_body(body_reader_func):
         body_text = yield from body_reader_func()
         self.body.set_result(body_text)

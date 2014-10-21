@@ -24,4 +24,3 @@ class ResponseTime(object):
       res.set(self.header, val)
 
     res.on_headers(on_header_send)
-    next()

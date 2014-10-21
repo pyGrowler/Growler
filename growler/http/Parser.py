@@ -108,8 +108,8 @@ class HTTPParser(object):
   def read_body(self):
     """
       Finishes reading the request. This method expects content-length to be defined in self.headers, and will
-      read that many bytes from the stream
-      """
+      read that many bytes from the stream.
+    """
     # There is no body - return None
     if self.headers['content-length'] == 0:
       return None
@@ -117,10 +117,10 @@ class HTTPParser(object):
     # Get length of whatever is already read into the buffer
     bytes_read = len(self._buffer)
     if self.headers['content-length'] < bytes_read:
-      raise "Body too large!"
-  
+      raise HTTPErrorBadRequest("Body too large. Expecting {} bytes received {}".format(self.headers['content-length'], bytes_read))
+
     self.max_read_size = self.headers['content-length'] - bytes_read
-    
+
     while self.max_read_size != 0:
       next_str = yield from self._read_data()
       bytes_read += len(next_str)

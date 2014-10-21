@@ -11,7 +11,7 @@ from termcolor import colored
 import growler
 import asyncio
 
-@middleware
+# @middleware
 class MongoSession:
 
   def __init__(self, db_future, db_name = 'growler', collection_name = 'sessions'):
@@ -39,5 +39,3 @@ class MongoSession:
     if sess == {}:
       sess["qid"] = req.cookies['qid'].value
       yield from self.sessions.insert(sess)
-
-    return next()

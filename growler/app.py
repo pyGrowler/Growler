@@ -16,17 +16,25 @@ from .http import *
 from .router import Router
 
 class App(object):
-  """A Growler application object."""
+  """
+  A Growler application object. It's recommended to either subclass growler.App, writing a custom 'run' 
+  The 'main leaving the _handle_connection.
+  
+  """
 
   # default configuration goes here
   config = {'host':'127.0.0.1', 'port': '8000'}
 
-  def __init__(self, name, settings = {}, loop = None, no_default_router = False, debug = True):
+  def __init__(self, name, settings = {}, loop = None, no_default_router = False, debug = True, request_class = HTTPRequest, response_class = HTTPResponse):
     """
     Creates an application object.
+    @param name: does nothing right now
+    @type name: str 
 
-    @type name: str does nothing right now
-    @type settings: dict server configuration
+    @param settings: initial server configuration
+    @type settings: dict
+
+    @param loop: The event loop to run on
     @type loop: asyncio.AbstractEventLoop
     """
     self.name = name
@@ -47,93 +55,135 @@ class App(object):
 
     self.enable('x-powered-by')
     self.set('env', os.getenv('GROWLER_ENV', 'development'))
-    self._on_start = []
+    self._on_connection = []
+    self._on_headers = []
+    self._on_error = []
+    self._on_http_error = []
+
     self._wait_for = [asyncio.sleep(0.1)]
+
+    self._request_class = request_class
+    self._response_class = response_class
 
   @asyncio.coroutine
   def _server_listen(self):
-    """Starts the server. Should be called from 'app.run()'."""
+    """Starts the server. Should be called from 'app.run()' or equivalent."""
     print ("Server {} listening on {}:{}".format (self.name, self.config['host'], self.config['port']))
     yield from asyncio.start_server(self._handle_connection, self.config['host'], self.config['port'])
 
   @asyncio.coroutine
-  def _handle_connection(self, reader, writer, req_class = HTTPRequest, res_class = HTTPResponse):
+  def _handle_connection(self, reader, writer):
+    """
+    Called upon a connection from remote server. This is the default behavior if application is
+    run using '_server_listen' method.
+    Request and response objects are created from the stream reader/writer and middleware
+    is cycled through and applied to each.
+    Changing behavior of the server should be handled using middleware and NOT overloading _handle_connection.
+    @type reader: asyncio.StreamReader
+    @type writer: asyncio.StreamWriter
+    """
+
     print('[_handle_connection]', self, reader, writer, "\n")
 
+    # Call each action for the event 'OnConnection'
+    for f in self._on_connection:
+      f(reader._transport)
+
     # create the request object
-    req = req_class(reader, self)
+    req = self._request_class(reader, self)
 
     # create the response object
-    res = res_class(writer, self)
+    res = self._response_class(writer, self)
 
-    # process the request
+    # create an asynchronous task to process the request
     processing_task = asyncio.Task(req.process())
 
     try:
+      # run task
       yield from processing_task
+    # Caught an HTTP Error - handle by running through HTTPError handlers
     except HTTPError as err:
       processing_task.cancel()
       err.PrintSysMessage()
       print (err)
+      for f in self._on_http_error:
+        f(e, req, res)
+      return
     except Exception as e:
       processing_task.cancel()
       print("[Growler::App::_handle_connection] Caught Exception ")
       print (e)
+      for f in self._on_error:
+        f(e, req, res)
+      return
 
-    # res.message = "HAI! 😃 - 😄 - 😅 - 😆 - 😇 - 😈 - 😉 - 😊 - 😋 - 😌 - 😍 - 😎 - 😏 - 😐."
-    # res.send_headers()
-    # res.send_message()
-    # res.write_eof()
-    # res.send("Text : ")
-    # print ("Right after process!")
-    # self.finish()
-    # print(request_process_task.exception())
+    # Call each action for the event 'OnHeaders'
+    for f in self._on_headers:
+      yield from _call_and_handle_error(f, req, res)
 
-    for md in self.middleware:
-      print ("Running Middleware : ", md, asyncio.iscoroutine(md.__call__), asyncio.iscoroutinefunction(md.__call__))
-      waitforme = asyncio.Future()
-
-      def on_next(err = None):
-        if (err):
-          res.end(err['status'] if 'status' in err else 500)
-        waitforme.set_result(None)
-
-#       md(req, res, lambda: waitforme.set_result(None))
-
-
-      if asyncio.iscoroutinefunction(md.__call__):
-        yield from md(req, res, on_next)
-      else:
-        md(req, res, on_next)
-
-     # if asyncio.iscoroutine(md.):
-#      else:
-#        print (" -- Not a coroutine - running as 'usual'")
-#        md(req, res, on_next)
-#        print (" -- Done")
-
-      print ("finished calling md", res.finished)
       if res.has_ended:
-        print ("Res has ended.")
-        break
-      else:
-        yield from waitforme
+        print ("[OnHeaders] Res has ended.")
+        return
+
+    # Loop through middleware
+    for md in self.middleware:
+      print ("Running Middleware : ", md)
+
+      yield from self._call_and_handle_error(md, req, res)
+
+      if res.has_ended:
+        print ("[middleware] Res has ended.")
+        return
 
     route_generator = self.routers[0].match_routes(req)
     for route in route_generator:
       waitforme = asyncio.Future()
       if not route:
         raise HTTPErrorInternalServerError()
-      if route.__code__.co_argcount == 2:
-        route(req, res)
-      else:
-        route(req, res, lambda: waitforme.set_result(None))
-      print ("finished calling route", res.finished)
+
+      yield from self._call_and_handle_error(route, req, res)
+
       if res.has_ended:
-        print ("Res has ended.")
-        break
+        print ("[Route] Res has ended.")
+        return
       else:
         yield from waitforme
+
+    # Default
+    if not res.has_ended:
+      e = Exception("Routes didn't finish!")
+      for f in self._on_error:
+        f(e, req, res)
+
+  def _call_and_handle_error(self, func, req, res):
+
+    def cofunctitize(_func):
+      @asyncio.coroutine
+      def cowrap(_req, _res):
+        return _func(_req, _res)
+      return cowrap
+
+    # Provided middleware is a 'normal' function - we just wrap with the local 'cofunction' 
+    if not (asyncio.iscoroutinefunction(func) or asyncio.iscoroutine(func)):
+      func = cofunctitize(func)
+
+    try:
+      yield from func(req, res)
+    except HTTPError as err:
+      # func.cancel()
+      err.PrintSysMessage()
+      print (err)
+      for f in self._on_http_error:
+        f(e, req, res)
+      return
+    except Exception as e:
+      func.cancel()
+      print("[Growler::App::_handle_connection] Caught Exception ")
+      print (e)
+      for f in self._on_error:
+        f(e, req, res)
+      return
+    
 
   def onstart(self, cb):
     print ("Callback : ", cb)
@@ -279,12 +329,12 @@ class App(object):
       r.print_tree()
 
   #
-  # Dict like configuration access
+  # Dict like access for application configuration options
   #
   def __setitem__(self, key, value):
-    print ("Setting", key)
+    """Sets a member of the application's configuration."""
     self.config[key] = value
 
   def __getitem__(self, key):
-    print ("Getting", key)
+    """Gets a member of the application's configuration."""
     return self.config[key]
