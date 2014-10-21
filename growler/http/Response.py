@@ -6,6 +6,8 @@ import growler
 import time
 from datetime import (datetime, timezone, timedelta)
 
+import io
+
 class HTTPResponse(object):
   """
   Response class which handles writing to the client.
@@ -42,8 +44,7 @@ class HTTPResponse(object):
       self.headers.setdefault('X-Powered-By', 'Growler')
 
   def send_headers(self):
-    print ("*** Calling %d functions" % len(self._do_before_headers))
-
+    """Sends the headers to the client"""
     for func in self._do_before_headers:
       func(res)
 
@@ -52,20 +53,20 @@ class HTTPResponse(object):
     self._set_default_headers()
 
     headerstrings += ["{}: {}".format(k, self.headers[k]) for k in self.headers]
-    print ("Sending headerstrings '{}'".format(headerstrings))
+    print ("[send_headers] Sending headerstrings '{}'".format(headerstrings))
     self._stream.write(self.EOL.join(headerstrings).encode())
     self._stream.write((self.EOL * 2).encode())
+    print ("[send_headers] DONE ")
 
-  def send_message(self):
-    # self._stream.write(self.message.encode())
-    self.write(self.message)
-
-  def write(self, msg):
-    self._stream.write(msg.encode())
+  def write(self, msg = None):
+    msg = self.message if msg == None else msg
+    msg = msg.encode() if isinstance(msg, str) else msg
+    self._stream.write(msg)
 
   def write_eof(self):
     self._stream.write_eof()
     self.finished = True
+    self.has_ended = True
 
   def StatusLine(self):
     return "{} {} {}".format("HTTP/1.1", self.status_code, self.phrase)
@@ -73,7 +74,7 @@ class HTTPResponse(object):
   def end(self):
     """Ends the response.  Useful for quickly ending connection with no data sent"""
     self.send_headers()
-    self.send_message()
+    self.write()
     self.write_eof()
     self.has_ended = True
 
@@ -95,6 +96,9 @@ class HTTPResponse(object):
   def header(self, header, value = None):
     """Alias for 'set()'"""
     self.set(header, value)
+
+  def set_type(self, res_type):
+    self.set('Content-Type', res_type)
 
   def get(self, field):
     """Get a header"""
@@ -143,7 +147,7 @@ class HTTPResponse(object):
     self.headers.setdefault('content-type', 'text/html')
     self.message = html
     self.send_headers()
-    self.send_message()
+    self.write()
     self.write_eof()
 
   def send_text(self, txt, status = 200):
@@ -156,13 +160,12 @@ class HTTPResponse(object):
 
   def send_file(self, filename):
     """Reads in the file 'filename' and sends string."""
-    f = open(filename, 'r')
-    print ("sending file :", filename)
-    self.headers.setdefault('content-type', 'text/html')
+    # f = open(filename, 'r')
+    f = io.FileIO(filename)
+    print ("[send_file] sending file :", filename)
     self.message = f.read()
-    print ('string :', self.message)
     self.send_headers()
-    self.send_message()
+    self.write()
     self.write_eof()
     print ("state:", self.finished)
     

@@ -211,19 +211,6 @@ class App(object):
         print("Run Forever Ended!")
         self.loop.close()
 
-  def after_route(self, f = None):
-    for mw in self.middleware:
-      mw()
-    # self.route_to_use.result()(self.req, self.res)
-
-
-  # WARNING : This is hiding io, something we want to AVOID!
-  def send_message(self, output, header, body):
-    msg = "{}\r\n\r\n{}".format(header, body)
-    # print("Sending:", msg)
-    output.write(msg)
-    output.write_eof()
-
   @asyncio.coroutine
   def wait_for_required(self):
     """Called before running the server, ensures all required coroutines have finished running."""
