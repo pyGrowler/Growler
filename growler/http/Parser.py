@@ -5,6 +5,7 @@
 import asyncio
 
 MAX_REQUEST_LENGTH = 4096 # 4KB
+from urllib.parse import (quote, urlparse, parse_qs)
 
 class HTTPParser(object):
   

@@ -122,6 +122,8 @@ class App(object):
     route_generator = self.routers[0].match_routes(req)
     for route in route_generator:
       waitforme = asyncio.Future()
+      if not route:
+        raise HTTPErrorInternalServerError()
       if route.__code__.co_argcount == 2:
         route(req, res)
       else:
