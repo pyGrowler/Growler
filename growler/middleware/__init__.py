@@ -18,5 +18,6 @@ from .renderer import Renderer
 from .session import Session
 from .cookieparser import CookieParser
 from .responsetime import ResponseTime
+from .timer import Timer
 
 __all__ = ['Logger']

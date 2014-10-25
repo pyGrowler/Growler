@@ -2,6 +2,9 @@
 # growler/http.py
 #
 
+
+import growler
+
 from .Parser import HTTPParser
 from .Request import HTTPRequest
 from .Response import HTTPResponse
@@ -15,12 +18,9 @@ import sys
 import json
 from pprint import PrettyPrinter
 
-
 import mimetypes
 
 mimetypes.init()
-
-import growler
 
 KB = 1024
 MB = KB ** 2

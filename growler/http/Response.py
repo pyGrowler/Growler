@@ -33,6 +33,7 @@ class HTTPResponse(object):
     self.finished = False
     self.has_ended = False
     self._do_before_headers = []
+    self._do_after_send = []
 
   def _set_default_headers(self):
     """Create some default headers that should be sent along with every HTTP response"""
@@ -67,6 +68,8 @@ class HTTPResponse(object):
     self._stream.write_eof()
     self.finished = True
     self.has_ended = True
+    for f in self._do_after_send:
+      f()
 
   def StatusLine(self):
     return "{} {} {}".format("HTTP/1.1", self.status_code, self.phrase)
@@ -171,3 +174,7 @@ class HTTPResponse(object):
 
   def on_headers(self, cb):
     self._do_before_headers.append(cb)
+
+  def on_send_end(self, cb):
+    self._do_after_send.append(cb)
+

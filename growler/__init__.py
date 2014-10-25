@@ -35,7 +35,6 @@ from copy import copy
 from .app import App
 from .http import *
 from .router import Router
-from .middleware import (middleware)
 
 DEFAULT_HTTP_OPTS = {'backlog': 100}
 
