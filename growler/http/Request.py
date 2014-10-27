@@ -63,7 +63,7 @@ class HTTPRequest(object):
     while nheader != None:
       header_list.append(nheader)
       self.headers[nheader['key'].lower()] = nheader['value']
-      print ( colored("header: {}".format(nheader), self.c))
+      # print ( colored("header: {}".format(nheader), self.c))
       nheader = yield from self._parser.read_next_header()
 
     # Process the headers - specific to the HTTP method (set in process_request_line)

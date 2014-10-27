@@ -34,6 +34,7 @@ class HTTPResponse(object):
     self.has_ended = False
     self._do_before_headers = []
     self._do_after_send = []
+    self._manipulate_headerstrings = []
 
   def _set_default_headers(self):
     """Create some default headers that should be sent along with every HTTP response"""
@@ -47,17 +48,22 @@ class HTTPResponse(object):
   def send_headers(self):
     """Sends the headers to the client"""
     for func in self._do_before_headers:
-      func(res)
+      func()
 
-    headerstrings = [self.StatusLine()]
+    self.headerstrings = [self.StatusLine()]
 
     self._set_default_headers()
 
-    headerstrings += ["{}: {}".format(k, self.headers[k]) for k in self.headers]
-    print ("[send_headers] Sending headerstrings '{}'".format(headerstrings))
-    self._stream.write(self.EOL.join(headerstrings).encode())
+    self.headerstrings += ["{}: {}".format(k, v) for k, v in self.headers.items()]
+
+    for func in self._manipulate_headerstrings:
+      func()
+
+    # headerstrings += ["{}: {}".format(k, v) if instanceof(v,str) else for k, v in self.headers]
+    # print ("[send_headers] Sending headerstrings '{}'".format(self.headerstrings))
+    self._stream.write(self.EOL.join(self.headerstrings).encode())
     self._stream.write((self.EOL * 2).encode())
-    print ("[send_headers] DONE ")
+    # print ("[send_headers] DONE ")
 
   def write(self, msg = None):
     msg = self.message if msg == None else msg
@@ -124,7 +130,7 @@ class HTTPResponse(object):
     """Sets the Link """
     s = []
     for rel in links:
-      s.push("<{}>; rel=\"{}\"".format(links[rel], rel))
+      s.append("<{}>; rel=\"{}\"".format(links[rel], rel))
     self.headers['Link'] = ','.join(s)
 
   #def send(self, obj, status = 200):
@@ -165,12 +171,11 @@ class HTTPResponse(object):
     """Reads in the file 'filename' and sends string."""
     # f = open(filename, 'r')
     f = io.FileIO(filename)
-    print ("[send_file] sending file :", filename)
+    # print ("[send_file] sending file :", filename)
     self.message = f.read()
     self.send_headers()
     self.write()
     self.write_eof()
-    print ("state:", self.finished)
 
   def on_headers(self, cb):
     self._do_before_headers.append(cb)
