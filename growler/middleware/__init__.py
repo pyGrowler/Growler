@@ -12,6 +12,7 @@ def middleware(cls):
     print ("      middleware: ", cls, cls.__name__, cls.__qualname__)
   return cls
 
+from .auth import Auth
 from .static import Static
 from .logger import Logger
 from .renderer import Renderer
