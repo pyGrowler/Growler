@@ -3,8 +3,6 @@
 #
 """Project Metadata"""
 
-from collections import namedtuple
-
 package = 'growler'
 project = 'A New Web Framework'
 project_no_spaces = project.replace(' ', '')
@@ -15,6 +13,7 @@ version_name = ''.join((project, 'version', version))
 
 
 author = "Andrew Kubera"
+author_email = "andrew.kubera@gmail.com"
 copyright = "Copyright 2014, Andrew Kubera"
 
 license = 'Apache v2.0'

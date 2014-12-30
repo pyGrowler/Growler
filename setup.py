@@ -30,11 +30,11 @@ Currently Growler is single threaded, and not tested very well.
 
 setup(
   name= "growler",
-  version= "0.1.0",
-  author= "Andrew Kubera",
-  license= "Apache v2.0",
+  version= metadata.version,
+  author= metadata.author,
+  license= metadata.license,
   url= "https://github.com/pyGrowler/Growler",
-  author_email= "andrew.kubera@gmail.com",
+  author_email= metadata.author_email,
   description= "A micro web-framework using asyncio coroutines.",
   long_description= long_description,
   classifiers= [
