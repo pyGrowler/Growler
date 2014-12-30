@@ -295,9 +295,11 @@ class App(object):
     """
     Use the middleware (a callable with parameters res, req, next) upon requests
     match the provided path. A None path matches every request.
+    Returns 'self' so the middleware may be nicely chained.
     """
     print("[App::use] Adding middleware", middleware)
     self.middleware.append(middleware)
+    return self
 
   def _middleware_boot(self, req, res, next):
     """The initial middleware"""
