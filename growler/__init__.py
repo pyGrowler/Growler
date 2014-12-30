@@ -21,11 +21,16 @@ imitates Nodejs's express framework, allowing easy creation of complex websites
 using a middleware-based configuration.
 """
 
-__version__ = "0.1.0"
-__author__ = "Andrew Kubera"
+from importlib.machinery import SourceFileLoader
+from os import path
+
+metadata = SourceFileLoader("metadata", path.join(path.dirname(__file__), "metadata.py")).load_module()
+
+__version__ = metadata.version
+__author__ = metadata.author
 __date__ = "Oct 21, 2014"
-__copyright__ = "Copyright 2014, Andrew Kubera"
-__license__ = 'Apache v2.0'
+__copyright__ = metadata.copyright
+__license__ = metadata.license
 
 import asyncio
 import ssl

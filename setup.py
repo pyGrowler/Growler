@@ -3,13 +3,17 @@
 #
 
 import sys
-
+from os import path
+from importlib.machinery import SourceFileLoader
 from setuptools import setup, find_packages
+
+
+metadata = SourceFileLoader("metadata", path.join(".","growler","metadata.py")).load_module()
 
 install_requires = ['termcolor', 'mako', 'pyjade']
 
 if sys.version_info < (3, 4):
-  install_requires.append('asyncio==0.2.1')
+  install_requires.append('asyncio>=0.2.1')
 
 long_description = """
 A web framework covering the asyncio module (PEP 3156), modeled loosely after
