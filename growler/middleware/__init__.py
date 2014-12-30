@@ -16,7 +16,7 @@ from .auth import Auth
 from .static import Static
 from .logger import Logger
 from .renderer import Renderer
-from .session import Session
+from .session import (Session, SessionStorage, DefaultSessionStorage)
 from .cookieparser import CookieParser
 from .responsetime import ResponseTime
 from .timer import Timer

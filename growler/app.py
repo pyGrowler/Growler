@@ -5,6 +5,8 @@
 import asyncio
 import re
 import os
+import traceback
+import sys
 
 import inspect
 
@@ -48,7 +50,7 @@ class App(object):
     self.loop = loop if loop else asyncio.get_event_loop()
     self.loop.set_debug(debug)
 
-    self.middleware = [] # [{'path': None, 'cb' : self._middleware_boot}]
+    self.middleware = []
 
     # set the default router
     self.routers = [] if no_default_router else [Router('/')]
@@ -111,7 +113,8 @@ class App(object):
       return
     except Exception as e:
       processing_task.cancel()
-      print("[Growler::App::_handle_connection] Caught Exception ")
+      print("[Growler::App::_handle_connection] Caught Exception!")
+      print (type(e))
       print (e)
       for f in self._on_error:
         f(e, req, res)
@@ -122,17 +125,17 @@ class App(object):
       yield from self._call_and_handle_error(f, req, res)
 
       if res.has_ended:
-        print ("[OnHeaders] Res has ended.")
+        # print ("[OnHeaders] Res has ended.")
         return
 
     # Loop through middleware
     for md in self.middleware:
-      print ("Running Middleware : ", md)
+      #print ("Running Middleware : ", md)
 
       yield from self._call_and_handle_error(md, req, res)
 
       if res.has_ended:
-        print ("[middleware] Res has ended.")
+        #print ("[middleware] Res has ended.")
         return
 
     route_generator = self.routers[0].match_routes(req)
@@ -178,10 +181,13 @@ class App(object):
       return
     except Exception as e:
       # func.cancel()
-      print("[Growler::App::_handle_connection] Caught Exception ")
+      print("[Growler::App::_call_and_handle_error] Caught Exception!")
+      print (type(e))
       print (e)
+      traceback.print_exc(file=sys.stdout)
       for f in self._on_error:
         f(e, req, res)
+      res.has_ended = True
       return
     
 
@@ -285,11 +291,8 @@ class App(object):
         break
     self.route_to_use.set_result(found)
     print ("_find_route done ({})".format(found))
-    if found == None: raise HTTPErrorNotFound()
-    # sleep(4)
-    # return self.route_to_use
-    # yield from asyncio.sleep(1)
-    # yield
+    if found == None:
+      raise HTTPErrorNotFound()
 
   def use(self, middleware, path = None):
     """
@@ -297,7 +300,7 @@ class App(object):
     match the provided path. A None path matches every request.
     Returns 'self' so the middleware may be nicely chained.
     """
-    print("[App::use] Adding middleware", middleware)
+    #print ("[App::use] Adding middleware", middleware)
     self.middleware.append(middleware)
     return self
 
