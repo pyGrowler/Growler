@@ -1,7 +1,7 @@
 
 import asyncio
 
-from urllib.parse import (quote, urlparse, parse_qs)
+from urllib.parse import (unquote, urlparse, parse_qs)
 
 from . import HTTPParser
 from termcolor import colored
@@ -14,7 +14,7 @@ class HTTPRequest(object):
   The usage should only be from an HTTPRequest object calling the parse()
   function.
   """
-  def __init__(self, istream, app = None, delay_processing = False, parser_class = HTTPParser, protocol = "http"):
+  def __init__(self, istream, app = None, delay_processing = False, parser_class = HTTPParser):
     """
       The HTTPRequest object is all the information you could want about the
       incoming http connection. It gets passed along with the HTTPResponse object
@@ -33,20 +33,20 @@ class HTTPRequest(object):
     """
 
     # colors = ['grey', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']
-    colors = ['red', 'yellow', 'blue', 'magenta', 'cyan', 'white']
+    colors = ['red', 'blue', 'magenta', 'cyan', 'white']
     from random import randint
     self.c = colors[randint(0, len(colors)-1)]
-    print (colored("Req", self.c))
-    print (colored(dir(istream._transport), self.c))
-    
-    self.ip = istream._transport.get_extra_info('socket').getpeername()[0]
+
     self._stream = istream
     self._parser = parser_class(self, self._stream)
+    
+    self.ip = istream._transport.get_extra_info('socket').getpeername()[0]
+    self.protocol = 'https' if istream._transport.get_extra_info('cipher') else 'http'
     self.app = app
     self.headers = {}
     self.body = asyncio.Future()
     self.path = ''
-    self.protocol = protocol
+
 
   @asyncio.coroutine
   def process(self):
@@ -115,10 +115,12 @@ class HTTPRequest(object):
 
     self.original_url = request_uri
     self.parsed_url = urlparse(request_uri)
-    self.path = self.parsed_url.path
+    self.path = unquote(self.parsed_url.path)
     self.query = parse_qs(self.parsed_url.query)
-    print ("URI",self.protocol)
-    print ("parsed_url", self.parsed_url, "PATH", self.path, " QUERY", self.query)
+
+    print (colored("[{}]".format(self.ip), self.c))
+    print (colored("  {} {}".format(self.method, self.path), self.c))
+    print (colored("  QUERY: {}".format(self.query), self.c))
 
   def param(self, name, default = None):
     """
