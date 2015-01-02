@@ -14,7 +14,7 @@ class HTTPRequest(object):
   The usage should only be from an HTTPRequest object calling the parse()
   function.
   """
-  def __init__(self, istream, app = None, delay_processing = False, parser_class = HTTPParser):
+  def __init__(self, istream, app = None, delay_processing = False, parser_class = HTTPParser, protocol = "http"):
     """
       The HTTPRequest object is all the information you could want about the
       incoming http connection. It gets passed along with the HTTPResponse object
@@ -37,7 +37,8 @@ class HTTPRequest(object):
     from random import randint
     self.c = colors[randint(0, len(colors)-1)]
     print (colored("Req", self.c))
-
+    print (colored(dir(istream._transport), self.c))
+    
     self.ip = istream._transport.get_extra_info('socket').getpeername()[0]
     self._stream = istream
     self._parser = parser_class(self, self._stream)
@@ -45,6 +46,7 @@ class HTTPRequest(object):
     self.headers = {}
     self.body = asyncio.Future()
     self.path = ''
+    self.protocol = protocol
 
   @asyncio.coroutine
   def process(self):
@@ -115,6 +117,8 @@ class HTTPRequest(object):
     self.parsed_url = urlparse(request_uri)
     self.path = self.parsed_url.path
     self.query = parse_qs(self.parsed_url.query)
+    print ("URI",self.protocol)
+    print ("parsed_url", self.parsed_url, "PATH", self.path, " QUERY", self.query)
 
   def param(self, name, default = None):
     """

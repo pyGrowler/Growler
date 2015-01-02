@@ -30,7 +30,7 @@ class Status(object):
       305: "Use Proxy",
       306: "Switch Proxy",
       307: "Temporary Redirect",
-      308: "Permanent Redirect"
+      308: "Permanent Redirect",
       
       400: "Bad Request",
       401: "Unauthorized",
@@ -55,13 +55,13 @@ class Status(object):
       420: "Method Failure",
       426: "Upgrade Required",
       
-      500, "Internal Server Error",
-      501, "Not Implemented",
-      502, "Bad Gateway",
-      503, "Service Unavailable",
-      504, "Gateway Timeout",
-      505, "HTTP Version Not Supported",
-      506, "Variant Also Negotiates",
-      507, "Insufficient Storage"
+      500: "Internal Server Error",
+      501: "Not Implemented",
+      502: "Bad Gateway",
+      503: "Service Unavailable",
+      504: "Gateway Timeout",
+      505: "HTTP Version Not Supported",
+      506: "Variant Also Negotiates",
+      507: "Insufficient Storage"
 
     }[code]
