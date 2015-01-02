@@ -24,7 +24,7 @@ using a middleware-based configuration.
 from importlib.machinery import SourceFileLoader
 from os import path
 
-metadata = SourceFileLoader("metadata", path.join(path.dirname(__file__), "metadata.py")).load_module()
+metadata = SourceFileLoader("metadata", path.join(path.dirname(__file__),"metadata.py")).load_module()
 
 __version__ = metadata.version
 __author__ = metadata.author

@@ -25,7 +25,8 @@ class HTTPError(Exception):
       # for line in self.traceback:
         # print (line)
 
-  def GetFromCode(self, code):
+  @classmethod
+  def GetFromCode(cls, code):
     return {400: HTTPErrorBadRequest,
             401: HTTPErrorUnauthorized,
             402: HTTPErrorPaymentRequired,

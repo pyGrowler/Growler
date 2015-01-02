@@ -1,5 +1,5 @@
 
-import os
+from os import path
 
 import asyncio
 
@@ -10,7 +10,8 @@ app = App('GrowlerServer', {'host':'127.0.0.1', 'port': 8000})
 
 app.use(Logger())
 app.use(Timer())
-app.use(Renderer(os.path.dirname(os.path.relpath(__file__)) + "/views/", "jade"))
+app.use(Renderer(path.join(path.dirname(path.relpath(__file__)), "views"), "jade"))
+app.use(lambda i,o: o.locals.user = {"name": "Arthur"})
 
 @app.get('/')
 def index(req, res):
