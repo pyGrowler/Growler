@@ -6,6 +6,8 @@ import growler
 import time
 from datetime import (datetime, timezone, timedelta)
 
+from .Status import Status
+
 import io
 
 class HTTPResponse(object):
@@ -24,7 +26,7 @@ class HTTPResponse(object):
     self.send = self.write
     # Assume we are OK
     self.status_code = 200
-    self.phrase = "OK"
+    self.phrase = None
     self.has_sent_headers = False
     self.message = ''
     self.headers = {}
@@ -78,6 +80,7 @@ class HTTPResponse(object):
       f()
 
   def StatusLine(self):
+    self.phrase = self.phrase if self.phrase else Status.Phrase(self.status_code)
     return "{} {} {}".format("HTTP/1.1", self.status_code, self.phrase)
 
   def end(self):
@@ -90,7 +93,6 @@ class HTTPResponse(object):
   def redirect(self, url, status = 302):
     """Redirect to the specified url, optional status code defaults to 302"""
     self.status_code = status
-    self.phrase = HTTPCodes[status]
     self.headers = {'Location': url}
     self.message = ''
     self.end()
@@ -150,11 +152,13 @@ class HTTPResponse(object):
 
   def send_json(self, obj, status = 200):
     self.headers['content-type'] = 'application/json'
+    self.status_code = status
     self.send_text(json.dumps(obj))
 
   def send_html(self, html, status = 200):
     self.headers.setdefault('content-type', 'text/html')
     self.message = html
+    self.status_code = status
     self.send_headers()
     self.write()
     self.write_eof()
@@ -165,14 +169,16 @@ class HTTPResponse(object):
       self.message = txt
     else:
       self.message = "{}".format(txt)
+    self.status_code = status
     self.end()
 
-  def send_file(self, filename):
+  def send_file(self, filename, status = 200):
     """Reads in the file 'filename' and sends string."""
     # f = open(filename, 'r')
     f = io.FileIO(filename)
     # print ("[send_file] sending file :", filename)
     self.message = f.read()
+    self.status_code = status
     self.send_headers()
     self.write()
     self.write_eof()
