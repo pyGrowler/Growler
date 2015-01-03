@@ -1,14 +1,16 @@
+#
+# growler/http/Response.py
+#
 
-import asyncio
+
 import sys
 import growler
-
+import json
 import time
-from datetime import (datetime, timezone, timedelta)
+import io
 
 from .Status import Status
 
-import io
 
 class HTTPResponse(object):
   """

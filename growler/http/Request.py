@@ -1,12 +1,14 @@
-
-import asyncio
+#
+# growler/http/Request.py
+#
 
 from urllib.parse import (unquote, urlparse, parse_qs)
+from .Error import (HTTPBadRequest, HTTPErrorVersionNotSupported, HTTPErrorNotImplemented)
 
 from . import HTTPParser
 from termcolor import colored
 
-import growler
+import asyncio
 
 class HTTPRequest(object):
   """
@@ -83,6 +85,21 @@ class HTTPRequest(object):
       # Asynchronously call the parsers' read_body
       asyncio.async(async_read_body(self._parser.read_body))
 
+    if not 'host' in self.headers:
+      if self.version_number == 1.1:
+        raise HTTPBadRequest()
+    else:
+      if ':' in self.headers['host']:
+        self.hostname, self.port = self.headers['host'].split(':')
+      else:
+        self.hostname, self.port = self.headers['host'], 80
+
+    if 'trust-proxy' in self.headers
+      self.ips = self.headers['trust-proxy'].split(',')
+
+    print (colored("  {}:{}".format(self.hostname, self.port), self.c))
+    # print (colored("===\n{}===\n".format(self.cookie), self.c))
+
   def process_request_line(self, method, request_uri, version):
     """
       Checks the values of the three elements of the HTTP header.
@@ -103,6 +120,8 @@ class HTTPRequest(object):
       raise HTTPErrorVersionNotSupported()
 
     # save 'method' to self and get the correct function to finish processing
+    self.version = version
+    self.version_number = float(version[-3:])
     self.method = method
     self._process_headers = {
       "GET" : self._process_get_headers
@@ -138,5 +157,12 @@ class HTTPRequest(object):
     """
       Called upon receiving a GET HTTP request to do specific 'GET' things to the
       list of headers.
+    """
+    pass
+
+  def _process_post_headers(self):
+    """
+      Called upon receiving a POST HTTP request to do specific 'POST' things
+      to the headers.
     """
     pass

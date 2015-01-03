@@ -1,11 +1,15 @@
 #
-# growler/http/HTTPParser.py
+# growler/http/Parser.py
 #
 
 import asyncio
 
+from termcolor import colored
+
+from .Error import (HTTPBadRequest, HTTPErrorBadRequest)
+
 MAX_REQUEST_LENGTH = 4096 # 4KB
-from urllib.parse import (quote, urlparse, parse_qs)
+#from urllib.parse import (quote, parse_qs)
 
 class HTTPParser(object):
   """
@@ -62,7 +66,7 @@ class HTTPParser(object):
     ## Keep reading data until a newline is found
     while self.EOL_TOKEN == None:
       next_str = yield from self._read_data()
-      line_end_pos = next_str.find("\n")
+      line_end_pos = next_str.find('\n')
       self._buffer += next_str
       if line_end_pos != -1:
         self.EOL_TOKEN = '\r\n' if next_str[line_end_pos-1] == '\r' else '\n'
@@ -91,17 +95,17 @@ class HTTPParser(object):
     # if there was a header saved, use that (and clear the buffer)
     else:
       line, self._header_buffer = self._header_buffer, None
-    
+
     # end of the headers - 'None' will end an iteration
     if line == '':
       return None
-    
+
     # TODO: warn better than a print statement
     if line[0] == ' ':
       print ("WARNING: Header leads with whitespace")
-  
+
     next_line = yield from self.read_next_line()
-    
+
     # if next_line starts with a space, append this line to the previous
     while next_line != '' and next_line[0] == ' ':
       line += next_line
