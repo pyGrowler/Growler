@@ -3,7 +3,7 @@
 #
 
 from urllib.parse import (unquote, urlparse, parse_qs)
-from .Error import (HTTPBadRequest, HTTPErrorVersionNotSupported, HTTPErrorNotImplemented)
+from .Error import (HTTPErrorBadRequest, HTTPErrorVersionNotSupported, HTTPErrorNotImplemented)
 
 from . import HTTPParser
 from termcolor import colored
@@ -87,14 +87,14 @@ class HTTPRequest(object):
 
     if not 'host' in self.headers:
       if self.version_number == 1.1:
-        raise HTTPBadRequest()
+        raise HTTPErrorBadRequest()
     else:
       if ':' in self.headers['host']:
         self.hostname, self.port = self.headers['host'].split(':')
       else:
         self.hostname, self.port = self.headers['host'], 80
 
-    if 'trust-proxy' in self.headers
+    if 'trust-proxy' in self.headers:
       self.ips = self.headers['trust-proxy'].split(',')
 
     print (colored("  {}:{}".format(self.hostname, self.port), self.c))
@@ -124,7 +124,8 @@ class HTTPRequest(object):
     self.version_number = float(version[-3:])
     self.method = method
     self._process_headers = {
-      "GET" : self._process_get_headers
+      "GET" : self._process_get_headers,
+      "POST": self._process_post_headers
     }.get(method, None)
 
     # Method not found 

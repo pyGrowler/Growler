@@ -6,7 +6,7 @@ import asyncio
 
 from termcolor import colored
 
-from .Error import (HTTPBadRequest, HTTPErrorBadRequest)
+from .Error import (HTTPErrorBadRequest)
 
 MAX_REQUEST_LENGTH = 4096 # 4KB
 #from urllib.parse import (quote, parse_qs)

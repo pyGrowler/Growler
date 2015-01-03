@@ -5,7 +5,7 @@
 import asyncio
 import os
 
-from .http import (HTTPError, HTTPRequest, HTTPResponse, HTTPErrorInternalServerError, HTTPErrorNotFound)
+from .http import (HTTPRequest, HTTPResponse, HTTPError, HTTPErrorInternalServerError, HTTPErrorNotFound)
 # from .http import *
 from .router import Router
 
