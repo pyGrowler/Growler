@@ -12,9 +12,6 @@ metadata = SourceFileLoader("metadata", path.join(".","growler","metadata.py")).
 
 install_requires = ['termcolor', 'mako', 'pyjade']
 
-if sys.version_info < (3, 4):
-  install_requires.append('asyncio>=0.2.1')
-
 long_description = """
 A web framework covering the asyncio module (PEP 3156), modeled loosely after
 the NodeJS Connect/Express frameworks.
@@ -39,7 +36,9 @@ setup(
   long_description= long_description,
   classifiers= [
     "Development Status :: 2 - Pre-Alpha",
-    # "Framework :: Growler",
+    "Environment :: Web Environment",
+    "Operating System :: OS Independent",
+      # "Framework :: Growler",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
@@ -47,7 +46,10 @@ setup(
     "Topic :: Internet :: WWW/HTTP",
     "Natural Language :: English"
   ],
-  install_requires = install_requires,
+  extras_require= {
+    ':python_version=="3.3"': ['asyncio>=0.2.1']
+  },
   packages= find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
+  platforms= 'all',
   scripts= ['scripts/growler-init']
 )
