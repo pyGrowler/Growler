@@ -3,5 +3,4 @@
 #
 
 def test_FAILURE():
-  assert True
-  
+    assert False
