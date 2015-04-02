@@ -3,16 +3,10 @@
 #
 
 import asyncio
-import re
 import os
 
-import inspect
-
-from time import (time, sleep)
-from datetime import (datetime, timezone, timedelta)
-
-# from .http import (HTTPParser, HTTPError, HTTPRequest, HTTPResponse, Errors)
-from .http import *
+from .http import (HTTPRequest, HTTPResponse, HTTPError, HTTPErrorInternalServerError, HTTPErrorNotFound)
+# from .http import *
 from .router import Router
 
 class App(object):
@@ -55,6 +49,7 @@ class App(object):
 
     self.enable('x-powered-by')
     self.set('env', os.getenv('GROWLER_ENV', 'development'))
+
     self._on_connection = []
     self._on_headers = []
     self._on_error = []
@@ -107,14 +102,14 @@ class App(object):
       err.PrintSysMessage()
       print (err)
       for f in self._on_http_error:
-        f(e, req, res)
+        f(err, req, res)
       return
-    except Exception as e:
+    except Exception as err:
       processing_task.cancel()
       print("[Growler::App::_handle_connection] Caught Exception ")
-      print (e)
+      print (err)
       for f in self._on_error:
-        f(e, req, res)
+        f(err, req, res)
       return
 
     # Call each action for the event 'OnHeaders'
@@ -174,14 +169,14 @@ class App(object):
       err.PrintSysMessage()
       print (err)
       for f in self._on_http_error:
-        f(e, req, res)
+        f(err, req, res)
       return
-    except Exception as e:
+    except Exception as err:
       # func.cancel()
       print("[Growler::App::_handle_connection] Caught Exception ")
-      print (e)
+      print (err)
       for f in self._on_error:
-        f(e, req, res)
+        f(err, req, res)
       return
     
 
@@ -286,7 +281,6 @@ class App(object):
     self.route_to_use.set_result(found)
     print ("_find_route done ({})".format(found))
     if found == None: raise HTTPErrorNotFound()
-    # sleep(4)
     # return self.route_to_use
     # yield from asyncio.sleep(1)
     # yield
@@ -295,9 +289,11 @@ class App(object):
     """
     Use the middleware (a callable with parameters res, req, next) upon requests
     match the provided path. A None path matches every request.
+    Returns 'self' so the middleware may be nicely chained.
     """
     print("[App::use] Adding middleware", middleware)
     self.middleware.append(middleware)
+    return self
 
   def _middleware_boot(self, req, res, next):
     """The initial middleware"""

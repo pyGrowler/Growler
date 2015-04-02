@@ -23,20 +23,30 @@ class CookieParser():
       return next()
     except AttributeError:
       # Create an empty cookie state
-      print ("Caught req.cookies")
       req.cookies = SimpleCookie()
-      req.cookies["fig"] = "newton"
+      res.cookies = SimpleCookie()
 
-    print ("Headers", req.headers)
-    print ("Has Cookie ::", 'cookie' in req.headers.keys())
-    print ("Fig ::", req.cookies["fig"].value)
+    #print ("[CookieParser]")
+    #print ("   Headers", req.headers)
 
     # If the request had a cookie, load it!
     if 'cookie' in req.headers.keys():
       req.cookies.load(req.headers['cookie'])
+    else:
+      req.cookies["fig"] = "newton"
 
     if not 'qid' in req.cookies:
       req.cookies['qid'] = uuid.uuid4()
+      res.cookies['qid'] = uuid.uuid4()
 
-    print ("Loaded in cookies :", req.cookies)
-    print ("Loaded in cookies quick id :", req.cookies['qid'].value)
+    #print ("===", req.headers['cookie'])
+    #print ("  Loaded in cookies :", req.cookies)
+    #print ("Loaded in cookies quick id :", req.cookies['qid'].value)
+    
+    def _send_headers():
+      if res.cookies:
+        cookie_string = res.cookies.output(sep=res.EOL)
+        # print ("RES:", cookie_string)
+        res.headerstrings.append(cookie_string)
+    
+    res._manipulate_headerstrings.append(_send_headers)

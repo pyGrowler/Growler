@@ -5,7 +5,6 @@
 
 import asyncio
 import os
-import mimetypes
 
 class Renderer():
   """
@@ -20,7 +19,7 @@ class Renderer():
 
     if isinstance(engine, str):
       engine = render_engine_map.get(engine, None)
-    
+
     if engine == None:
       raise Exception("[Renderer] No valid rendering engine provided.")
 
@@ -31,10 +30,13 @@ class Renderer():
 
     def _render(template, obj = {}, cb = None):
       print ("[Renderer::_render]", template)
+      res.locals.update(obj)
       filename = self._find_file(template)
+      print ("[HTML]")
       html = self.engine(filename, res)
       res.send_html(html)
 
+    res.locals = {}
     res.render = _render
 
   def _find_file(self, fname):
@@ -50,12 +52,12 @@ import pyjade
 import mako
 
 class MakoRenderer():
-  
+
   def __init__(self, source):
     from mako.template import Template
     self._render = Template
     print ("[MakoRenderer]")
-    
+
   def __call__(self, filename, res):
     print ("[MakoRenderer] CALL", filename)
     tmpl = self._render(filename= filename)
@@ -66,10 +68,10 @@ class MakoRenderer():
     return ".mako"
 
 class JadeRenderer():
-  
+
   def __init__(self, source):
     print ("[JadeRenderer]")
-    # from pyjade.ext import mako 
+    # from pyjade.ext import mako
     from pyjade.ext.mako import preprocessor as mako_preprocessor
     from mako.template import Template
 
@@ -79,13 +81,13 @@ class JadeRenderer():
 
   def default_file_extension(self):
     return ".jade"
-    
+
   def __call__(self, filename, res):
     print ("[JadeRenderer] ::", filename)
-    tmpl = self._render(filename= filename, preprocessor=self._preprocessor)
-    html = tmpl.render()
+    tmpl = self._render(filename= filename, preprocessor= self._preprocessor)
+    html = tmpl.render(**res.locals)
     return html
-    
+
 render_engine_map = {
   "mako" : MakoRenderer,
   "jade" : JadeRenderer

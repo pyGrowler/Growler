@@ -1,12 +1,14 @@
+#
+# growler/http/Request.py
+#
 
-import asyncio
-
-from urllib.parse import (quote, urlparse, parse_qs)
+from urllib.parse import (unquote, urlparse, parse_qs)
+from .Error import (HTTPErrorBadRequest, HTTPErrorVersionNotSupported, HTTPErrorNotImplemented)
 
 from . import HTTPParser
 from termcolor import colored
 
-import growler
+import asyncio
 
 class HTTPRequest(object):
   """
@@ -33,18 +35,20 @@ class HTTPRequest(object):
     """
 
     # colors = ['grey', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']
-    colors = ['red', 'yellow', 'blue', 'magenta', 'cyan', 'white']
+    colors = ['red', 'blue', 'magenta', 'cyan', 'white']
     from random import randint
     self.c = colors[randint(0, len(colors)-1)]
-    print (colored("Req", self.c))
 
-    self.ip = istream._transport.get_extra_info('socket').getpeername()[0]
     self._stream = istream
     self._parser = parser_class(self, self._stream)
+    
+    self.ip = istream._transport.get_extra_info('socket').getpeername()[0]
+    self.protocol = 'https' if istream._transport.get_extra_info('cipher') else 'http'
     self.app = app
     self.headers = {}
     self.body = asyncio.Future()
     self.path = ''
+
 
   @asyncio.coroutine
   def process(self):
@@ -63,7 +67,7 @@ class HTTPRequest(object):
     while nheader != None:
       header_list.append(nheader)
       self.headers[nheader['key'].lower()] = nheader['value']
-      print ( colored("header: {}".format(nheader), self.c))
+      # print ( colored("header: {}".format(nheader), self.c))
       nheader = yield from self._parser.read_next_header()
 
     # Process the headers - specific to the HTTP method (set in process_request_line)
@@ -80,6 +84,21 @@ class HTTPRequest(object):
         self.body.set_result(body_text)
       # Asynchronously call the parsers' read_body
       asyncio.async(async_read_body(self._parser.read_body))
+
+    if not 'host' in self.headers:
+      if self.version_number == 1.1:
+        raise HTTPErrorBadRequest()
+    else:
+      if ':' in self.headers['host']:
+        self.hostname, self.port = self.headers['host'].split(':')
+      else:
+        self.hostname, self.port = self.headers['host'], 80
+
+    if 'trust-proxy' in self.headers:
+      self.ips = self.headers['trust-proxy'].split(',')
+
+    print (colored("  {}:{}".format(self.hostname, self.port), self.c))
+    # print (colored("===\n{}===\n".format(self.cookie), self.c))
 
   def process_request_line(self, method, request_uri, version):
     """
@@ -101,9 +120,12 @@ class HTTPRequest(object):
       raise HTTPErrorVersionNotSupported()
 
     # save 'method' to self and get the correct function to finish processing
+    self.version = version
+    self.version_number = float(version[-3:])
     self.method = method
     self._process_headers = {
-      "GET" : self._process_get_headers
+      "GET" : self._process_get_headers,
+      "POST": self._process_post_headers
     }.get(method, None)
 
     # Method not found 
@@ -113,8 +135,12 @@ class HTTPRequest(object):
 
     self.original_url = request_uri
     self.parsed_url = urlparse(request_uri)
-    self.path = self.parsed_url.path
+    self.path = unquote(self.parsed_url.path)
     self.query = parse_qs(self.parsed_url.query)
+
+    print (colored("[{}]".format(self.ip), self.c))
+    print (colored("  {} {}".format(self.method, self.path), self.c))
+    print (colored("  QUERY: {}".format(self.query), self.c))
 
   def param(self, name, default = None):
     """
@@ -132,5 +158,12 @@ class HTTPRequest(object):
     """
       Called upon receiving a GET HTTP request to do specific 'GET' things to the
       list of headers.
+    """
+    pass
+
+  def _process_post_headers(self):
+    """
+      Called upon receiving a POST HTTP request to do specific 'POST' things
+      to the headers.
     """
     pass

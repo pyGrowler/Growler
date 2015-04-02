@@ -6,7 +6,6 @@ from . import middleware
 
 from termcolor import colored
 
-import growler
 import asyncio
 
 # @middleware

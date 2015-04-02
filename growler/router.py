@@ -68,7 +68,8 @@ class Router():
       x.print_tree(prefix + "  ")
   
   def match_routes(self, req):
-    print ("matching routes to", req)
+    print ("matching routes to path '{}'".format(req.path))
+    print ("# routes: ",len(self.routes))
     for method, path, func in self.routes:
       if method == "ALL" or method.upper() == req.method.upper():
         print ("MATCHED method ", method)

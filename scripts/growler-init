@@ -6,15 +6,17 @@
 #
 
 from sys import (argv)
+from argparse import ArgumentParser
+
 import os
 import stat
 
-if len(argv) < 2:
-  print ("Please specify a destination")
-  print ("usage : %s <project_directory>" % (argv[0]))
-  exit()
+parser = ArgumentParser()
+parser.add_argument('project', help='Project Directory to create')
 
-dirname = argv[1]
+args = parser.parse_args()
+
+dirname = args.project
 
 if not os.path.exists(dirname):
   os.mkdir(dirname)
