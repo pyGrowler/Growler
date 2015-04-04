@@ -19,14 +19,14 @@ args = parser.parse_args()
 dirname = args.project
 
 if not os.path.exists(dirname):
-  os.mkdir(dirname)
+    os.mkdir(dirname)
 else:
-  if os.path.isfile(dirname):
-    print ("Provided name '%s' is a file. Aborting." % (dirname))
-    exit()
-  elif not os.path.isdir(dirname) or len(os.listdir(dirname)) != 0:
-    print ("Provided name '%s' is a nonempty directory. Aborting." % (dirname))
-    exit()
+    if os.path.isfile(dirname):
+        print ("Provided name '%s' is a file. Aborting." % (dirname))
+        exit()
+    elif not os.path.isdir(dirname) or len(os.listdir(dirname)) != 0:
+        print ("Provided name '%s' is a nonempty directory. Aborting." % (dirname))
+        exit()
 
 print ("Initializing directory '%s'" % (dirname))
 
@@ -92,4 +92,3 @@ os.chmod(config_filename, stat.S_IRUSR | stat.S_IWUSR)
 os.chmod(run_filename, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IRGRP | stat.S_IROTH)
 
 print ("*** Finished initializing new growler project : %s" % (dirname))
-
