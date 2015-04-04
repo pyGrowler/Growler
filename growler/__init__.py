@@ -45,26 +45,6 @@ declare_namespace()
 
 DEFAULT_HTTP_OPTS = {'backlog': 100}
 
-
-class http_proto(asyncio.Protocol):
-  """Growler implementation of HTTP"""
-
-  def connection_made(self, transport):
-    """@type transport: asyncio.Transport"""
-    self.transport = transport
-    self.hostname = transport.get_extra_info('peername')
-    self.socket = transport.get_extra_info('socket')
-    print('HTTP connection from {}'.format(self.hostname))
-    transport.write("data")
-
-  def data_received(self, data):
-    """@type data: bytes"""
-    print('data received: {}'.format(data.decode()))
-    self.transport.write(data)
-
-    # close the socket
-    self.transport.close()
-
 class http_server(object):
   """HTTP Server"""
 
