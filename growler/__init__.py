@@ -36,7 +36,7 @@ metadata = SourceFileLoader("metadata", metafile).load_module()
 
 __version__ = metadata.version
 __author__ = metadata.author
-__date__ = "Oct 21, 2014"
+__date__ = metadata.date
 __copyright__ = metadata.copyright
 __license__ = metadata.license
 
