@@ -5,7 +5,6 @@
 
 from http.cookies import (SimpleCookie)
 
-from . import middleware
 import uuid
 
 # @middleware
@@ -42,11 +41,11 @@ class CookieParser():
     #print ("===", req.headers['cookie'])
     #print ("  Loaded in cookies :", req.cookies)
     #print ("Loaded in cookies quick id :", req.cookies['qid'].value)
-    
+
     def _send_headers():
       if res.cookies:
         cookie_string = res.cookies.output(sep=res.EOL)
         # print ("RES:", cookie_string)
         res.headerstrings.append(cookie_string)
-    
+
     res._manipulate_headerstrings.append(_send_headers)

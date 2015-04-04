@@ -1,16 +1,12 @@
 #
 # growler/middleware/__init__.py
 #
+"""
+Implementation of default middleware along with the virtual package for
+others to extend growler middleware with their own packages.
+"""
 
 import growler
-
-def middleware(cls):
-  """Class decorator for classes which contain middleware functions"""
-  if isinstance(cls, int):
-    print ("class middleware: ", cls, cls.__name__, cls.__qualname__)
-  else:
-    print ("      middleware: ", cls, cls.__name__, cls.__qualname__)
-  return cls
 
 from .auth import Auth
 from .static import Static
@@ -21,5 +17,8 @@ from .cookieparser import CookieParser
 from .responsetime import ResponseTime
 from .timer import Timer
 
+from pkg_resources import declare_namespace
+
+declare_namespace('growler.middleware')
+
 __all__ = ['Logger']
-declare_namespace()

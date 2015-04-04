@@ -2,15 +2,12 @@
 # growler/middleware/logger.py
 #
 
-from . import middleware
-
 from termcolor import colored
 
 import asyncio
 
-# @middleware
 class Logger():
-  
+
   DEFAULT = '/033[30m'
   RED     = '/033[31m'
   GREEN   = '/033[32m'
@@ -39,6 +36,5 @@ class Logger():
   def __call__(self, req, res):
     print (self.info("Connection from {}".format(req.ip)))
 
-  @middleware
   def mw(self, req, res):
     print("[Logger] % %" % (req, res))
