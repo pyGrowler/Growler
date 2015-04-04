@@ -11,12 +11,12 @@ import io
 
 from .Status import Status
 
+SERVER_INFO = 'Python/{0[0]}.{0[1]} growler/{1}'
 
 class HTTPResponse(object):
   """
   Response class which handles writing to the client.
   """
-  SERVER_INFO = 'Python/{0[0]}.{0[1]} growler/{1}'.format(sys.version_info, growler.__version__)
 
   def __init__(self, ostream, app = None, EOL = "\r\n"):
     """
@@ -24,6 +24,8 @@ class HTTPResponse(object):
     @param ostream: asyncio.StreamWriter Output stream, expected
     @type growler.App: The growler app creating the response
     """
+    from growler import __version__
+
     self._stream = ostream
     self.send = self.write
     # Assume we are OK
@@ -39,6 +41,7 @@ class HTTPResponse(object):
     self._do_before_headers = []
     self._do_after_send = []
     self._manipulate_headerstrings = []
+    self.SERVER_INFO = SERVER_INFO.format(sys.version_info, __version__)
 
   def _set_default_headers(self):
     """Create some default headers that should be sent along with every HTTP response"""
@@ -190,4 +193,3 @@ class HTTPResponse(object):
 
   def on_send_end(self, cb):
     self._do_after_send.append(cb)
-

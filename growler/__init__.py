@@ -21,10 +21,18 @@ imitates Nodejs's express framework, allowing easy creation of complex websites
 using a middleware-based configuration.
 """
 
+import ssl
+import asyncio
 from importlib.machinery import SourceFileLoader
 from os import path
+from copy import copy
+from pkg_resources import declare_namespace
 
-metadata = SourceFileLoader("metadata", path.join(path.dirname(__file__),"metadata.py")).load_module()
+import growler.app
+import growler.router
+
+metafile = path.join(path.dirname(__file__), "metadata.py")
+metadata = SourceFileLoader("metadata", metafile).load_module()
 
 __version__ = metadata.version
 __author__ = metadata.author
@@ -32,49 +40,54 @@ __date__ = "Oct 21, 2014"
 __copyright__ = metadata.copyright
 __license__ = metadata.license
 
-import asyncio
-import ssl
+declare_namespace('growler')
 
-from copy import copy
-
-from .app import App
-# from .http import *
-from .router import Router
-
-declare_namespace()
+App = growler.app.App
+Router = growler.router.Router
 
 DEFAULT_HTTP_OPTS = {'backlog': 100}
 
-def create_http_server(options = {}, callback = None, loop = None):
-  """Creates an http 'server' object which may listen on multiple ports."""
-  loop = loop or asyncio.get_event_loop()
+def create_http_server(options={}, callback=None, loop=None):
+    """Creates an http 'server' object which may listen on multiple ports."""
+    loop = loop or asyncio.get_event_loop()
 
-  opts = copy(DEFAULT_HTTP_OPTS)
-  opts.update(options)
+    opts = copy(DEFAULT_HTTP_OPTS)
+    opts.update(options)
 
-  return http_server(callback, loop)
+    return http_server(callback, loop)
 
-def create_https_server(options, callback = None, loop = None):
-  """Creates an https 'server' object which may listen on multiple ports."""
-  loop = loop or asyncio.get_event_loop()
-  priv = options['key']
-  pub = options['cert'] if 'cert' in options.keys() else None
 
-  sslctx = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
-  if pub == None:
-    sslctx.load_cert_chain(certfile=priv)
-  else:
-    sslctx.load_cert_chain(certfile=pub, keyfile=priv)
+def create_https_server(options, callback=None, loop=None):
+    """Creates an https 'server' object which may listen on multiple ports."""
+    loop = loop or asyncio.get_event_loop()
+    priv = options['key']
+    pub = options['cert'] if 'cert' in options.keys() else None
 
-  return http_server(callback, loop, sslctx, "Creating HTTPS server")
+    sslctx = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+    if pub is None:
+        sslctx.load_cert_chain(certfile=priv)
+    else:
+        sslctx.load_cert_chain(certfile=pub, keyfile=priv)
 
-def run_forever(loop = None):
-  loop = loop or asyncio.get_event_loop()
-  try:
-    loop.run_forever()
-  except KeyboardInterrupt:
-    print("Keyboard induced termination : Exiting")
-  finally:
-    loop.close()
+    return http_server(callback, loop, sslctx, "Creating HTTPS server")
 
-__all__ = ["App", "Router", "run_forever", "create_http_server", "create_https_server", "http_server", "https_server"]
+
+def run_forever(loop=None):
+    loop = loop or asyncio.get_event_loop()
+    try:
+        loop.run_forever()
+    except KeyboardInterrupt:
+        print("Keyboard induced termination : Exiting")
+    finally:
+        loop.close()
+
+
+__all__ = [
+    "App",
+    "Router",
+    "run_forever",
+    "create_http_server",
+    "create_https_server",
+    "http_server",
+    "https_server"
+]
