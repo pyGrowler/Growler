@@ -53,3 +53,11 @@ class GrowlerProtocol(asyncio.Protocol):
         not be sending any more data to the server.
         """
         self.is_done_transmitting = True
+
+# Or should this be called HTTPGrowlerProtocol?
+class GrowlerHTTPProtocol(GrowlerProtocol):
+    """
+    GrowlerProtocol dealing with HTTP requests
+    """
+    from .http.responder import HTTPResponder
+    responder_type = HTTPResponder
