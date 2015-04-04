@@ -41,7 +41,7 @@ setup(
     license=metadata.license,
     url=metadata.url,
     author_email=metadata.author_email,
-    description=__doc__,
+    description=__doc__.strip(),
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Environment :: Web Environment",
