@@ -7,6 +7,8 @@ from .Request import HTTPRequest
 from .Response import HTTPResponse
 from .Error import *
 
+from http.server import BaseHTTPRequestHandler
+
 __all__ = ['HTTPRequest', 'HTTPResponse', 'HTTPParser', 'HTTPError']
 __all__.extend(Error.__all__)
 
@@ -27,6 +29,8 @@ MAX_POST_LENGTH = 2 * MB
 EOL = "\r\n"
 # EOL = "\n"
 HEADER_DELIM = EOL * 2
+
+RESPONSES = BaseHTTPRequestHandler.responses
 
 HTTPCodes = {
   200 : "OK",

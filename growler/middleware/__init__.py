@@ -22,3 +22,4 @@ from .responsetime import ResponseTime
 from .timer import Timer
 
 __all__ = ['Logger']
+declare_namespace()
