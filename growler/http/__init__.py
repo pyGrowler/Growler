@@ -1,6 +1,10 @@
 #
-# growler/__init__.py
+# growler/http/__init__.py
 #
+"""
+Sub-package dealing with HTTP implementation. In this pacakge we have the
+asyncio protocol, server, parser, and request and response objects.
+"""
 
 from .Parser import HTTPParser
 from .Request import HTTPRequest

@@ -45,30 +45,6 @@ declare_namespace()
 
 DEFAULT_HTTP_OPTS = {'backlog': 100}
 
-class http_server(object):
-  """HTTP Server"""
-
-  def __init__(self, cb, loop, ssl = None, message="Creating HTTP server"):
-    """
-    @type loop: asyncio.BaseEventLoop
-    @type ssl: ssl.SSLContext
-    """
-    print (message)
-    self.callback = cb
-    self.loop = loop
-    self.ssl = ssl
-
-  def listen(self, host, port):
-    """ """
-    self.coro = self.loop.create_server(http_proto, host, port, ssl=self.ssl)
-    self.srv = self.loop.run_until_complete(self.coro)
-    # print('securing with',self.private_key, self.public_key)
-    # sock = ssl.wrap_socket(self.srv.sockets[0], self.private_key, self.public_key)
-    print('serving on {}'.format(self.srv.sockets[0].getsockname()))
-    print(' sock {}'.format(self.srv.sockets[0]))
-    # print(' sock {}'.format(self.srv.sockets[0]))
-    # print(' sock {} ({})'.format(sock, sock == self.srv.sockets[0]))
-
 def create_http_server(options = {}, callback = None, loop = None):
   """Creates an http 'server' object which may listen on multiple ports."""
   loop = loop or asyncio.get_event_loop()
