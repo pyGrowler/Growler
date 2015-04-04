@@ -11,9 +11,9 @@ from .router import Router
 
 class App(object):
   """
-  A Growler application object. It's recommended to either subclass growler.App, writing a custom 'run' 
+  A Growler application object. It's recommended to either subclass growler.App, writing a custom 'run'
   The 'main leaving the _handle_connection.
-  
+
   """
 
   # default configuration goes here
@@ -23,7 +23,7 @@ class App(object):
     """
     Creates an application object.
     @param name: does nothing right now
-    @type name: str 
+    @type name: str
 
     @param settings: initial server configuration
     @type settings: dict
@@ -158,7 +158,7 @@ class App(object):
         return _func(_req, _res)
       return cowrap
 
-    # Provided middleware is a 'normal' function - we just wrap with the local 'cofunction' 
+    # Provided middleware is a 'normal' function - we just wrap with the local 'cofunction'
     if not (asyncio.iscoroutinefunction(func) or asyncio.iscoroutine(func)):
       func = cofunctitize(func)
 
@@ -178,7 +178,7 @@ class App(object):
       for f in self._on_error:
         f(err, req, res)
       return
-    
+
 
   def onstart(self, cb):
     print ("Callback : ", cb)
@@ -229,7 +229,7 @@ class App(object):
     if middleware == None:
       return self.routers[0].get(path, middleware)
     self.routers[0].get(path, middleware)
-    
+
   def set(self, key, value):
     """Set a configuration option (Alias of app[key] = value)"""
     self.config[key] = value
@@ -252,7 +252,7 @@ class App(object):
   def enabled(self, name):
     """Returns whether a setting has been enabled"""
     return self.config[name] == True
-    
+
   def require(self, future):
     """Will wait for the future before beginning to serve web pages. Useful for database connections."""
     # if type(future) is asyncio.Future:

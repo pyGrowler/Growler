@@ -41,6 +41,8 @@ from .app import App
 # from .http import *
 from .router import Router
 
+declare_namespace()
+
 DEFAULT_HTTP_OPTS = {'backlog': 100}
 
 
@@ -120,5 +122,3 @@ def run_forever(loop = None):
     loop.close()
 
 __all__ = ["App", "Router", "run_forever", "create_http_server", "create_https_server", "http_server", "https_server"]
-
-

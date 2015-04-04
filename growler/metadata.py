@@ -16,4 +16,6 @@ author = "Andrew Kubera"
 author_email = "andrew.kubera@gmail.com"
 copyright = "Copyright 2014, Andrew Kubera"
 
+url = "https://github.com/pyGrowler/Growler"
+
 license = 'Apache v2.0'

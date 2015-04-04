@@ -1,6 +1,9 @@
 #
 # setup.py
 #
+"""
+A micro web-framework using asyncio coroutines and chained middleware.
+"""
 
 from os import path
 from glob import glob
@@ -20,27 +23,25 @@ OPTIONAL_REQUIRES = {
   ':python_version=="3.3"': ['asyncio>=0.2.1']
 }
 
-long_description = """
-A web framework covering the asyncio module (PEP 3156), modeled loosely after
-the NodeJS Connect/Express frameworks.
-Growler uses a series of 'middleware' functions to manipulate the request and
-response objects created for each connection. This stream/filter model makes it
-very easy to modularize and extend web applications with any features, backed
-by the power of python.
+PACKAGES = find_packages(
+    exclude=["*.tests", "*.tests.*", "tests.*", "tests"]
+)
 
-Currently Growler is single threaded, and not tested very well.
-
-"""
-
+NAMESPACES = [
+    'growler',
+    'growler.ext',
+    'growler.middleware',
+    'growler.mw',
+]
 
 setup(
     name="growler",
     version=metadata.version,
     author=metadata.author,
     license=metadata.license,
-    url="https://github.com/pyGrowler/Growler",
+    url=metadata.url,
     author_email=metadata.author_email,
-    description="A micro web-framework using asyncio coroutines.",
+    description=__doc__,
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Environment :: Web Environment",
@@ -55,9 +56,8 @@ setup(
     ],
     install_requires=REQUIRES,
     extras_require=OPTIONAL_REQUIRES,
-    packages=find_packages(
-        exclude=["*.tests", "*.tests.*", "tests.*", "tests"]
-    ),
+    packages=PACKAGES,
+    namespace_packages=NAMESPACES,
     platforms='all',
     scripts=glob('scripts/*')
 )
