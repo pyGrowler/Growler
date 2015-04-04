@@ -7,7 +7,7 @@ package = 'growler'
 project = 'A New Web Framework'
 project_no_spaces = project.replace(' ', '')
 
-version_info = (0, 1, 5)
+version_info = (0, 1, 6)
 version = '.'.join(map(str, version_info))
 version_name = ''.join((project, 'version', version))
 
