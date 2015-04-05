@@ -6,14 +6,19 @@ import growler
 
 from growler.middleware import (ResponseTime, Logger)
 
-app = growler.App(__name__)
+def test_Success():
+    assert True
 
-app.use(Logger())
-app.use(ResponseTime())
+if __name__ == '__main__':
 
-@app.get("/")
-def index(req, res, next):
-  res.send_text("It Works!")
+    app = growler.App(__name__)
+
+    app.use(Logger())
+    app.use(ResponseTime())
+
+    # @app.get("/")
+    # def index(req, res):
+      # res.send_text("It Works!")
 
 
-app.run()
+    app.run()
