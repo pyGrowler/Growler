@@ -31,6 +31,8 @@ from pkg_resources import declare_namespace
 import growler.app
 import growler.router
 
+from growler.http.server import create_server as create_http_server
+
 metafile = path.join(path.dirname(__file__), "metadata.py")
 metadata = SourceFileLoader("metadata", metafile).load_module()
 
@@ -46,15 +48,6 @@ App = growler.app.App
 Router = growler.router.Router
 
 DEFAULT_HTTP_OPTS = {'backlog': 100}
-
-def create_http_server(options={}, callback=None, loop=None):
-    """Creates an http 'server' object which may listen on multiple ports."""
-    loop = loop or asyncio.get_event_loop()
-
-    opts = copy(DEFAULT_HTTP_OPTS)
-    opts.update(options)
-
-    return http_server(callback, loop)
 
 
 def create_https_server(options, callback=None, loop=None):
@@ -88,6 +81,4 @@ __all__ = [
     "run_forever",
     "create_http_server",
     "create_https_server",
-    "http_server",
-    "https_server"
 ]

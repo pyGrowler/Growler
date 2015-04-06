@@ -10,15 +10,18 @@ from .Parser import HTTPParser
 from .Request import HTTPRequest
 from .Response import HTTPResponse
 from .Error import *
+from .server import create_server
 
 from http.server import BaseHTTPRequestHandler
-
-__all__ = ['HTTPRequest', 'HTTPResponse', 'HTTPParser', 'HTTPError']
-__all__.extend(Error.__all__)
 
 import mimetypes
 
 mimetypes.init()
+
+
+__all__ = ['HTTPRequest', 'HTTPResponse', 'HTTPParser', 'HTTPError']
+__all__.extend(Error.__all__)
+
 
 KB = 1024
 MB = KB ** 2
