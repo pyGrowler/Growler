@@ -1,10 +1,10 @@
 #
-# growler/http/Status.py
+# growler/http/status.py
 #
 
 
 class Status(object):
-  
+
   @classmethod
   def Phrase(cls, code):
     """Get HTTP Phrase from code"""
@@ -21,7 +21,7 @@ class Status(object):
       205: "Reset Content",
       206: "Partial Content",
       207: "Multi-Status",
-      
+
       300: "Multiple Choices",
       301: "Moved Permanently",
       302: "Found",
@@ -31,7 +31,7 @@ class Status(object):
       306: "Switch Proxy",
       307: "Temporary Redirect",
       308: "Permanent Redirect",
-      
+
       400: "Bad Request",
       401: "Unauthorized",
       402: "Payment Required",
@@ -54,7 +54,7 @@ class Status(object):
       419: "Authentication Timeout",
       420: "Method Failure",
       426: "Upgrade Required",
-      
+
       500: "Internal Server Error",
       501: "Not Implemented",
       502: "Bad Gateway",

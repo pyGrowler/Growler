@@ -9,7 +9,7 @@ import json
 import time
 import io
 
-from .Status import Status
+from .status import Status
 
 SERVER_INFO = 'Python/{0[0]}.{0[1]} growler/{1}'
 
