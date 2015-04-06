@@ -29,7 +29,7 @@ def create_server(
     else:
         sslctx = None
 
-    def proto:
+    def proto():
         return growler.protocol.GrowlerHTTPProtocol(loop=loop)
 
     coro = loop.create_server(proto, host, port, ssl=sslctx)
