@@ -7,7 +7,7 @@ asyncio protocol, server, parser, and request and response objects.
 """
 
 from .Parser import HTTPParser
-from .Request import HTTPRequest
+from .request import HTTPRequest
 from .Response import HTTPResponse
 from .Error import *
 from .server import create_server
