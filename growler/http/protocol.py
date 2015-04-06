@@ -8,6 +8,7 @@ Code containing Growler's asyncio.Protocol code for handling HTTP requests.
 import asyncio
 import sys
 
+
 class HttpProtocol(asyncio.Protocol):
     """
     The protocol for handling HTTP requests as implemented by the Growler
@@ -41,7 +42,7 @@ class HttpProtocol(asyncio.Protocol):
         @param transport bytes: bytes in the latest data transmission
         """
         from base64 import b64encode
-        print ('[data_received] ', b64encode(data))
+        print('[data_received] ', b64encode(data))
 
         # close the socket?
         self.transport.close()

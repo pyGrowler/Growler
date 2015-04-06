@@ -7,6 +7,7 @@ The Growler class responsible for responding to HTTP requests.
 
 import asyncio
 
+
 class HTTPResponder():
 
     def __init__(self, protocol):
@@ -32,7 +33,7 @@ class HTTPResponder():
             data = yield from self.data_queue.get()
             if data is None:
                 break
-            count+=1
-            print("data received",count,"times")
+            count += 1
+            print("data received", count, "times")
             # print ("Data Loop returned: ", data)
         print("Done with loop...")

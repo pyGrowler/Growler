@@ -259,7 +259,7 @@ class App(object):
         An alias call for simple access to the default router. The middleware
         provided is called upon a GET HTTP request matching the path.
         """
-        if middleware == None:
+        if middleware is None:
             return self.routers[0].get(path, middleware)
         self.routers[0].get(path, middleware)
 
@@ -294,7 +294,7 @@ class App(object):
         # if type(future) is asyncio.Future:
         #   self._wait_for['futures'].append(future)
         # elif inspect.isgeneratorfunction(future):
-          #   print("GeneratorFunction!")
+        #   print("GeneratorFunction!")
         #   self._wait_for['generators'].append(future)
         # elif inspect.isgenerator(future):
         #   print("Generator!")
@@ -316,12 +316,13 @@ class App(object):
                 break
         self.route_to_use.set_result(found)
         print("_find_route done ({})".format(found))
-        if found == None: raise HTTPErrorNotFound()
+        if found is None:
+            raise HTTPErrorNotFound()
         # return self.route_to_use
         # yield from asyncio.sleep(1)
         # yield
 
-    def use(self, middleware, path = None):
+    def use(self, middleware, path=None):
         """
         Use the middleware (a callable with parameters res, req, next) upon
         requests match the provided path. A None path matches every request.

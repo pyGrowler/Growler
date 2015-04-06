@@ -40,7 +40,7 @@ HEADER_DELIM = EOL * 2
 RESPONSES = BaseHTTPRequestHandler.responses
 
 HTTPCodes = {
-  200 : "OK",
-  301 : "Moved Permanently",
-  302 : "Found"
+  200: "OK",
+  301: "Moved Permanently",
+  302: "Found"
 }
