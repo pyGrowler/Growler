@@ -2,15 +2,13 @@
 # growler/protocol.py
 #
 """
-Code containing Growler's asyncio.Protocol code for handling all streaming (TCP)
-connections.
+Code containing Growler's asyncio.Protocol code for handling all streaming
+(TCP) connections.
 """
 
 import asyncio
 import sys
 
-class MetaGrowlerProtocol(asyncio.Protocol):
-    pass
 
 class GrowlerProtocol(asyncio.Protocol):
     """
@@ -43,10 +41,12 @@ class GrowlerProtocol(asyncio.Protocol):
 
         self.responders = [self.responder_type(self)]
         self.transport = transport
-        self.remote_hostname, self.remote_port = transport.get_extra_info('peername')
+        self.remote_hostname, self.remote_port = transport.get_extra_info(
+                                                                    'peername')
         self.socket = transport.get_extra_info('socket')
         self.is_done_transmitting = False
-        print("Growler Connection from {}:{}".format(self.remote_hostname,self.remote_port))
+        print("Growler Connection from {}:{}".format(self.remote_hostname,
+                                                     self.remote_port))
 
     def connection_lost(self, exc):
         """
@@ -67,7 +67,9 @@ class GrowlerProtocol(asyncio.Protocol):
         # print("[GrowlerProtocol::data_received]", id(self))
         # print("[server::data_received]", ">>", data)
         # print("Responders!",self.responders)
-        # asyncio.async(self.responders[-1].data_queue.put, data, loop=self.loop)
+        # asyncio.async(self.responders[-1].data_queue.put,
+        #               data,
+        #               loop=self.loop)
         # self.responders[-1].on_data(data)
 
     def eof_received(self):
