@@ -6,7 +6,7 @@ Sub-package dealing with HTTP implementation. In this pacakge we have the
 asyncio protocol, server, parser, and request and response objects.
 """
 
-from .Parser import HTTPParser
+from .parser import HTTPParser
 from .request import HTTPRequest
 from .Response import HTTPResponse
 from .Error import *
