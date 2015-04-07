@@ -8,14 +8,12 @@ import growler
 import json
 import time
 import io
+from wsgiref.handlers import format_date_time as format_RFC_1123
 
 from .status import Status
 
-SERVER_INFO = 'Python/{0[0]}.{0[1]} growler/{1}'
-
 
 class HTTPResponse(object):
-
     """
     Response class which handles writing to the client.
     """
@@ -24,8 +22,10 @@ class HTTPResponse(object):
         """
         Create the response
         @param ostream: asyncio.StreamWriter Output stream, expected
-        @type growler.App: The growler app creating the response
+        @param app growler.App: The growler app creating the response
+        @param EOL str: The string with which to end lines
         """
+
         from growler import __version__
 
         self._stream = ostream
@@ -35,7 +35,7 @@ class HTTPResponse(object):
         self.phrase = None
         self.has_sent_headers = False
         self.message = ''
-        self.headers = {}
+        self.headers = dict()
         self.app = app
         self.EOL = EOL
         self.finished = False
@@ -43,14 +43,17 @@ class HTTPResponse(object):
         self._do_before_headers = []
         self._do_after_send = []
         self._manipulate_headerstrings = []
-        self.SERVER_INFO = SERVER_INFO.format(sys.version_info, __version__)
+        info_tmpl = 'Python/{0[0]}.{0[1]} growler/{1}'
+        self.SERVER_INFO = info_tmpl.format(sys.version_info, __version__)
 
     def _set_default_headers(self):
         """
         Create some default headers that should be sent along with every HTTP
         response
         """
-        time_string = time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime())
+        time_string = format_RFC_1123(mktime(datetime.now().timetuple()))
+        # time_string = time.strftime("%a, %d %b %Y %H:%M:%S GMT",
+        #  time.gmtime())
         self.headers.setdefault('Date', time_string)
         self.headers.setdefault('Server', self.SERVER_INFO)
         self.headers.setdefault('Content-Length', len(self.message))
@@ -195,9 +198,10 @@ class HTTPResponse(object):
     def send_file(self, filename, status=200):
         """Reads in the file 'filename' and sends string."""
         # f = open(filename, 'r')
-        f = io.FileIO(filename)
+        # f = io.FileIO(filename)
         # print ("[send_file] sending file :", filename)
-        self.message = f.read()
+        with io.FileIO(filename) as f:
+            self.message = f.read()
         self.status_code = status
         self.send_headers()
         self.write()
@@ -208,3 +212,7 @@ class HTTPResponse(object):
 
     def on_send_end(self, cb):
         self._do_after_send.append(cb)
+
+    @property
+    def info(self):
+        return 'Python/{0[0]}.{0[1]} growler/{1}'
