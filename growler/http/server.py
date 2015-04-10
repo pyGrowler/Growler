@@ -8,8 +8,11 @@ Functions and classes for running an http server
 import asyncio
 import ssl
 
+import growler.protocol
+
 
 def create_server(
+        callback=None,
         host='127.0.0.1',
         port=8000,
         ssl=None,
@@ -44,7 +47,7 @@ def create_server(
         sslctx = None
 
     # What do I use as a 'callback' here?
-    srv = HTTPServer(loop=loop, ssl=sslctx)
+    srv = HTTPServer(cb=callback, loop=loop, ssl=sslctx)
     coro = loop.create_server(srv.generate_protocol(), host, port, ssl=sslctx)
     server = loop.run_until_complete(coro)
     return server
@@ -194,7 +197,7 @@ class HTTPServer():
         Helper function to act as a protocol factory for the
         GrowlerHTTPProtocol
         """
-        return growler.protocol.GrowlerHTTPProtocol(**self.proto_args)
+        return growler.protocol.GrowlerHTTPProtocol(app=self, loop=self.loop)
 
     def __call__(self, **kargs):
         """
