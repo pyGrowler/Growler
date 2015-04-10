@@ -101,8 +101,8 @@ class HTTPServer():
         if sockfile is not None:
             self.server_options['sockfile'] = sockfile
         else:
-            self.server_options['host'] = host
-            self.server_options['port'] = port
+            self.host = host
+            self.port = port
 
         self._saved_host = host
         self._saved_port = port
@@ -118,7 +118,7 @@ class HTTPServer():
     def port(self, port):
         if self.server_options.pop('sockfile', None) is not None:
             self.server_options['host'] = self._saved_host
-        self.server_options['port'] = port
+        self.server_options['port'] = int(port)
 
     @property
     def host(self):
@@ -206,14 +206,21 @@ class HTTPServer():
         return coro
 
     @classmethod
-    def get_random_port(cls, range, MAX=200):
+    def get_random_port(cls, range_tuple, MAX=200):
         import socket, random
-        low, high = int(range[0]), int(range[1])
+        CONNECTION_REFUSED = 61
+        low, high = int(range_tuple[0]), int(range_tuple[1])
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        counter = 0
-        while counter < MAX:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        for counter in range(0, min(high-low, MAX)):
             test_port = random.randrange(low, high)
-            if s.connect_ex(('127.0.0.1', test_port)) == 0:
+            if s.connect_ex(('0.0.0.0', test_port)) == CONNECTION_REFUSED:
+                print ("FOUND", test_port)
+                s.close()
                 return test_port
+            # if s.connect_ex(arg) == 0:
+                # return test_port
             counter += 1
-        return None
+        # print("")
+        # return None
+        # raise Exception("Could not find random port in range {}".format(range))
