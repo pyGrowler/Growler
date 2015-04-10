@@ -205,7 +205,8 @@ class HTTPServer():
         coro = loop.create_server(self.generate_protocol, **self.server_kargs)
         return coro
 
-    def get_random_port(self, range, MAX=200):
+    @classmethod
+    def get_random_port(cls, range, MAX=200):
         import socket, random
         low, high = int(range[0]), int(range[1])
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
