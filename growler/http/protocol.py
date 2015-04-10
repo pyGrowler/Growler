@@ -26,6 +26,7 @@ class HttpProtocol(asyncio.Protocol):
         self.hostname = transport.get_extra_info('peername')
         self.socket = transport.get_extra_info('socket')
         self.is_done_transmitting = False
+        self.in_starttls = False
         print("HTTP Connection from {}".format(self.hostname))
 
     def connection_lost(self, exc):

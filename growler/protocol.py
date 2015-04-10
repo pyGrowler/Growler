@@ -18,13 +18,17 @@ class GrowlerProtocol(asyncio.Protocol):
 
     responder_type = None
 
-    def __init__(self, loop=None, responder_type=None):
+    def __init__(self, loop, responder_type):
         """
-        Construct a GrowlerProtocol - this
+        Construct a GrowlerProtocol object.
+
+        @param loop asyncio.BaseEventLoop: The event loop managing all
+            asynchronous activity of this protocol
+        @param responder_type: The type (not instance) of the responder to
+            create upon creation of
         """
         print("[GrowlerProtocol::__init__]", id(self))
-        if responder_type is not None:
-            self.responder_type = responder_type
+        self.responder_type = responder_type
         self.loop = asyncio.get_event_loop if loop is None else loop
         self.data_queue = asyncio.Queue()
 
@@ -37,7 +41,7 @@ class GrowlerProtocol(asyncio.Protocol):
         @param transport asyncio.Transport: The Transport handling the socket
             communication
         """
-        print("[GrowlerProtocol::connection_made]")
+        print("[GrowlerProtocol::connection_made]", id(self))
 
         self.responders = [self.responder_type(self)]
         self.transport = transport
@@ -88,4 +92,15 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
     GrowlerProtocol dealing with HTTP requests
     """
     from .http.responder import HTTPResponder
-    responder_type = HTTPResponder
+
+    def __init__(self, app, loop):
+        """
+        Construct a GrowlerHTTPProtocol object. This should only be called from
+        a growler.HTTPServer instance.
+
+        @param app: A growler application which
+        @param loop:
+        """
+        super().__init__(loop=loop, responder_type=HTTPResponder)
+        print("[GrowlerHTTPProtocol::__init__]", id(self))
+        self.growler_app = app

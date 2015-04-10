@@ -14,7 +14,7 @@ version_name = ''.join((project, 'version', version))
 date = "Apr 4, 2015"
 author = "Andrew Kubera"
 author_email = "andrew.kubera@gmail.com"
-copyright = "Copyright 2014, Andrew Kubera"
+copyright = "Copyright 2015, Andrew Kubera"
 
 url = "https://github.com/pyGrowler/Growler"
 

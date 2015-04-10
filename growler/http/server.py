@@ -2,7 +2,7 @@
 # growler/http/server.py
 #
 """
-Classes for running an http server
+Functions and classes for running an http server
 """
 
 import asyncio
@@ -13,23 +13,39 @@ def create_server(
         host='127.0.0.1',
         port=8000,
         ssl=None,
-        loop=asyncio.get_event_loop(),
+        loop=None,
         **kargs
         ):
     """
     This is a function to assist in the creation of a growler HTTP server.
+
+    @param host str: hostname or ip address on which to bind
+    @param port: the port on which the server will listen
+    @param ssl ssl.SSLContext: The SSLContext for using TLS over the connection
+    @param loop asyncio.BaseEventLoop: The event loop to
+    @param kargs: Extra parameters passed to the HTTPServer instance created.
+                  If there is an ssl parameter passed to this function, kargs
+                  will require the value 'key' to be present, and an optional
+                  'cert' parameter to pass to load_cert_chain.
+    @return An HTTPServer instance
     """
+
+    loop = asyncio.get_event_loop() if loop is None else loop
+
     if ssl:
         sslctx = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+        key = kargs.pop('key')
         try:
-            sslctx.load_cert_chain(certfile=kargs['cert'],
-                                   keyfile=kargs['key'])
+            sslctx.load_cert_chain(certfile=kargs.pop('cert'),
+                                   keyfile=key)
         except KeyError:
-            sslctx.load_cert_chain(certfile=kargs['key'])
+            sslctx.load_cert_chain(certfile=key)
     else:
         sslctx = None
 
-    coro = loop.create_server(self.generate_protocol(), host, port, ssl=sslctx)
+    # What do I use as a 'callback' here?
+    srv = HTTPServer(loop=loop, ssl=sslctx)
+    coro = loop.create_server(srv.generate_protocol(), host, port, ssl=sslctx)
     server = loop.run_until_complete(coro)
     return server
 
@@ -40,7 +56,7 @@ class HTTPServer():
     project.
     """
 
-    def __init__(self, cb, loop=None, ssl=None, message="", **kargs):
+    def __init__(self, cb=None, loop=None, ssl=None, message="", **kargs):
         """
         Construct a server. Parameters given here will be forwarded to the
         asyncio.create_server function.
@@ -62,6 +78,12 @@ class HTTPServer():
         self.kargs = kargs
         if message:
             print(message)
+
+    def serve_forever(self):
+        """
+        Simply calls the event loop's run forever method.
+        """
+        self.loop.run_forever()
 
     def listen(self, port, host='127.0.0.1', block=False):
         """
