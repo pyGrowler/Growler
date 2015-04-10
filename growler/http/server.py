@@ -188,7 +188,7 @@ class HTTPServer():
                 self.host = host
 
         #
-        self._coro = self.loop.create_server(growler.protocol.GrowlerHTTPProtocol(app=self, loop=self.loop), **self.server_options)
+        self._coro = self.loop.create_server(self.generate_protocol, **self.server_options)
         if block:
             srv = self.loop.run_until_complete(self.coro)
             print('Listening : {}'.format(self.srv.sockets[0].getsockname()))
