@@ -54,30 +54,100 @@ class HTTPServer():
     """
     This is the reference implementation of an HTTP server for the Growler
     project.
+    The server itself behaves as a proxy for the asyncio coroutine that the
+    user will actualy want to use. The server is not given a lot of state:
+    standard server information: host, port, ssl which are given to the
+    asyncio.create_server() function.
     """
 
-    def __init__(self, cb=None, loop=None, ssl=None, message="", **kargs):
+    def __init__(self,
+                 cb=None,
+                 host='0.0.0.0',
+                 port='8000',
+                 sockfile=None,
+                 loop=None,
+                 ssl=None,
+                 **kargs):
         """
         Construct a server. Parameters given here will be forwarded to the
         asyncio.create_server function.
 
         @param cb runnable: The callback to handle requests
+        @param host str: hostname or ip address on which to bind
+        @param port: the port on which the server will listen. If port is a
+            tuple of numbers, it randomly select an available port between them
+            domain: [port[0], port[1]).
+        @param sockfile str: A filename which will act as a unix file socket
+            for communication with the server. If this is set, the server will
+            NOT listen on a port and will take this value. If host or port are
+            set at a later time, the socket attribute is removed and it will
+            listen on that.
         @param loop asyncio.event_loop: the event loop this server is using. If
             none it will default to asyncio.get_event_loop
         @param ssl ssl.SSLContext: If not none, we are hosting HTTPS
-        @param message str: a message to be printed for debugging
         @param kargs: Any extra arguments to be given to the server
         """
         self.callback = cb
         self.loop = loop or asyncio.get_event_loop()
         self.ssl = ssl
-        self.server_kargs = {
+        self.server_options = {
             'loop': self.loop
         }
+
+        if isinstance(port, tuple):
+            port = self.get_random_port(port)
+
+        # presense of 'sockfile' takes precedence over host/port
+        if sockfile is not None:
+            self.server_options['sockfile'] = sockfile
+        else:
+            self.server_options['host'] = host
+            self.server_options['port'] = port
+
+        self._saved_host = host
+        self._saved_port = port
+
         self.proto_args = dict()
         self.kargs = kargs
-        if message:
-            print(message)
+
+    @property
+    def port(self):
+        return self.server_options['port']
+
+    @port.setter
+    def port(self, port):
+        if self.server_options.pop('sockfile', None) is not None:
+            self.server_options['host'] = self._saved_host
+        self.server_options['port'] = port
+
+    @property
+    def host(self):
+        return self.server_options['host']
+
+    @host.setter
+    def host(self, host):
+        if self.server_options.pop('sockfile', None) is not None:
+            self.server_options['port'] = self._saved_port
+        self.server_options['host'] = host
+
+    @property
+    def unix_socket(self):
+        return self.server_options['sockfile']
+
+    @unix_socket.setter
+    def unix_socket(self, sock):
+        """
+        Set the unix_socket the server should (create) listen to. If host and
+        port are present, remove them from server_options, but save them just
+        in case.
+        """
+        p = self.server_options.pop('port', None)
+        h = self.server_options.pop('host', None)
+        if p is not None:
+            self._saved_port = p
+        if h is not None:
+            self._saved_host = h
+        self.server_options['sockfile'] = sock
 
     def serve_forever(self):
         """
@@ -85,21 +155,39 @@ class HTTPServer():
         """
         self.loop.run_forever()
 
-    def listen(self, port, host='127.0.0.1', block=False):
+    def listen(self, port=None, host=None, socket_file=None, block=False):
         """
         Method to indicate to the server to listen on a particular port.
 
-        @param host str: hostname or ip address to listen on
-        @param port: The port number to listen on
+        @param host str: hostname or ip address to listen on. If None it will
+            use the value stored in self.host
+        @param port int: The port number to listen on. If None the server will
+            use the value stored in self.port
+        @param socket_file str: A path to create a unix socket file on, if this
+            is set, host and port parameters are ignored
         @param block bool: If true, this function will run until the server
             stops running.
+        @return The asyncio.coroutine which is created by a call to
+            asyncio.create_server
         """
-        self.coro = self.loop.create_server(http_proto, host, port,
-                                            ssl=self.ssl)
-        self.srv = self.loop.run_until_complete(self.coro)
-        self.proto_args = dict()
-        print('serving on {}'.format(self.srv.sockets[0].getsockname()))
-        print(' sock {}'.format(self.srv.sockets[0]))
+
+        # Update values if specified
+        if socket_file is not None:
+            self.unix_socket = socket_file
+        else:
+            if port is not None:
+                self.port = port
+            if host is not None:
+                self.host = host
+
+        #
+        self._coro = self.loop.create_server(http_proto, **self.server_options)
+        if block:
+            srv = self.loop.run_until_complete(self.coro)
+            print('Listening : {}'.format(self.srv.sockets[0].getsockname()))
+            print(' sock {}'.format(self.srv.sockets[0]))
+            self.loop.run_forever()
+        return self._coro
 
     def generate_protocol(self):
         """
@@ -116,3 +204,15 @@ class HTTPServer():
         """
         coro = loop.create_server(self.generate_protocol, **self.server_kargs)
         return coro
+
+    def get_random_port(self, range, MAX=200):
+        import socket, random
+        low, high = int(range[0]), int(range[1])
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        counter = 0
+        while counter < MAX:
+            test_port = random.randrange(low, high)
+            if s.connect_ex(('127.0.0.1', test_port)) == 0:
+                return test_port
+            counter += 1
+        return None
