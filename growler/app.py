@@ -30,7 +30,8 @@ class App(object):
                  no_default_router=False,
                  debug=True,
                  request_class=HTTPRequest,
-                 response_class=HTTPResponse
+                 response_class=HTTPResponse,
+                 **kw
                  ):
         """
         Creates an application object.
@@ -46,7 +47,7 @@ class App(object):
         self.name = name
         self.cache = {}
 
-        self.config.update(settings)
+        self.config = kw
 
         # rendering engines
         self.engines = {}
@@ -71,6 +72,9 @@ class App(object):
 
         self._request_class = request_class
         self._response_class = response_class
+
+    def __call__(self, req, res):
+        print("Calling growler", req, res)
 
     @asyncio.coroutine
     def _server_listen(self):
