@@ -23,12 +23,6 @@ class App(object):
     _handle_connection.
     """
 
-    # default configuration goes here
-    config = {
-        'host': '127.0.0.1',
-        'port': '8000',
-    }
-
     def __init__(self,
                  name,
                  settings={},

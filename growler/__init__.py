@@ -16,9 +16,10 @@
 #   limitations under the License.
 #
 """
-Growler is an http(s) server designed around the asyncio python module which
-imitates Nodejs's express framework, allowing easy creation of complex websites
-using a middleware-based configuration.
+Growler is an http(s) server and micro-framework designed around the asyncio
+python module, introduced in python3.4. The goal of this project is to imitate
+the successful Nodejs express framework, which allowing easy creation
+of complex websites using a middleware-based configuration.
 """
 
 import ssl
@@ -48,32 +49,6 @@ App = growler.app.App
 Router = growler.router.Router
 
 DEFAULT_HTTP_OPTS = {'backlog': 100}
-
-
-def create_https_server(options, callback=None, loop=None):
-    """Creates an https 'server' object which may listen on multiple ports."""
-    loop = loop or asyncio.get_event_loop()
-    priv = options['key']
-    pub = options['cert'] if 'cert' in options.keys() else None
-
-    sslctx = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
-    if pub is None:
-        sslctx.load_cert_chain(certfile=priv)
-    else:
-        sslctx.load_cert_chain(certfile=pub, keyfile=priv)
-
-    return http_server(callback, loop, sslctx, "Creating HTTPS server")
-
-
-def run_forever(loop=None):
-    loop = loop or asyncio.get_event_loop()
-    try:
-        loop.run_forever()
-    except KeyboardInterrupt:
-        print("Keyboard induced termination : Exiting")
-    finally:
-        loop.close()
-
 
 __all__ = [
     "App",
