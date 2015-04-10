@@ -1,8 +1,10 @@
 #
-# tests/test_parser.py
+# tests/test_http_parser.py
 #
 
 import growler
+
+from growler.http.parser import Parser
 
 import asyncio
 # from pytest_localserver import http
@@ -17,10 +19,14 @@ def pytest_configure(config):
     print("[pytest_configure]")
     pprint(config)
 
+def test_parse_request_line():
+    data = b"""GET /path HTTP/1.1\r\nhost: nowhere.com\r\n"""
+    (reqest_line, following) = Parser.parse_request_line(b)
+    parser.
 
 def test_bad_request():
-    from time import sleep
-    sleep(2)
+    parser = Parser()
+
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect(('127.0.0.1', 8000))
     s.sendall(b'Get BLAHBLAHBLAH H\n\n')

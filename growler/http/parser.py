@@ -11,6 +11,37 @@ from .Error import (HTTPErrorBadRequest)
 MAX_REQUEST_LENGTH = 4096  # 4KB
 # from urllib.parse import (quote, parse_qs)
 
+class Parser:
+    """
+    New version of the Growler HTTPParser class. Responsible for interpreting
+    the reqests made by the client and creating a request object.
+    """
+
+    EOL_TOKEN = None
+
+    def __init__(self):
+        """
+        Construct a Parser object.
+
+
+        """
+        pass
+
+    @asyncio.coroutine
+    def send(self, data):
+        print("[Parser::send]", data)
+
+    def k(self, ):
+        pass
+
+    def parse_request_line(self, req_line):
+        """
+        Simply splits the request line into three components.
+        TODO: Check that there are 3 and validate the method/path/version
+        """
+        req_lst = req_line.split()
+        return req_lst
+
 
 class HTTPParser(object):
     """
@@ -164,5 +195,5 @@ class HTTPParser(object):
         Simply splits the request line into three components.
         TODO: Check that there are 3 and validate the method/path/version
         """
-        req_lst = req_line.split()
+        req_lst = req_line.split("\n")
         return req_lst

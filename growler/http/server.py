@@ -8,7 +8,7 @@ Functions and classes for running an http server
 import asyncio
 import ssl
 
-import growler.protocol
+from .protocol import GrowlerHTTPProtocol
 
 
 def create_server(
@@ -201,7 +201,7 @@ class HTTPServer():
         Helper function to act as a protocol factory for the
         GrowlerHTTPProtocol
         """
-        return growler.protocol.GrowlerHTTPProtocol(app=self, loop=self.loop)
+        return GrowlerHTTPProtocol(app=self, loop=self.loop)
 
     def __call__(self, **kargs):
         """

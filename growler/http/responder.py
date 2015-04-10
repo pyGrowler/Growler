@@ -6,7 +6,7 @@ The Growler class responsible for responding to HTTP requests.
 """
 
 import asyncio
-
+from .parser import Parser
 
 class HTTPResponder():
 
@@ -16,16 +16,19 @@ class HTTPResponder():
         protocol instance.
         """
         print("[HTTPResponder::HTTPResponder]")
-        self.proto = protocol
+        self._proto = protocol
         self.data_queue = protocol.data_queue
-        self.proto.loop.create_task(self.data_loop())
-        self.proto
+        # self._proto.loop.create_task(self.data_loop())
+        self.parser = Parser()
         # self.proto.loop.call_soon(self.data_loop())
 
     def on_data(self, data):
         print("HTTP RECEIVED DATA")
         print(" ", data)
-        self.proto.transport.write(b"Recieved. OK")
+
+        send_data_task = self._proto.loop.create_task(self.parser.send(data))
+        print(send_data_task)
+        # self.proto.transport.write(b"Recieved. OK")
         # print ("Data Loop returned: ", data)
 
     @asyncio.coroutine
