@@ -9,13 +9,12 @@ Code containing Growler's asyncio.Protocol code for handling all streaming
 import asyncio
 import sys
 
-from growler.http.responder import HTTPResponder
-
 
 class GrowlerProtocol(asyncio.Protocol):
     """
     The protocol for handling all requests. The class hands off all data
-    received to a responder object.
+    received to a 'responder' object, the class of which is set at time of
+    construction.
     """
 
     responder_type = None
@@ -57,6 +56,7 @@ class GrowlerProtocol(asyncio.Protocol):
     def connection_lost(self, exc):
         """
         asyncio.Protocol member - called upon when a socket closes.
+
         @param exc Exception: Error if unexpected closing. None if clean close
         """
         if exc:
@@ -66,9 +66,12 @@ class GrowlerProtocol(asyncio.Protocol):
     def data_received(self, data):
         """
         asyncio.Protocol member - called upon when there is data to be read
+
         @param transport bytes: bytes in the latest data transmission
         """
-        self.loop.create_task(self.data_queue.put(data))
+
+        self.loop.call_soon(self.responders[-1].on_data, data)
+        # self.loop.create_task(self.data_queue.put(data))
         # self.call_soon(self.self.responders[-1].)
         # print("[GrowlerProtocol::data_received]", id(self))
         # print("[server::data_received]", ">>", data)
@@ -86,22 +89,3 @@ class GrowlerProtocol(asyncio.Protocol):
         self.loop.create_task(self.data_queue.put(None))
         self.is_done_transmitting = True
         print("[GrowlerProtocol::eof_received]")
-
-
-# Or should this be called HTTPGrowlerProtocol?
-class GrowlerHTTPProtocol(GrowlerProtocol):
-    """
-    GrowlerProtocol dealing with HTTP requests
-    """
-
-    def __init__(self, app, loop):
-        """
-        Construct a GrowlerHTTPProtocol object. This should only be called from
-        a growler.HTTPServer instance.
-
-        @param app: A growler application which
-        @param loop:
-        """
-        super().__init__(loop=loop, responder_type=HTTPResponder)
-        print("[GrowlerHTTPProtocol::__init__]", id(self))
-        self.growler_app = app
