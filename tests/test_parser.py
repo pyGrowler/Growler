@@ -12,18 +12,6 @@ import threading
 
 import socket
 
-
-def setup_server():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    app = growler.App("ParserTest", loop=loop)
-    app.get('/', lambda req, res: res.send_text("ItWorks"))
-    app.run()
-
-
-threading.Thread(target=setup_server).start()
-
-
 def pytest_configure(config):
     from pprint import pprint
     print("[pytest_configure]")
@@ -45,4 +33,4 @@ def test_bad_request():
     # print (cnx)
     # loop.stop()
 
-test_bad_request()
+# test_bad_request()

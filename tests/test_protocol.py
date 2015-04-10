@@ -9,13 +9,16 @@ from utils import *
 import asyncio
 
 class TestResponder:
-    pass
+
+    def __init__(self, something):
+        print("something")
 
 class TestProtocol(growler.protocol.GrowlerProtocol):
     responder_type = TestResponder
 
 def test_constructor():
-    proto = growler.protocol.GrowlerProtocol()
+    loop = asyncio.get_event_loop()
+    proto = growler.protocol.GrowlerProtocol(loop, TestResponder)
     assert isinstance(proto, asyncio.Protocol)
 
 def setup_server(loop=asyncio.get_event_loop(), port=8888):
@@ -32,22 +35,20 @@ def teardown_server(server, loop=asyncio.get_event_loop()):
     server.close()
     loop.run_until_complete(server.wait_closed())
 
-def test_missing_responder():
-    with pytest.raises(TypeError):
-        proto = growler.protocol.GrowlerProtocol()
-        proto.connection_made(None)
-
-
 def test_responder():
     class mock_transport:
         def get_extra_info(self, key):
-            return None
+            return {
+                'peername': ('mock.host', -1)
+            }.get(key, None)
+
         def write(self, data):
             print("writing ",len(data),"bytes")
         def close(self):
             pass
+    loop = asyncio.get_event_loop()
     trans = mock_transport()
-    proto = growler.protocol.GrowlerProtocol()
+    proto = growler.protocol.GrowlerProtocol(loop, TestResponder)
     proto.responder_type = TestResponder
     proto.connection_made(trans)
     trans.write(b"x")
@@ -84,11 +85,6 @@ def test_server_timeout():
         assert r is not None
 
     loop.run_until_complete(_client())
-    # try:
-        # loop.run_forever()
-    # except KeyboardInterrupt:
-        # pass
-
     teardown_server(server)
     loop.close()
 
