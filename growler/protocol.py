@@ -9,6 +9,8 @@ Code containing Growler's asyncio.Protocol code for handling all streaming
 import asyncio
 import sys
 
+from growler.http.responder import HTTPResponder
+
 
 class GrowlerProtocol(asyncio.Protocol):
     """
@@ -91,7 +93,6 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
     """
     GrowlerProtocol dealing with HTTP requests
     """
-    from .http.responder import HTTPResponder
 
     def __init__(self, app, loop):
         """

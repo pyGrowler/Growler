@@ -14,6 +14,9 @@ class Router():
         self.subrouters = []
         self.routes = []
 
+    def __call__(self, x):
+        print("calling router", x)
+
     def add_router(self, router):
         """Add a router to the list of subrouters."""
         self.subrouters.append(router)

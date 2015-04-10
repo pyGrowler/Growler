@@ -47,10 +47,16 @@ def create_server(
         sslctx = None
 
     # What do I use as a 'callback' here?
-    srv = HTTPServer(cb=callback, loop=loop, ssl=sslctx)
-    coro = loop.create_server(srv.generate_protocol(), host, port, ssl=sslctx)
-    server = loop.run_until_complete(coro)
-    return server
+    srv = HTTPServer(cb=callback,
+                     loop=loop,
+                     ssl=sslctx,
+                     host=host,
+                     port=port,
+                     **kargs
+                     )
+    # coro = loop.create_server(srv.generate_protocol(), host, port, ssl=sslctx)
+    # server = loop.run_until_complete(coro)
+    return srv
 
 
 class HTTPServer():
@@ -93,9 +99,7 @@ class HTTPServer():
         self.callback = cb
         self.loop = loop or asyncio.get_event_loop()
         self.ssl = ssl
-        self.server_options = {
-            'loop': self.loop
-        }
+        self.server_options = dict()
 
         if isinstance(port, tuple):
             port = self.get_random_port(port)
@@ -184,7 +188,7 @@ class HTTPServer():
                 self.host = host
 
         #
-        self._coro = self.loop.create_server(http_proto, **self.server_options)
+        self._coro = self.loop.create_server(growler.protocol.GrowlerHTTPProtocol(app=self, loop=self.loop), **self.server_options)
         if block:
             srv = self.loop.run_until_complete(self.coro)
             print('Listening : {}'.format(self.srv.sockets[0].getsockname()))

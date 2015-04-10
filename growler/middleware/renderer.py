@@ -71,7 +71,7 @@ class JadeRenderer():
 
     def __init__(self, source):
         print("[JadeRenderer]")
-        # from pyjade.ext import mako
+        from pyjade.ext import mako
         from pyjade.ext.mako import preprocessor as mako_preprocessor
         from mako.template import Template
 
