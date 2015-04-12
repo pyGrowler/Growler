@@ -274,6 +274,18 @@ class App(object):
         for x in self._wait_for:
             yield from x
 
+    #
+    # Middleware adding functions
+    #
+    # These functions can be called explicity or decorate functions. They are
+    # forwarding functions which call the same function name on the root
+    # router.
+    # These could be assigned on construction using the form:
+    #
+    #    self.all = self.routers[0].all
+    #
+    # , but that would not allow the user to switch the root router (easily)
+    #
     def all(self, path="/", middleware=None):
         """
         An alias call for simple access to the default router. The middleware
@@ -290,10 +302,6 @@ class App(object):
             return self.routers[0].get(path, middleware)
         self.routers[0].get(path, middleware)
 
-    def set(self, key, value):
-        """Set a configuration option (Alias of app[key] = value)"""
-        self.config[key] = value
-
     def post(self, path="/", middleware=None):
         """
         An alias call for simple access to the default router. The middleware
@@ -301,36 +309,28 @@ class App(object):
         """
         return self.routers[0].post(path, middleware)
 
-    def enable(self, name):
-        """Set setting 'name' to true"""
-        self.config[name] = True
-
-    def disable(self, name):
-        """Set setting 'name' to false"""
-        self.config[name] = False
-
-    def enabled(self, name):
-        """Returns whether a setting has been enabled"""
-        return self.config[name] == True
-
-    def require(self, future):
+    def use(self, middleware, path=None):
         """
-        Will wait for the future before beginning to serve web pages. Useful
-        for database connections.
+        Use the middleware (a callable with parameters res, req, next) upon
+        requests match the provided path. A None path matches every request.
+        Returns 'self' so the middleware may be nicely chained.
         """
-        # if type(future) is asyncio.Future:
-        #   self._wait_for['futures'].append(future)
-        # elif inspect.isgeneratorfunction(future):
-        #   print("GeneratorFunction!")
-        #   self._wait_for['generators'].append(future)
-        # elif inspect.isgenerator(future):
-        #   print("Generator!")
-        #   self._wait_for['generators'].append(future)
-        # else:
-        #   print("[require] Unknown Type of 'Future'", future, type(future))
-        self._wait_for.append(future)
+        print("[App::use] Adding middleware", middleware)
+        self.middleware.append(middleware)
+        return self
+
+    def add_router(self, path, router):
+        """
+        Adds a router to the list of routers
+        @type path: str
+        @type router: growler.Router
+        """
+        self.routers.append(router)
 
     def _find_route(self, method, path):
+        """
+        Internal function for finding a route which matches the path
+        """
         found = None
         for r in self.patterns:
             print('r', r)
@@ -349,31 +349,38 @@ class App(object):
         # yield from asyncio.sleep(1)
         # yield
 
-    def use(self, middleware, path=None):
-        """
-        Use the middleware (a callable with parameters res, req, next) upon
-        requests match the provided path. A None path matches every request.
-        Returns 'self' so the middleware may be nicely chained.
-        """
-        print("[App::use] Adding middleware", middleware)
-        self.middleware.append(middleware)
-        return self
-
     def _middleware_boot(self, req, res, next):
         """The initial middleware"""
         pass
 
-    def add_router(self, path, router):
-        """
-        Adds a router to the list of routers
-        @type path: str
-        @type router: growler.Router
-        """
-        self.routers.append(router)
-
     def print_router_tree(self):
         for r in self.routers:
             r.print_tree()
+
+    #
+    # Configuration functions
+    #
+    def enable(self, name):
+        """Set setting 'name' to true"""
+        self.config[name] = True
+
+    def disable(self, name):
+        """Set setting 'name' to false"""
+        self.config[name] = False
+
+    def enabled(self, name):
+        """
+        Returns whether a setting has been enabled. This just casts the
+        configuration value to a boolean.
+        """
+        return bool(self.config[name])
+
+    def require(self, future):
+        """
+        Will wait for the future before beginning to serve web pages. Useful
+        for things like database connections.
+        """
+        self._wait_for.append(future)
 
     #
     # dict-like access for application configuration options
