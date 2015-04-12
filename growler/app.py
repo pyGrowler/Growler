@@ -1,6 +1,26 @@
 #
 # growler/app.py
 #
+"""
+Defines the base application (App) that defines a 'growlerific' program. This
+is where the developers should start writing their own application, as all of
+the HTTP handling is done elsewhere. The typical use case is a single instance
+of an application which is the endpoint for a (or multiple) webserver.
+
+Currently the only webserver which can forward requests to a Growler App is the
+growler webserver packaged, but it would be nice to expand this to other
+popular web frameworks.
+
+A simple app can be created raw (no subclassing) and then decorate functions or
+a class to modify the behavior of the app. (decorators explained elsewhere)
+
+app = App()
+
+@app.use
+def myfunc(req, res):
+    print("myfunc")
+
+"""
 
 import asyncio
 import os
@@ -12,21 +32,42 @@ from .http import (
     HTTPErrorInternalServerError,
     HTTPErrorNotFound
 )
-# from .http import *
 from .router import Router
 
 
 class App(object):
     """
-    A Growler application object. It's recommended to either subclass
-    growler.App, writing a custom 'run' function. The 'main leaving the
-    _handle_connection.
+    A Growler application object. You can use a 'raw' app and modify it by
+    decorating functions and objects with the app object, or subclass App and
+    define request handling and middleware from within.
+
+    The typical use case is a single App instance which is the end-point for a
+    dedicated webserver. Upon each connection from a client, the
+    _handle_connection method is called, which constructs the request and
+    response objects from the asyncio.Stream{Reader,Writer}. The app then
+    proceeds to pass these req and res objects to each middleware object in its
+    chain, which may modify either. The default behavior is to have a
+    growler.router as the last middleware in the chain and finds the first
+    pattern which matches the req.path variable, and calls this function.
+
+    If at any point in the middleware chain, res is found to be in the 'closed'
+    state, we simply stop the chain. If after the last middleware is called and
+    the res is NOT in the 'closed' state, an error will be thrown. If at any
+    point in the middleware chain an exception is thrown, the exception type is
+    searched for in a chain of error handlers, and if found is called, with the
+    expectation that res will be closed. If it is NOT closed at this point or
+    if a handler was not found, the default implementation throws a '500 -
+    Server Error' to the user.
+
+    Each middleware in the chain can either be a normal function or an
+    asyncio.coroutine. Either will be called asynchronously. There is no
+    timeout variable yet, but I think I will put one in later, to ensure that
+    the middleware is as responsive as the dev expects.
     """
 
     def __init__(self,
-                 name,
-                 settings={},
-                 loop=None,
+                 name=__name__,
+                 loop=asyncio.get_event_loop(),
                  no_default_router=False,
                  debug=True,
                  request_class=HTTPRequest,
@@ -35,14 +76,32 @@ class App(object):
                  ):
         """
         Creates an application object.
+
         @param name: does nothing right now
         @type name: str
 
-        @param settings: initial server configuration
-        @type settings: dict
-
         @param loop: The event loop to run on
         @type loop: asyncio.AbstractEventLoop
+
+        @param debug: (de)Activates the loop's debug setting
+        @type debug: boolean
+
+        @param request_class: The factory of request objects, the default of
+            which is growler.HTTPRequest. This should only be set in special
+            cases, like debugging or if the dev doesn't want to modify default
+            request objects via middleware.
+        @type request_class: runnable
+
+        @param response_class: The factory of response objects, the default of
+            which is growler.HTTPResponse. This should only be set in special
+            cases, like debugging or if the dev doesn't want to modify default
+            response objects via middleware.
+        @type response_class: runnable
+
+        @param kw: Any other custom variables for the application. This dict is
+            stored as 'self.config' in the application
+        @type kw: dict
+
         """
         self.name = name
         self.cache = {}
@@ -52,7 +111,7 @@ class App(object):
         # rendering engines
         self.engines = {}
         self.patterns = []
-        self.loop = loop if loop else asyncio.get_event_loop()
+        self.loop = loop
         self.loop.set_debug(debug)
 
         self.middleware = []  # [{'path': None, 'cb' : self._middleware_boot}]
