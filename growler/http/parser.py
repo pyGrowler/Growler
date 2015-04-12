@@ -18,29 +18,83 @@ class Parser:
     """
 
     EOL_TOKEN = None
+    _buffer = []
+    encoding = 'utf-8'
 
-    def __init__(self):
+    HTTP_VERSION = None
+
+    def __init__(self, queue):
         """
         Construct a Parser object.
 
-
+        @param queue asyncio.queue: The queue in which to put parsed items.
+            This is assumed to be read from the responder which created it.
         """
-        pass
+        self.queue = queue
 
-    @asyncio.coroutine
-    def send(self, data):
-        print("[Parser::send]", data)
+    def consume(self, data):
+        data = data.decode(self.encoding)
+        print("[Parser::consume]", data)
+        newline = self._find_newline(data)
+        if newline == -1:
+            self._buffer.append(data)
+            return
+        lines = ''.join(self._buffer).split(self.EOL_TOKEN)
 
-    def k(self, ):
-        pass
+        # process request line
+        if self.HTTP_VERSION is None:
+            self.parse_request_line(lines.pop(0))
+            self.put_nowait({
+                'method': self.method,
+                'version': self.version,
+                'url': self.parsed_url
+                })
+
+        # process headers
 
     def parse_request_line(self, req_line):
         """
         Simply splits the request line into three components.
         TODO: Check that there are 3 and validate the method/path/version
         """
-        req_lst = req_line.split()
+        method, request_uri, version = req_line.split()
+
+        if version not in ('HTTP/1.1', 'HTTP/1.0'):
+            raise HTTPErrorVersionNotSupported()
+
+        # save 'method' to self and get the correct function to finish
+        # processing
+        num_str = version[version.find('/')+1:]
+        self.HTTP_VERSION = tuple(num_str.split('.'))
+        self.version_number = float(numstr)
+        self.method = method
+        self._process_headers = {
+          "GET": self._process_get_headers,
+          "POST": self._process_post_headers
+        }.get(method, None)
+
+        # Method not found
+        if self._process_headers is None:
+            err = "Unknown HTTP Method '{}'".format(method)
+            raise HTTPErrorNotImplemented(err)
+
+        self.original_url = request_uri
+        self.parsed_url = urlparse(request_uri)
+        self.path = unquote(self.parsed_url.path)
+        self.query = parse_qs(self.parsed_url.query)
+
         return req_lst
+
+    def _find_newline(self, string):
+        if self.EOL_TOKEN is None: # we have not processed the first line yet
+            line_end_pos = string.find('\n')
+            if line_end_pos != -1:
+                prev_char = next_str[line_end_pos-1]
+                self.EOL_TOKEN = '\r\n' if prev_char == '\r' else '\n'
+            else:
+                return -1
+        return string.find(self.EOL_TOKEN)
+
 
 
 class HTTPParser(object):
