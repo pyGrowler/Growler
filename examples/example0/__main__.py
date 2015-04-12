@@ -3,24 +3,27 @@ from os import path
 
 import asyncio
 
-from growler import (App)
-from growler.middleware import (Logger, Static, Renderer, Timer)
+import asyncio
+
+from growler import (App, create_http_server)
+from growler.middleware import (Logger, Static, Renderer)
+
+app = App('GrowlerServer')
 
 this_dir = path.dirname(__file__)
 
-app = App('GrowlerServer', {'host':'127.0.0.1', 'port': 8000})
-
 app.use(Logger())
-app.use(Timer())
 app.use(Renderer(path.join(this_dir, "views"), "jade"))
-app.use(lambda i,o: o.locals.update({'user': {"name": "Arthur"}}))
 
 @app.get('/')
 def index(req, res):
-  res.render("home", {'title': "Programmed Title!"})
+    res.render("home")
 
 @app.get('/hello')
 def hello_world(req, res):
-  res.send_text("Hello World!!")
+    res.send_text("Hello World!!")
 
-app.run()
+http = create_http_server(app, host='127.0.0.1', port=(8000,9000))
+asyncio.get_event_loop().run_until_complete(http.listen())
+
+asyncio.get_event_loop().run_forever()

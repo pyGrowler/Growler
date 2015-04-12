@@ -6,5 +6,5 @@ import pytest
 
 
 def test_something():
-  print ("testing")
-  return True
+    print("testing")
+    return True

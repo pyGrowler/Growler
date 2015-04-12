@@ -1,20 +1,27 @@
 #
-# growler/__init__.py
+# growler/http/__init__.py
 #
+"""
+Sub-package dealing with HTTP implementation. In this pacakge we have the
+asyncio protocol, server, parser, and request and response objects.
+"""
 
-from .Parser import HTTPParser
-from .Request import HTTPRequest
-from .Response import HTTPResponse
+from .parser import HTTPParser
+from .request import HTTPRequest
+from .response import HTTPResponse
 from .Error import *
+from .server import create_server
 
 from http.server import BaseHTTPRequestHandler
-
-__all__ = ['HTTPRequest', 'HTTPResponse', 'HTTPParser', 'HTTPError']
-__all__.extend(Error.__all__)
 
 import mimetypes
 
 mimetypes.init()
+
+
+__all__ = ['HTTPRequest', 'HTTPResponse', 'HTTPParser', 'HTTPError']
+__all__.extend(Error.__all__)
+
 
 KB = 1024
 MB = KB ** 2
@@ -33,7 +40,7 @@ HEADER_DELIM = EOL * 2
 RESPONSES = BaseHTTPRequestHandler.responses
 
 HTTPCodes = {
-  200 : "OK",
-  301 : "Moved Permanently",
-  302 : "Found"
+  200: "OK",
+  301: "Moved Permanently",
+  302: "Found"
 }

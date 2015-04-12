@@ -1,0 +1,142 @@
+#
+# growler/protocol.py
+#
+"""
+Code containing Growler's asyncio.Protocol code for handling all streaming
+(TCP) connections.
+"""
+
+import asyncio
+import sys
+
+
+class GrowlerProtocol(asyncio.Protocol):
+    """
+    The 'base' protocol for handling all requests. This implementation hands
+    off all data received to a 'responder' object. Because of this, it does NOT
+    expect that the data_received function would be overloaded by a subclass,
+    but rather the behavior should be defined by the responder it is passing
+    to.
+
+    The protocol maintains a stack of responders, and forwards incoming data to
+    the top of the stack via an on_data command. This forwarding is (currently)
+    done asynchronously by the asyncio.BaseEventLoop.call_soon function.
+
+    To simplify the creation of the initial responder, a factory (or simply the
+    constructor/type) is passed to the GrowlerProtocol object upon
+    construction. This factory is run when 'connection_made' is called on the
+    protocol.
+
+    Two functions, factory and get_factory, are provided to make the
+    construction of servers 'easy', without the need for lambdas. If you have a
+    subclass:
+        class GP(GrowlerProtocol):
+            ...
+    you can create a server easy using this protocol via:
+
+        asyncio.get_event_loop().create_server(GP.factory, ...)
+    or
+        asyncio.get_event_loop().create_server(GP.get_factory('a','b'), ...)
+
+    , the later example forwarding arguments to the factory. Note, calling
+    GP.factory() will not work as create_server expects the factory and not an
+    instance of the protocol.
+    """
+
+    def __init__(self, loop, responder_factory):
+        """
+        Construct a GrowlerProtocol object.
+
+        @param loop asyncio.BaseEventLoop: The event loop managing all
+            asynchronous activity of this protocol.
+
+        @param responder_factory runnable: A callable which returns the first
+            responder for this protocol. This could simply be a constructor for
+            the type (i.e. the type's name). This function will only be passed
+            the protocol object. The event loop should be aquired from the
+            protocol via the 'loop' member. The responder returned only needs
+            to have a method defined called 'on_data' which gets passed the
+            bytes received. Note: 'on_data' should only me a function and NOT a
+            coroutine.
+        """
+        print("[GrowlerProtocol::__init__]", id(self))
+        self.make_responder = responder_factory
+        self.loop = asyncio.get_event_loop if loop is None else loop
+        self.data_queue = asyncio.Queue()
+
+    def connection_made(self, transport):
+        """
+        asyncio.Protocol member - called upon when there is a new socket
+        connection. This creates a new responder (as determined by the member
+        'responder_type') and stores in a list for
+
+        @param transport asyncio.Transport: The Transport handling the socket
+            communication
+        """
+        print("[GrowlerProtocol::connection_made]", id(self))
+
+        self.responders = [self.make_responder(self)]
+        self.transport = transport
+        self.remote_hostname, self.remote_port = transport.get_extra_info(
+                                                        'peername')
+        self.socket = transport.get_extra_info('socket')
+        self.is_done_transmitting = False
+        print("Growler Connection from {}:{}".format(self.remote_hostname,
+                                                     self.remote_port))
+
+    def connection_lost(self, exc):
+        """
+        asyncio.Protocol member - called upon when a socket closes.
+
+        @param exc Exception: Error if unexpected closing. None if clean close
+        """
+        if exc:
+            print("[connection_lost]", exc, file=sys.stderr)
+        print("[connection_lost]")
+
+    def data_received(self, data):
+        """
+        asyncio.Protocol member - called upon when there is data to be read
+
+        @param transport bytes: bytes in the latest data transmission
+        """
+
+        self.loop.call_soon(self.responders[-1].on_data, data)
+        # self.loop.create_task(self.data_queue.put(data))
+        # self.call_soon(self.self.responders[-1].)
+        # print("[GrowlerProtocol::data_received]", id(self))
+        # print("[server::data_received]", ">>", data)
+        # print("Responders!",self.responders)
+        # asyncio.async(self.responders[-1].data_queue.put,
+        #               data,
+        #               loop=self.loop)
+        # self.responders[-1].on_data(data)
+
+    def eof_received(self):
+        """
+        asyncio.Protocol member - called upon when the client signals it will
+        not be sending any more data to the server.
+        """
+        self.loop.create_task(self.data_queue.put(None))
+        self.is_done_transmitting = True
+        print("[GrowlerProtocol::eof_received]")
+
+    @classmethod
+    def factory(cls, *args, **kw):
+        """
+        A class function which simply calls the constructor. Useful for
+        explicity stating that this is a factory. All arguments are forwarded
+        to the constructor.
+        """
+        return cls(*args, **kw)
+
+    @classmethod
+    def get_factory(cls, *args, **kw):
+        """
+        A class function which returns a runnable which calls the factory
+        function (i.e. the constructor) of the class with the arguments
+        provided. This should makes it easy to bind GrowlerProtocol
+        construction explicitly. All arguments are forwarded to the
+        constructor.
+        """
+        return lambda: cls.factory(*args, **kw)

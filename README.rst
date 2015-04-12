@@ -54,10 +54,10 @@ Example Usage
 
     import asyncio
 
-    from growler import (App)
+    from growler import (App, create_http_server)
     from growler.middleware import (Logger, Static, Renderer)
 
-    app = App('GrowlerServer', {'host':'127.0.0.1', 'port': 8000}))
+    app = App('GrowlerServer')
 
     app.use(Logger())
     app.use(Renderer("views/", "jade"))
@@ -70,7 +70,9 @@ Example Usage
     def hello_world(req, res):
       res.send_text("Hello World!!")
 
-    app.run()
+    http = create_http_server(app(), host='127.0.0.1', port=8000)
+    asyncio.get_event_loop().run_until_complete(http.listen())
+
 
 This code creates an application which is identified by 'GrowlerServer'
 (this name does nothing at this point) and has some listening options,
