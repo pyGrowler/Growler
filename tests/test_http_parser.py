@@ -21,10 +21,12 @@ import threading
 import socket
 import pytest
 
+
 def pytest_configure(config):
     from pprint import pprint
     print("[pytest_configure]")
     pprint(config)
+
 
 def test_find_newline():
     parser = Parser(None)
@@ -38,6 +40,7 @@ def test_find_newline():
     p3 = Parser(None)
     assert p2._find_newline('no newline') == -1
 
+
 def test_parse_request_line():
     parser = Parser(None)
     data = "GET /path?test=true&q=1 HTTP/1.1"
@@ -48,11 +51,14 @@ def test_parse_request_line():
     assert v == 'HTTP/1.1'
     print(u)
 
+
 def test_consume():
     class mock_queue:
         data = None
+
         def put_nowait(self, data):
             self.data = data
+
     q = mock_queue()
     p = Parser(q)
     p.consume(b"GET")
@@ -69,6 +75,7 @@ def test_consume():
     assert q.data['url'].path == '/path'
     assert q.data['version'] == 'HTTP/1.1'
 
+
 def test_bad_request():
     with pytest.raises(HTTPErrorBadRequest):
         Parser(None).consume(b"OOPS\r\nhost: nowhere.com\r\n")
@@ -76,9 +83,11 @@ def test_bad_request():
     with pytest.raises(HTTPErrorBadRequest):
         Parser(None).consume(b"\x99Get Stuff")
 
+
 def test_not_implemented():
     with pytest.raises(HTTPErrorNotImplemented):
         Parser(None).consume(b"OOPS /path HTTP/1.1\r\nhost: nowhere.com\r\n")
+
 
 def test_bad_version():
     with pytest.raises(HTTPErrorVersionNotSupported):

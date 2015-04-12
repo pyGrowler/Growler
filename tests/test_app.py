@@ -6,8 +6,10 @@ import growler
 
 from growler.middleware import (ResponseTime, Logger)
 
+
 def test_Success():
     assert True
+
 
 if __name__ == '__main__':
 
@@ -19,6 +21,5 @@ if __name__ == '__main__':
     # @app.get("/")
     # def index(req, res):
     #  res.send_text("It Works!")
-
 
     app.run()

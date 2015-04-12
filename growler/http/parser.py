@@ -16,6 +16,7 @@ from growler.http.Error import (
 MAX_REQUEST_LENGTH = 4096  # 4KB
 # from urllib.parse import (quote, parse_qs)
 
+
 class Parser:
     """
     New version of the Growler HTTPParser class. Responsible for interpreting
