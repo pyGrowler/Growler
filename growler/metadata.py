@@ -7,11 +7,11 @@ package = 'growler'
 project = 'A New Web Framework'
 project_no_spaces = project.replace(' ', '')
 
-version_info = (0, 1, 6)
+version_info = (0, 1, 7)
 version = '.'.join(map(str, version_info))
 version_name = ''.join((project, 'version', version))
 
-date = "Apr 4, 2015"
+date = "Apr 12, 2015"
 author = "Andrew Kubera"
 author_email = "andrew.kubera@gmail.com"
 copyright = "Copyright 2015, Andrew Kubera"
