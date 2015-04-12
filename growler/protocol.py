@@ -12,24 +12,55 @@ import sys
 
 class GrowlerProtocol(asyncio.Protocol):
     """
-    The protocol for handling all requests. The class hands off all data
-    received to a 'responder' object, the class of which is set at time of
-    construction.
+    The 'base' protocol for handling all requests. This implementation hands
+    off all data received to a 'responder' object. Because of this, it does NOT
+    expect that the data_received function would be overloaded by a subclass,
+    but rather the behavior should be defined by the responder it is passing
+    to.
+
+    The protocol maintains a stack of responders, and forwards incoming data to
+    the top of the stack via an on_data command. This forwarding is (currently)
+    done asynchronously by the asyncio.BaseEventLoop.call_soon function.
+
+    To simplify the creation of the initial responder, a factory (or simply the
+    constructor/type) is passed to the GrowlerProtocol object upon
+    construction. This factory is run when 'connection_made' is called on the
+    protocol.
+
+    Two functions, factory and get_factory, are provided to make the
+    construction of servers 'easy', without the need for lambdas. If you have a
+    subclass:
+        class GP(GrowlerProtocol):
+            ...
+    you can create a server easy using this protocol via:
+
+        asyncio.get_event_loop().create_server(GP.factory, ...)
+    or
+        asyncio.get_event_loop().create_server(GP.get_factory('a','b'), ...)
+
+    , the later example forwarding arguments to the factory. Note, calling
+    GP.factory() will not work as create_server expects the factory and not an
+    instance of the protocol.
     """
 
-    responder_type = None
-
-    def __init__(self, loop, responder_type):
+    def __init__(self, loop, responder_factory):
         """
         Construct a GrowlerProtocol object.
 
         @param loop asyncio.BaseEventLoop: The event loop managing all
-            asynchronous activity of this protocol
-        @param responder_type: The type (not instance) of the responder to
-            create upon creation of
+            asynchronous activity of this protocol.
+
+        @param responder_factory runnable: A callable which returns the first
+            responder for this protocol. This could simply be a constructor for
+            the type (i.e. the type's name). This function will only be passed
+            the protocol object. The event loop should be aquired from the
+            protocol via the 'loop' member. The responder returned only needs
+            to have a method defined called 'on_data' which gets passed the
+            bytes received. Note: 'on_data' should only me a function and NOT a
+            coroutine.
         """
         print("[GrowlerProtocol::__init__]", id(self))
-        self.responder_type = responder_type
+        self.make_responder = responder_factory
         self.loop = asyncio.get_event_loop if loop is None else loop
         self.data_queue = asyncio.Queue()
 
@@ -44,7 +75,7 @@ class GrowlerProtocol(asyncio.Protocol):
         """
         print("[GrowlerProtocol::connection_made]", id(self))
 
-        self.responders = [self.responder_type(self)]
+        self.responders = [self.make_responder(self)]
         self.transport = transport
         self.remote_hostname, self.remote_port = transport.get_extra_info(
                                                                     'peername')
@@ -89,3 +120,24 @@ class GrowlerProtocol(asyncio.Protocol):
         self.loop.create_task(self.data_queue.put(None))
         self.is_done_transmitting = True
         print("[GrowlerProtocol::eof_received]")
+
+
+    @classmethod
+    def factory(cls, *args, **kw):
+        """
+        A class function which simply calls the constructor. Useful for
+        explicity stating that this is a factory. All arguments are forwarded
+        to the constructor.
+        """
+        return cls(*args, **kw)
+
+    @classmethod
+    def get_factory(cls, *args, **kw):
+        """
+        A class function which returns a runnable which calls the factory
+        function (i.e. the constructor) of the class with the arguments
+        provided. This should makes it easy to bind GrowlerProtocol
+        construction explicitly. All arguments are forwarded to the
+        constructor.
+        """
+        return lambda: cls.factory(*args, **kw)
