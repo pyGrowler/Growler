@@ -4,6 +4,7 @@
 
 import growler.protocol
 import asyncio
+import pytest
 from utils import *
 
 
@@ -27,7 +28,6 @@ def test_create_server_and_connect():
 
 
 def test_server_bad_request():
-    print(" ->", id(asyncio.get_event_loop()))
     server, port = setup_http_server()
 
     @asyncio.coroutine
@@ -35,17 +35,8 @@ def test_server_bad_request():
         r, w = yield from asyncio.open_connection('127.0.0.1', port)
         assert isinstance(r, asyncio.StreamReader)
         w.write(b"a98asdfyhsfhhb2l3irjwef")
-        try:
+        with pytest.raises(ConnectionResetError):
             data = yield from asyncio.wait_for(r.read(1024), 1.0)
-            print(data)
-            assert data == b"Recieved. OK"
-        except TimeoutError:
-            print("***Timeout")
-        except:
-            pass
-        finally:
-            w.write_eof()
-            w.close()
 
     asyncio.get_event_loop().run_until_complete(_client())
     teardown_server(server)

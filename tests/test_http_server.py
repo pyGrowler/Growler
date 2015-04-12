@@ -17,8 +17,8 @@ def test_random_port():
 
 def test_bad_port_range():
     # assume there will be a free port we could bind to in range [10000,11000)
-    port = HTTPServer.get_random_port((10001, 10000))
-    assert port is None
+    with pytest.raises(Exception):
+        port = HTTPServer.get_random_port((10001, 10000))
 
 
 def test_server_constructor_default():
