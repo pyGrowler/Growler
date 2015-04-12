@@ -6,7 +6,11 @@ import growler
 
 from growler.http.parser import Parser
 
-from growler.http.Error import HTTPErrorNotImplemented
+from growler.http.Error import (
+    HTTPErrorBadRequest,
+    HTTPErrorNotImplemented,
+    HTTPErrorVersionNotSupported,
+)
 
 import asyncio
 # from pytest_localserver import http
@@ -66,10 +70,19 @@ def test_consume():
     assert q.data['version'] == 'HTTP/1.1'
 
 def test_bad_request():
+    with pytest.raises(HTTPErrorBadRequest):
+        Parser(None).consume(b"OOPS\r\nhost: nowhere.com\r\n")
+
+    with pytest.raises(HTTPErrorBadRequest):
+        Parser(None).consume(b"\x99Get Stuff")
+
+def test_not_implemented():
     with pytest.raises(HTTPErrorNotImplemented):
-        p = Parser(None)
-        data = b"""OOPS /path HTTP/1.1\r\nhost: nowhere.com\r\n"""
-        p.consume(data)
+        Parser(None).consume(b"OOPS /path HTTP/1.1\r\nhost: nowhere.com\r\n")
+
+def test_bad_version():
+    with pytest.raises(HTTPErrorVersionNotSupported):
+        Parser(None).consume(b"OOPS /path HTTP/1.3\r\nhost: nowhere.com\r\n")
 
 # test_bad_request()
 test_parse_request_line()

@@ -10,6 +10,7 @@ from termcolor import colored
 from growler.http.Error import (
     HTTPErrorNotImplemented,
     HTTPErrorBadRequest,
+    HTTPErrorVersionNotSupported,
 )
 
 MAX_REQUEST_LENGTH = 4096  # 4KB
@@ -35,7 +36,11 @@ class Parser:
         self.HTTP_VERSION = None
 
     def consume(self, data):
-        data = data.decode(self.encoding)
+        try:
+            data = data.decode(self.encoding)
+        except UnicodeDecodeError:
+            raise HTTPErrorBadRequest
+
         print("[Parser::consume]", data)
         newline = self._find_newline(data)
         if newline == -1:
@@ -59,7 +64,10 @@ class Parser:
         Simply splits the request line into three components.
         TODO: Check that there are 3 and validate the method/path/version
         """
-        method, request_uri, version = req_line.split()
+        try:
+            method, request_uri, version = req_line.split()
+        except ValueError:
+            raise HTTPErrorBadRequest()
 
         if version not in ('HTTP/1.1', 'HTTP/1.0'):
             raise HTTPErrorVersionNotSupported()
@@ -219,7 +227,7 @@ class HTTPParser(object):
         except ValueError as e:
             err_str = "ERROR parsing headers. Input '{}'".format(line)
             print(colored(err_str, 'red'))
-            raise HTTPBadRequest(e)
+            raise HTTPErrorBadRequest(e)
 
         return {'key': key, 'value': value}
 

@@ -4,24 +4,36 @@
 
 import sys
 
+
 class HTTPError(Exception):
+    """
+    Generic HTTP Exception.
+
+    Must be constructed with a code number, may be given an optional phrase.
+    It is recommended to use one of the subclasses which is defined below.
+    A helper function exists to get the appropriate error from a code:
+        raise HTTPError.get_from_code(404)
+        raise HTTPErrorNotFound()
+    """
 
     msg = ''
+    code = 0
 
-    def __init__(self, phrase=None, code=0, ex=None):
-        print ("[HTTPError]")
+    def __init__(self, code=None, phrase=None, ex=None):
+        """
+        Construct an http error, if code or phrase not defined, use default.
+        """
         self.phrase = phrase or self.msg
+        self.code = code or self.code
         Exception.__init__(self, self.phrase)
-        self.code = code
-        self.phrase = phrase
         self.sys_exception = ex
         self.traceback = sys.exc_info()[2]
 
-    def PrintSysMessage(self, printraceback = True):
+    def PrintSysMessage(self, printraceback=True):
         if self.sys_exception:
             print(self.sys_exception)
         if printraceback and self.traceback:
-            print (self.traceback)
+            print(self.traceback)
 
     @classmethod
     def get_from_code(cls, code):
@@ -34,48 +46,75 @@ class HTTPError(Exception):
             410: HTTPErrorGone
             }(code, None)
 
+
 class HTTPErrorBadRequest(HTTPError):
-  def __init__(self, ex = None):
-    HTTPError.__init__(self, "Bad Request", 400, ex)
+    code = 400
+    msg = "Bad Request"
+
 
 class HTTPErrorUnauthorized(HTTPError):
-  def __init__(self):
-    HTTPError.__init__(self, "Unauthorized", 401)
+    code = 401
+    msg = "Unauthorized"
+
 
 class HTTPErrorPaymentRequired(HTTPError):
-  def __init__(self):
-    HTTPError.__init__(self, "Payment Required", 402)
+    code = 402
+    msg = "Payment Required"
 
+
+# HTTPErrorForbidden = HTTPError.__init__({}, 403, "Forbidden")
 class HTTPErrorForbidden(HTTPError):
-  def __init__(self):
-    HTTPError.__init__(self, "Forbidden", 403)
+    code = 403
+    msg = "Forbidden"
+
 
 class HTTPErrorNotFound(HTTPError):
-  def __init__(self):
-    HTTPError.__init__(self, "Not Found", 404)
+    code = 405
+    msg = "Not Found"
+
 
 class HTTPErrorGone(HTTPError):
-  def __init__(self):
-    HTTPError.__init__(self, "Gone", 410)
+    code = 410
+    msg = "Gone"
+
 
 class HTTPErrorRequestTooLarge(HTTPError):
-  def __init__(self):
-    HTTPError.__init__(self, "Request-URI Too Large", 414)
+    code = 414
+    msg = "Request-URI Too Large"
+
 
 class HTTPErrorUnsupportedMediaType(HTTPError):
-  def __init__(self):
-    HTTPError.__init__(self, "Unsupported Media Type", 415)
+    code = 415
+    msg = "Unsupported Media Type"
+
 
 class HTTPErrorInternalServerError(HTTPError):
-  def __init__(self):
-    HTTPError.__init__(self, "Internal Server Error", 500)
+    code = 500
+    msg = "Internal Server Error"
+
 
 class HTTPErrorNotImplemented(HTTPError):
-  def __init__(self, msg="Method Not Implemented"):
-    HTTPError.__init__(self, msg, 501)
+    code = 501
+    msg = "Method Not Implemented"
+
 
 class HTTPErrorVersionNotSupported(HTTPError):
     msg = "Version not supported"
     code = 505
 
-__all__ = ['HTTPError', 'HTTPErrorInternalServerError', 'HTTPErrorBadRequest', 'HTTPErrorUnauthorized', 'HTTPErrorPaymentRequired', 'HTTPErrorForbidden', 'HTTPErrorNotFound', 'HTTPErrorGone', 'HTTPErrorRequestTooLarge', 'HTTPErrorUnsupportedMediaType', 'HTTPErrorInternalServerError', 'HTTPErrorNotImplemented', 'HTTPErrorVersionNotSupported']
+
+__all__ = [
+    'HTTPError',
+    'HTTPErrorInternalServerError',
+    'HTTPErrorBadRequest',
+    'HTTPErrorUnauthorized',
+    'HTTPErrorPaymentRequired',
+    'HTTPErrorForbidden',
+    'HTTPErrorNotFound',
+    'HTTPErrorGone',
+    'HTTPErrorRequestTooLarge',
+    'HTTPErrorUnsupportedMediaType',
+    'HTTPErrorInternalServerError',
+    'HTTPErrorNotImplemented',
+    'HTTPErrorVersionNotSupported',
+]
