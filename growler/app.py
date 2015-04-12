@@ -286,6 +286,7 @@ class App(object):
     #
     # , but that would not allow the user to switch the root router (easily)
     #
+
     def all(self, path="/", middleware=None):
         """
         An alias call for simple access to the default router. The middleware
@@ -360,6 +361,7 @@ class App(object):
     #
     # Configuration functions
     #
+
     def enable(self, name):
         """Set setting 'name' to true"""
         self.config[name] = True
@@ -385,6 +387,7 @@ class App(object):
     #
     # dict-like access for application configuration options
     #
+
     def __setitem__(self, key, value):
         """Sets a member of the application's configuration."""
         self.config[key] = value
@@ -399,6 +402,7 @@ class App(object):
     #
     # Helper Functions for easy server creation
     #
+
     def create_server(self, **server_config):
         """
         Helper function which constructs a listening server, using the default
