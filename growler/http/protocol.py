@@ -17,14 +17,14 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
     GrowlerProtocol dealing with HTTP requests
     """
 
-    def __init__(self, app, loop):
+    def __init__(self, app):
         """
         Construct a GrowlerHTTPProtocol object. This should only be called from
         a growler.HTTPServer instance.
 
-        @param app: A growler application which
-        @param loop:
+        @param app: A growler application which is the endpoint for this
+        protocol
         """
-        super().__init__(loop=loop, responder_type=HTTPResponder)
+        super().__init__(loop=app.loop, responder_type=HTTPResponder)
         print("[GrowlerHTTPProtocol::__init__]", id(self))
         self.growler_app = app
