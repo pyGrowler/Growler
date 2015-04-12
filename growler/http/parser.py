@@ -98,7 +98,8 @@ class Parser:
         return method, self.parsed_url, version
 
     def _find_newline(self, string):
-        if self.EOL_TOKEN is None: # we have not processed the first line yet
+        # we have not processed the first line yet
+        if self.EOL_TOKEN is None:
             line_end_pos = string.find('\n')
             if line_end_pos != -1:
                 prev_char = string[line_end_pos-1]

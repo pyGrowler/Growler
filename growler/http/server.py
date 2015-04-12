@@ -54,8 +54,6 @@ def create_server(
                      port=port,
                      **kargs
                      )
-    # coro = loop.create_server(srv.generate_protocol(), host, port, ssl=sslctx)
-    # server = loop.run_until_complete(coro)
     return srv
 
 
@@ -188,7 +186,10 @@ class HTTPServer():
                 self.host = host
 
         #
-        self._coro = self.loop.create_server(self.generate_protocol, **self.server_options)
+        self._coro = self.loop.create_server(
+            self.generate_protocol,
+            **self.server_options
+            )
         if block:
             srv = self.loop.run_until_complete(self.coro)
             print('Listening : {}'.format(self.srv.sockets[0].getsockname()))
@@ -214,7 +215,8 @@ class HTTPServer():
 
     @classmethod
     def get_random_port(cls, range_tuple, MAX=200):
-        import socket, random
+        import socket
+        import random
         CONNECTION_REFUSED = 61
         low, high = int(range_tuple[0]), int(range_tuple[1])
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -222,12 +224,10 @@ class HTTPServer():
         for counter in range(0, min(high-low, MAX)):
             test_port = random.randrange(low, high)
             if s.connect_ex(('0.0.0.0', test_port)) == CONNECTION_REFUSED:
-                print ("FOUND", test_port)
+                print("FOUND", test_port)
                 s.close()
                 return test_port
             # if s.connect_ex(arg) == 0:
                 # return test_port
             counter += 1
-        # print("")
-        # return None
-        # raise Exception("Could not find random port in range {}".format(range))
+        raise Exception("Could not find random port in range {}".format(range))

@@ -78,7 +78,7 @@ class GrowlerProtocol(asyncio.Protocol):
         self.responders = [self.make_responder(self)]
         self.transport = transport
         self.remote_hostname, self.remote_port = transport.get_extra_info(
-                                                                    'peername')
+                                                        'peername')
         self.socket = transport.get_extra_info('socket')
         self.is_done_transmitting = False
         print("Growler Connection from {}:{}".format(self.remote_hostname,
@@ -120,7 +120,6 @@ class GrowlerProtocol(asyncio.Protocol):
         self.loop.create_task(self.data_queue.put(None))
         self.is_done_transmitting = True
         print("[GrowlerProtocol::eof_received]")
-
 
     @classmethod
     def factory(cls, *args, **kw):

@@ -8,6 +8,7 @@ The Growler class responsible for responding to HTTP requests.
 import asyncio
 from .parser import Parser
 
+
 class GrowlerHTTPResponder():
     """
     The Growler Responder for HTTP connections. This class responds to incoming
@@ -30,7 +31,6 @@ class GrowlerHTTPResponder():
         self.parsing_queue = asyncio.Queue(loop=self.loop)
         self.parser = Parser(self.parsing_queue)
         self.endpoint = protocol.growler_app
-        # self.send_data_task = self._proto.loop.create_task(self.parser.send(data))
 
     def __del__(self):
         self.parsing_queue.close()

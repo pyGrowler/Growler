@@ -11,6 +11,7 @@ from growler.http.responder import GrowlerHTTPResponder
 import asyncio
 import sys
 
+
 # Or should this be called HTTPGrowlerProtocol?
 class GrowlerHTTPProtocol(GrowlerProtocol):
     """
@@ -25,8 +26,9 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
         Construct a GrowlerHTTPProtocol object. This should only be called from
         a growler.HTTPServer instance (or any asyncio.create_server function).
 
-        @param app: Typically a growler application which is the 'endpoint' for this
-            protocol, but any callable with a 'loop' attribute should work.
+        @param app: Typically a growler application which is the 'endpoint' for
+            this protocol, but any callable with a 'loop' attribute should
+            work.
         """
         super().__init__(loop=app.loop, responder_type=GrowlerHTTPResponder)
         print("[GrowlerHTTPProtocol::__init__]", id(self))
