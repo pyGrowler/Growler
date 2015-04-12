@@ -22,6 +22,16 @@ import socket
 import pytest
 
 
+class mock_queue:
+
+    def __init__(self):
+        self.data = []
+
+    def put_nowait(self, data):
+        self.data.append(data)
+        print(">>",self.data)
+
+
 def pytest_configure(config):
     from pprint import pprint
     print("[pytest_configure]")
@@ -53,27 +63,23 @@ def test_parse_request_line():
 
 
 def test_consume():
-    class mock_queue:
-        data = None
-
-        def put_nowait(self, data):
-            self.data = data
-
     q = mock_queue()
     p = Parser(q)
     p.consume(b"GET")
     assert p._buffer == ["GET"]
     p.consume(b" /path HTTP/1.1")
     p.consume(b"\n")
-    assert q.data['method'] == 'GET'
-    assert q.data['url'].path == '/path'
-    assert q.data['version'] == 'HTTP/1.1'
+    data = q.data[0]
+    assert data['method'] == 'GET'
+    assert data['url'].path == '/path'
+    assert data['version'] == 'HTTP/1.1'
 
-    p2 = Parser(q)
-    p2.consume(b"GET /path HTTP/1.1\nhost: noplace\n\n")
-    assert q.data['method'] == 'GET'
-    assert q.data['url'].path == '/path'
-    assert q.data['version'] == 'HTTP/1.1'
+    q2 = mock_queue()
+    Parser(q2).consume(b"GET /path HTTP/1.1\nhost: noplace\n\n")
+    data = q2.data[0]
+    assert data['method'] == 'GET'
+    assert data['url'].path == '/path'
+    assert data['version'] == 'HTTP/1.1'
 
 
 def test_bad_request():
@@ -92,6 +98,13 @@ def test_not_implemented():
 def test_bad_version():
     with pytest.raises(HTTPErrorVersionNotSupported):
         Parser(None).consume(b"OOPS /path HTTP/1.3\r\nhost: nowhere.com\r\n")
+
+def test_good_header_all():
+    q = mock_queue()
+    Parser(q).consume(b"GET / HTTP/1.1\r\nhost: nowhere.com\r\n\r\n")
+    headers = q.data[1]
+    assert 'host' in headers
+    assert headers['host'] == 'nowhere.com'
 
 # test_bad_request()
 test_parse_request_line()

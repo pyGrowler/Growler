@@ -35,6 +35,8 @@ class Parser:
         self._buffer = []
         self.encoding = 'utf-8'
         self.HTTP_VERSION = None
+        self._header_buffer = None
+        self.headers = dict()
 
     def consume(self, data):
         try:
@@ -47,7 +49,17 @@ class Parser:
         if newline == -1:
             self._buffer.append(data)
             return
+
         lines = ''.join(self._buffer + [data]).split(self.EOL_TOKEN)
+
+        assert len(lines) > 1
+
+        # Save the EOL
+        if data.endswith(self.EOL_TOKEN):
+            self._buffer = [self.EOL_TOKEN]
+        # The last element was NOT a complete line, put back in the buffer
+        else:
+            self._buffer = [lines.pop()]
 
         # process request line
         if self.HTTP_VERSION is None:
@@ -58,7 +70,48 @@ class Parser:
                 'url': self.parsed_url
                 })
 
+        # lines should now contain headers, or partial headers
+        #
         # process headers
+        if self._header_buffer is not None:
+            lines.insert(0, self._header_buffer)
+            self._header_buffer = None
+
+        empty_line = False
+        for line in lines:
+            # we are done parsing headers!
+            if line is '':
+                if empty_line:
+                    self._acquire_header_buffer()
+                    break
+                empty_line = True
+                continue
+            empty_line = False
+
+            if line.startswith((' ', '\t')):
+                line = line.strip()
+                val = self.header_buffer['value']
+                if isinstance(val, str):
+                    self.header_buffer['value'] = [val, line]
+                else:
+                    self.header_buffer['value'] += [line]
+                continue
+
+            if self._header_buffer:
+                self._acquire_header_buffer()
+
+            try:
+                key, value = map(str.strip, line.split(':', 1))
+            except ValueError as e:
+                err_str = "ERROR parsing headers. Input '{}'".format(line)
+                print(colored(err_str, 'red'))
+                raise HTTPErrorBadRequest(msg=e)
+            self._header_buffer = {'key': key, 'value': value}
+
+        if not self._header_buffer:
+            self.queue.put_nowait(self.headers)
+
+        print (lines)
 
     def parse_request_line(self, req_line):
         """
@@ -96,6 +149,10 @@ class Parser:
         self.query = parse_qs(self.parsed_url.query)
 
         return method, self.parsed_url, version
+
+    def _acquire_header_buffer(self):
+        self.headers[self._header_buffer['key']] = self._header_buffer['value']
+        self._header_buffer = None
 
     def _find_newline(self, string):
         # we have not processed the first line yet
