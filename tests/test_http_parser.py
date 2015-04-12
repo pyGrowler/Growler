@@ -21,6 +21,8 @@ import threading
 import socket
 import pytest
 
+import warnings
+
 
 class mock_queue:
 
@@ -59,7 +61,6 @@ def test_parse_request_line():
     assert u.path == '/path'
     assert u.query == 'test=true&q=1'
     assert v == 'HTTP/1.1'
-    print(u)
 
 
 def test_consume():
@@ -73,6 +74,7 @@ def test_consume():
     assert data['method'] == 'GET'
     assert data['url'].path == '/path'
     assert data['version'] == 'HTTP/1.1'
+    assert not p.needs_request_line
 
     q2 = mock_queue()
     Parser(q2).consume(b"GET /path HTTP/1.1\nhost: noplace\n\n")
@@ -103,8 +105,20 @@ def test_good_header_all():
     q = mock_queue()
     Parser(q).consume(b"GET / HTTP/1.1\r\nhost: nowhere.com\r\n\r\n")
     headers = q.data[1]
-    assert 'host' in headers
-    assert headers['host'] == 'nowhere.com'
+    assert 'HOST' in headers
+    assert headers['HOST'] == 'nowhere.com'
+
+def test_good_header_pieces():
+    q = mock_queue()
+    p = Parser(q)
+    p.consume(b"GET / HTTP/1.1\r\n")
+    p.consume(b"host: nowhere.com\r\n")
+    p.consume(b"\r\n")
+    headers = q.data[1]
+    assert not p.needs_headers
+    assert 'HOST' in headers
+    assert headers['HOST'] == 'nowhere.com'
+    # assert p.headers['HOST'] == 'nowhere.com'
 
 # test_bad_request()
 test_parse_request_line()

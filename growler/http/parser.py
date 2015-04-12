@@ -3,6 +3,7 @@
 #
 
 import asyncio
+import re
 
 from urllib.parse import (unquote, urlparse, parse_qs)
 from termcolor import colored
@@ -12,6 +13,9 @@ from growler.http.Error import (
     HTTPErrorBadRequest,
     HTTPErrorVersionNotSupported,
 )
+
+INVALID_CHAR_REGEX = '[\x00-\x1F\x7F()<>@,;:\[\]={} \t\\\\\"]'
+contains_invalid_char = re.compile(INVALID_CHAR_REGEX).search
 
 MAX_REQUEST_LENGTH = 4096  # 4KB
 # from urllib.parse import (quote, parse_qs)
@@ -38,80 +42,51 @@ class Parser:
         self._header_buffer = None
         self.headers = dict()
 
+        self.needs_request_line = True
+        self.needs_headers = True
+
     def consume(self, data):
         try:
             data = data.decode(self.encoding)
         except UnicodeDecodeError:
             raise HTTPErrorBadRequest
 
-        print("[Parser::consume]", data)
-        newline = self._find_newline(data)
-        if newline == -1:
+        print("[Parser::consume] {}".format(data.encode()))
+
+        if self._find_newline(data) == -1:
             self._buffer.append(data)
             return
 
         lines = ''.join(self._buffer + [data]).split(self.EOL_TOKEN)
 
-        assert len(lines) > 1
-
-        # Save the EOL
-        if data.endswith(self.EOL_TOKEN):
-            self._buffer = [self.EOL_TOKEN]
         # The last element was NOT a complete line, put back in the buffer
+        last_line = lines.pop()
+
+        if not data.endswith(self.EOL_TOKEN):
+            self._buffer = [last_line]
         else:
-            self._buffer = [lines.pop()]
+            self._buffer.clear()
 
         # process request line
-        if self.HTTP_VERSION is None:
+        if self.needs_request_line:
             self.parse_request_line(lines.pop(0))
             self.queue.put_nowait({
                 'method': self.method,
                 'version': self.version,
                 'url': self.parsed_url
-                })
+            })
+            self.needs_request_line = False
 
-        # lines should now contain headers, or partial headers
-        #
         # process headers
-        if self._header_buffer is not None:
-            lines.insert(0, self._header_buffer)
-            self._header_buffer = None
+        if lines and self.needs_headers:
+            print("LINES",lines)
+            self.store_headers_from_lines(lines)
 
-        empty_line = False
-        for line in lines:
-            # we are done parsing headers!
-            if line is '':
-                if empty_line:
-                    self._acquire_header_buffer()
-                    break
-                empty_line = True
-                continue
-            empty_line = False
+            # nothing was left in buffer - we have finished headers
+            if not self._header_buffer:
+                self.queue.put_nowait(self.headers)
+                self.needs_headers = False
 
-            if line.startswith((' ', '\t')):
-                line = line.strip()
-                val = self.header_buffer['value']
-                if isinstance(val, str):
-                    self.header_buffer['value'] = [val, line]
-                else:
-                    self.header_buffer['value'] += [line]
-                continue
-
-            if self._header_buffer:
-                self._acquire_header_buffer()
-
-            try:
-                key, value = map(str.strip, line.split(':', 1))
-            except ValueError as e:
-                err_str = "ERROR parsing headers. Input '{}'".format(line)
-                print(colored(err_str, 'red'))
-                raise HTTPErrorBadRequest(msg=e)
-            self._header_buffer = {'key': key, 'value': value}
-
-        if not self._header_buffer:
-            self.queue.put_nowait(self.headers)
-
-        print (lines)
 
     def parse_request_line(self, req_line):
         """
@@ -160,10 +135,51 @@ class Parser:
             line_end_pos = string.find('\n')
             if line_end_pos != -1:
                 prev_char = string[line_end_pos-1]
-                self.EOL_TOKEN = '\r\n' if prev_char == '\r' else '\n'
+                self.EOL_TOKEN = '\r\n' if prev_char is '\r' else '\n'
             else:
                 return -1
         return string.find(self.EOL_TOKEN)
+
+    def store_headers_from_lines(self, lines):
+        empty_line = False
+        for line in lines:
+            print("LINE: '{}'".format(line))
+            # we are done parsing headers!
+            if line is '':
+                self._acquire_header_buffer()
+                break
+                # empty_line = True
+                # continue
+            empty_line = False
+
+            if line.startswith((' ', '\t')):
+                line = line.strip()
+                val = self.header_buffer['value']
+                if isinstance(val, str):
+                    self.header_buffer['value'] = [val, line]
+                else:
+                    self.header_buffer['value'] += [line]
+                continue
+
+            if self._header_buffer:
+                self._acquire_header_buffer()
+
+            self._header_buffer = self.header_from_line(line)
+
+    @classmethod
+    def header_from_line(cls, line):
+        try:
+            key, value = map(str.strip, line.split(':', 1))
+        except ValueError as e:
+            err_str = "ERROR parsing headers. Input '{}'".format(line)
+            print(colored(err_str, 'red'))
+            raise HTTPErrorBadRequest(msg=e)
+
+        if contains_invalid_char(key):
+            raise HTTPErrorBadRequest
+
+        key = key.upper()
+        return {'key': key, 'value': value}
 
     def process_get_headers(self, data):
         pass
@@ -248,47 +264,6 @@ class HTTPParser(object):
 
         # yield from asyncio.sleep(0.75) # artificial delay
         return line
-
-    @asyncio.coroutine
-    def read_next_header(self):
-        """
-        A coroutine to generate headers. It uses read_next_line to get headers
-        line by line - allowing a quick response to invalid requests.
-        """
-        # No buffer has been saved - get the next line
-        if self._header_buffer is None:
-            line = yield from self.read_next_line()
-        # if there was a header saved, use that (and clear the buffer)
-        else:
-            line, self._header_buffer = self._header_buffer, None
-
-        # end of the headers - 'None' will end an iteration
-        if line == '':
-            return None
-
-        # TODO: warn better than a print statement
-        if line[0] == ' ':
-            print("WARNING: Header leads with whitespace")
-
-        next_line = yield from self.read_next_line()
-
-        # if next_line starts with a space, append this line to the previous
-        while next_line != '' and next_line[0] == ' ':
-            line += next_line
-            next_line = yield from self.read_next_line()
-
-        # next_line is now the beginning of the 'next_header', while 'line'
-        #  is the current header
-        self._header_buffer = next_line
-
-        try:
-            key, value = map(str.strip, line.split(":", 1))
-        except ValueError as e:
-            err_str = "ERROR parsing headers. Input '{}'".format(line)
-            print(colored(err_str, 'red'))
-            raise HTTPErrorBadRequest(e)
-
-        return {'key': key, 'value': value}
 
     @asyncio.coroutine
     def read_body(self):
