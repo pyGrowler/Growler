@@ -4,9 +4,13 @@
 
 import asyncio
 
+from urllib.parse import (unquote, urlparse, parse_qs)
 from termcolor import colored
 
-from .Error import (HTTPErrorBadRequest)
+from growler.http.Error import (
+    HTTPErrorNotImplemented,
+    HTTPErrorBadRequest,
+)
 
 MAX_REQUEST_LENGTH = 4096  # 4KB
 # from urllib.parse import (quote, parse_qs)
@@ -17,12 +21,6 @@ class Parser:
     the reqests made by the client and creating a request object.
     """
 
-    EOL_TOKEN = None
-    _buffer = []
-    encoding = 'utf-8'
-
-    HTTP_VERSION = None
-
     def __init__(self, queue):
         """
         Construct a Parser object.
@@ -31,6 +29,10 @@ class Parser:
             This is assumed to be read from the responder which created it.
         """
         self.queue = queue
+        self.EOL_TOKEN = None
+        self._buffer = []
+        self.encoding = 'utf-8'
+        self.HTTP_VERSION = None
 
     def consume(self, data):
         data = data.decode(self.encoding)
@@ -39,12 +41,12 @@ class Parser:
         if newline == -1:
             self._buffer.append(data)
             return
-        lines = ''.join(self._buffer).split(self.EOL_TOKEN)
+        lines = ''.join(self._buffer + [data]).split(self.EOL_TOKEN)
 
         # process request line
         if self.HTTP_VERSION is None:
             self.parse_request_line(lines.pop(0))
-            self.put_nowait({
+            self.queue.put_nowait({
                 'method': self.method,
                 'version': self.version,
                 'url': self.parsed_url
@@ -66,11 +68,12 @@ class Parser:
         # processing
         num_str = version[version.find('/')+1:]
         self.HTTP_VERSION = tuple(num_str.split('.'))
-        self.version_number = float(numstr)
+        self.version_number = float(num_str)
+        self.version = version
         self.method = method
         self._process_headers = {
-          "GET": self._process_get_headers,
-          "POST": self._process_post_headers
+          "GET": self.process_get_headers,
+          "POST": self.process_post_headers
         }.get(method, None)
 
         # Method not found
@@ -83,18 +86,23 @@ class Parser:
         self.path = unquote(self.parsed_url.path)
         self.query = parse_qs(self.parsed_url.query)
 
-        return req_lst
+        return method, self.parsed_url, version
 
     def _find_newline(self, string):
         if self.EOL_TOKEN is None: # we have not processed the first line yet
             line_end_pos = string.find('\n')
             if line_end_pos != -1:
-                prev_char = next_str[line_end_pos-1]
+                prev_char = string[line_end_pos-1]
                 self.EOL_TOKEN = '\r\n' if prev_char == '\r' else '\n'
             else:
                 return -1
         return string.find(self.EOL_TOKEN)
 
+    def process_get_headers(self, data):
+        pass
+
+    def process_post_headers(self, data):
+        pass
 
 
 class HTTPParser(object):

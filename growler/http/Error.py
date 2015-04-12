@@ -2,37 +2,37 @@
 # growler/http/Error.py
 #
 
-
 import sys
-
-__all__ = ['HTTPError', 'HTTPErrorInternalServerError', 'HTTPErrorBadRequest', 'HTTPErrorUnauthorized', 'HTTPErrorPaymentRequired', 'HTTPErrorForbidden', 'HTTPErrorNotFound', 'HTTPErrorGone', 'HTTPErrorRequestTooLarge', 'HTTPErrorUnsupportedMediaType', 'HTTPErrorInternalServerError', 'HTTPErrorNotImplemented', 'HTTPErrorVersionNotSupported']
 
 class HTTPError(Exception):
 
-  def __init__(self, phrase, code, ex = None):
-    print ("[HTTPError]")
-    Exception.__init__(self, phrase)
-    self.code = code
-    self.phrase = phrase
-    self.sys_exception = ex
-    self.traceback = sys.exc_info()[2]
+    msg = ''
 
-  def PrintSysMessage(self, printraceback = True):
-    if self.sys_exception:
-      print(self.sys_exception)
-    if printraceback and self.traceback:
-      print (self.traceback)
-      # for line in self.traceback:
-        # print (line)
+    def __init__(self, phrase=None, code=0, ex=None):
+        print ("[HTTPError]")
+        self.phrase = phrase or self.msg
+        Exception.__init__(self, self.phrase)
+        self.code = code
+        self.phrase = phrase
+        self.sys_exception = ex
+        self.traceback = sys.exc_info()[2]
 
-  @classmethod
-  def GetFromCode(cls, code):
-    return {400: HTTPErrorBadRequest,
+    def PrintSysMessage(self, printraceback = True):
+        if self.sys_exception:
+            print(self.sys_exception)
+        if printraceback and self.traceback:
+            print (self.traceback)
+
+    @classmethod
+    def get_from_code(cls, code):
+        return {
+            400: HTTPErrorBadRequest,
             401: HTTPErrorUnauthorized,
             402: HTTPErrorPaymentRequired,
             403: HTTPErrorForbidden,
             404: HTTPErrorNotFound,
-            410: HTTPErrorGone}(code, None)
+            410: HTTPErrorGone
+            }(code, None)
 
 class HTTPErrorBadRequest(HTTPError):
   def __init__(self, ex = None):
@@ -71,9 +71,11 @@ class HTTPErrorInternalServerError(HTTPError):
     HTTPError.__init__(self, "Internal Server Error", 500)
 
 class HTTPErrorNotImplemented(HTTPError):
-  def __init__(self):
-    HTTPError.__init__(self, "Method Not Implemented", 501)
+  def __init__(self, msg="Method Not Implemented"):
+    HTTPError.__init__(self, msg, 501)
 
 class HTTPErrorVersionNotSupported(HTTPError):
-  def __init__(self):
-    HTTPError.__init__(self, "Version not supported", 505)
+    msg = "Version not supported"
+    code = 505
+
+__all__ = ['HTTPError', 'HTTPErrorInternalServerError', 'HTTPErrorBadRequest', 'HTTPErrorUnauthorized', 'HTTPErrorPaymentRequired', 'HTTPErrorForbidden', 'HTTPErrorNotFound', 'HTTPErrorGone', 'HTTPErrorRequestTooLarge', 'HTTPErrorUnsupportedMediaType', 'HTTPErrorInternalServerError', 'HTTPErrorNotImplemented', 'HTTPErrorVersionNotSupported']

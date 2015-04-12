@@ -397,7 +397,7 @@ class App(object):
         return self.config[key]
 
     def __delitem__(self, key):
-        return del self.config[key]
+        del self.config[key]
 
     #
     # Helper Functions for easy server creation

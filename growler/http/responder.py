@@ -33,6 +33,7 @@ class GrowlerHTTPResponder():
         # self.send_data_task = self._proto.loop.create_task(self.parser.send(data))
 
     def __del__(self):
+        self.parsing_queue.close()
 
     def on_data(self, data):
         """
