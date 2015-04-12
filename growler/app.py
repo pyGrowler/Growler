@@ -99,7 +99,11 @@ class App(object):
         @type response_class: runnable
 
         @param kw: Any other custom variables for the application. This dict is
-            stored as 'self.config' in the application
+            stored as 'self.config' in the application. These variables are
+            accessible by the application's dict-access, as in:
+                app = app(..., val='VALUE')
+                app['var'] #=> val
+
         @type kw: dict
 
         """
@@ -133,28 +137,15 @@ class App(object):
         self._response_class = response_class
 
     def __call__(self, req, res):
+        """
+        Calls the growler server with the request and response objects.
+        """
         print("Calling growler", req, res)
-
-    @asyncio.coroutine
-    def _server_listen(self):
-        """
-        Starts the server. Should be called from 'app.run()' or equivalent.
-        """
-        print("Server {} listening on {}:{}".format(
-            self.name,
-            self.config['host'],
-            self.config['port'])
-        )
-        yield from asyncio.start_server(
-            self._handle_connection,
-            self.config['host'],
-            self.config['port']
-        )
 
     @asyncio.coroutine
     def _handle_connection(self, reader, writer):
         """
-        Called upon a connection from remote server. This is the default
+        Called upon a connection from remote client. This is the default
         behavior if application is run using '_server_listen' method. Request
         and response objects are created from the stream reader/writer and
         middleware is cycled through and applied to each. Changing behavior of
@@ -271,27 +262,6 @@ class App(object):
     def onstart(self, cb):
         print("Callback : ", cb)
         self._on_start.append(cb)
-
-    def run(self, run_forever=True):
-        """
-        Starts the server and listens for new connections. If run_forever is
-        true, the event loop is set to block.
-        """
-        # for func in self._on_start:
-        #   self.loop.run_until_complete(f)
-        #   self.loop.async(func):
-        # self.loop.run_until_complete(asyncio.Task(self.wait_for_all()))
-        # print("RUN ::")
-
-        self.loop.run_until_complete(self.wait_for_required())
-
-        self.loop.run_until_complete(self._server_listen())
-        if run_forever:
-            try:
-                self.loop.run_forever()
-            finally:
-                print("Run Forever Ended!")
-                self.loop.close()
 
     @asyncio.coroutine
     def wait_for_required(self):
@@ -415,3 +385,43 @@ class App(object):
     def __getitem__(self, key):
         """Gets a member of the application's configuration."""
         return self.config[key]
+
+    def __delitem__(self, key):
+        return del self.config[key]
+
+    #
+    # Helper Functions for easy server creation
+    #
+    def create_server(self, **server_config):
+        """
+        Helper function which constructs a listening server, using the default
+        growler.http.protocol.Protocol which responds to this app.
+
+        This function exists only to remove boilerplate code for starting up a
+        growler app.
+
+        @param server_config: These keyword arguments parameters are passed
+            directly to the BaseEventLoop.create_server function. Consult their
+            documentation for details.
+        @returns asyncio.coroutine which should be run inside a call to
+            loop.run_until_complete()
+        """
+        return self.loop.create_server(
+            Growler.HTTPProtocol.get_factory(self, self.loop),
+            **server_config
+        )
+
+    def create_server_and_run_forever(self, **server_config):
+        """
+        Helper function which constructs an HTTP server and listens the loop
+        forever.
+
+        This function exists only to remove boilerplate code for starting up a
+        growler app.
+
+        @param server_config: These keyword arguments parameters are passed
+            directly to the BaseEventLoop.create_server function. Consult their
+            documentation for details.
+        """
+        self.loop.run_until_complete(self.create_server(**server_config))
+        self.loop.run_forever()
