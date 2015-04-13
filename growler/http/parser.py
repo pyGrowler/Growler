@@ -15,7 +15,7 @@ from growler.http.Error import (
 )
 
 INVALID_CHAR_REGEX = '[\x00-\x1F\x7F()<>@,;:\[\]={} \t\\\\\"]'
-contains_invalid_char = re.compile(INVALID_CHAR_REGEX).search
+is_invalid_header = re.compile(INVALID_CHAR_REGEX).search
 
 MAX_REQUEST_LENGTH = 4096  # 4KB
 # from urllib.parse import (quote, parse_qs)
@@ -25,6 +25,11 @@ class Parser:
     """
     New version of the Growler HTTPParser class. Responsible for interpreting
     the reqests made by the client and creating a request object.
+
+    Current implementation accepts both LF and CRLF line endings, discovered
+    while processing the first line. Each header is read in one at a time.
+
+    Upon finding an error the Parser will throw a 'BadHTTPRequest' exception.
     """
 
     def __init__(self, queue):
@@ -79,7 +84,6 @@ class Parser:
 
         # process headers
         if lines and self.needs_headers:
-            print("LINES",lines)
             self.store_headers_from_lines(lines)
 
             # nothing was left in buffer - we have finished headers
@@ -90,8 +94,11 @@ class Parser:
 
     def parse_request_line(self, req_line):
         """
-        Simply splits the request line into three components.
-        TODO: Check that there are 3 and validate the method/path/version
+        Splits the request line given into three components. Ensures that the
+        version and method are valid for this server, and uses the urllib.parse
+        function to parse the request URI.
+
+        @return Tuple of (method, parsed_url, version)
         """
         try:
             method, request_uri, version = req_line.split()
@@ -125,11 +132,20 @@ class Parser:
 
         return method, self.parsed_url, version
 
-    def _acquire_header_buffer(self):
+    def _flush_header_buffer(self):
+        """
+        Stores the _header_buffer into the self.headers. Then Nonifies the
+        _header_buffer.
+        """
         self.headers[self._header_buffer['key']] = self._header_buffer['value']
         self._header_buffer = None
 
     def _find_newline(self, string):
+        """
+        Finds an End-Of-Line character in the string. If this has not been
+        determined, simply look for the \n, then check if there was an \r
+        before it. If not found, return -1.
+        """
         # we have not processed the first line yet
         if self.EOL_TOKEN is None:
             line_end_pos = string.find('\n')
@@ -141,16 +157,17 @@ class Parser:
         return string.find(self.EOL_TOKEN)
 
     def store_headers_from_lines(self, lines):
-        empty_line = False
+        """
+        Takes the list of lines and gets a header from each string, storing
+        first into the buffer, then checks for continuation of the header. If
+        there is no continuing header - place the header into self.headers and
+        continue parsing.
+        """
         for line in lines:
-            print("LINE: '{}'".format(line))
             # we are done parsing headers!
             if line is '':
-                self._acquire_header_buffer()
+                self._flush_header_buffer()
                 break
-                # empty_line = True
-                # continue
-            empty_line = False
 
             if line.startswith((' ', '\t')):
                 line = line.strip()
@@ -162,12 +179,18 @@ class Parser:
                 continue
 
             if self._header_buffer:
-                self._acquire_header_buffer()
+                self._flush_header_buffer()
 
             self._header_buffer = self.header_from_line(line)
 
     @classmethod
     def header_from_line(cls, line):
+        """
+        Takes a string and attempts to build a key-value pair for the header
+        object. Header names are checked for validity. In the event that the
+        string can not be split on a ':' char, ta HTTPErrorBadRequest exception
+        is raised. The keys are stored as UPPER case.
+        """
         try:
             key, value = map(str.strip, line.split(':', 1))
         except ValueError as e:
@@ -175,7 +198,7 @@ class Parser:
             print(colored(err_str, 'red'))
             raise HTTPErrorBadRequest(msg=e)
 
-        if contains_invalid_char(key):
+        if is_invalid_header(key):
             raise HTTPErrorBadRequest
 
         key = key.upper()
@@ -189,15 +212,6 @@ class Parser:
 
 
 class HTTPParser(object):
-    """
-    Growler's implementation of an HTTP parsing class. An HTTPRequest object
-    uses this to read data from the stream and extract HTTP parameters,
-    headers, and body. The important functions are coroutines
-    'read_next_header' and 'read_body'.
-
-    Current implementation accepts both LF and CRLF line endings, discovered
-    while processing the first line. Each header is read in one at a time.
-    """
     def __init__(self, req, instream=None):
         """
         Create a Growler HTTP Parser.
@@ -267,10 +281,6 @@ class HTTPParser(object):
 
     @asyncio.coroutine
     def read_body(self):
-        """
-        Finishes reading the request. This method expects content-length to be
-        defined in self.headers, and will read that many bytes from the stream.
-        """
         # There is no body - return None
         if self.headers['content-length'] == 0:
             return None
@@ -293,11 +303,3 @@ class HTTPParser(object):
 
         res, self._buffer = self._buffer, ''
         return res
-
-    def parse_request_line(self, req_line):
-        """
-        Simply splits the request line into three components.
-        TODO: Check that there are 3 and validate the method/path/version
-        """
-        req_lst = req_line.split("\n")
-        return req_lst
