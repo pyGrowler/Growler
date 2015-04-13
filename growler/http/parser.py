@@ -18,7 +18,6 @@ INVALID_CHAR_REGEX = '[\x00-\x1F\x7F()<>@,;:\[\]={} \t\\\\\"]'
 is_invalid_header = re.compile(INVALID_CHAR_REGEX).search
 
 MAX_REQUEST_LENGTH = 4096  # 4KB
-# from urllib.parse import (quote, parse_qs)
 
 
 class Parser:
@@ -90,7 +89,6 @@ class Parser:
             if not self._header_buffer:
                 self.queue.put_nowait(self.headers)
                 self.needs_headers = False
-
 
     def parse_request_line(self, req_line):
         """
