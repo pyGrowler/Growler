@@ -17,7 +17,7 @@ class GrowlerHTTPResponder():
     which are finally passed to the app object found in protocol.
     """
 
-    def __init__(self, protocol):
+    def __init__(self, protocol, parser_factory=Parser):
         """
         Construct an HTTPResponder.
 
@@ -29,33 +29,24 @@ class GrowlerHTTPResponder():
         self._proto = protocol
         self.loop = protocol.loop
         self.parsing_queue = asyncio.Queue(loop=self.loop)
-        self.parser = Parser(self.parsing_queue)
+        self.parser = parser_factory(self.parsing_queue)
         self.endpoint = protocol.growler_app
         self.parsing_task = self.loop.create_task(self.on_parsing_queue())
 
-    def __del__(self):
-        self.parsing_task.close()
-
     def on_data(self, data):
         """
-        The responder's on_data function gets passed a value
+        This is the function called by the http protocol upon receipt of
+        incoming client data.
         """
         self.parser.consume(data)
 
     @asyncio.coroutine
-    def data_loop(self):
-        count = 0
-        while True:
-            data = yield from self.data_queue.get()
-            self.on_data(data)
-            if data is None:
-                break
-            count += 1
-
-    @asyncio.coroutine
     def on_parsing_queue(self):
+        """
+        The coroutine listening for some data on the queue
+        """
         print("Beginning [on_parsing_queue]")
-        first_line = yield from self.parsing_queue.get()
-        print("first_line:", first_line)
+        self.parsed_request = yield from self.parsing_queue.get()
+        print("first_line:", self.parsed_request)
         headers = yield from self.parsing_queue.get()
         print("headers:", headers)
