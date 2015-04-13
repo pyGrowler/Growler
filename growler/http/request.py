@@ -9,7 +9,7 @@ from .Error import (
     HTTPErrorNotImplemented
 )
 
-from . import HTTPParser
+from . import Parser
 from termcolor import colored
 
 import asyncio
@@ -26,7 +26,7 @@ class HTTPRequest(object):
                  istream,
                  app=None,
                  delay_processing=False,
-                 parser_class=HTTPParser
+                 parser_class=Parser
                  ):
         """
         The HTTPRequest object is all the information you could want about the
