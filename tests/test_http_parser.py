@@ -25,21 +25,18 @@ import pytest
 import warnings
 
 
-class mock_queue:
-
-    def __init__(self):
-        self.data = []
-
-    def put_nowait(self, data):
-        self.data.append(data)
-
-
 class mock_responder:
 
     def __init__(self):
-        self.loop = asyncio.get_event_loop()
-        self.parsing_queue = asyncio.Queue(loop=self.loop)
-        self.parsing_task = self.loop.create_task(self.on_parsing_queue())
+        self.data = {}
+
+    def set_request_line(self, method, url, version):
+        self.data['method'] = method
+        self.data['url'] = url
+        self.data['version'] = version
+
+    def set_headers(self, headers):
+        self.headers = headers
 
 
 def pytest_configure(config):
@@ -72,21 +69,21 @@ def test_parse_request_line():
 
 
 def test_consume():
-    q = mock_queue()
+    q = mock_responder()
     p = Parser(q)
     p.consume(b"GET")
     assert p._buffer == ["GET"]
     p.consume(b" /path HTTP/1.1")
     p.consume(b"\n")
-    data = q.data[0]
+    data = q.data
     assert data['method'] == 'GET'
     assert data['url'].path == '/path'
     assert data['version'] == 'HTTP/1.1'
     assert not p.needs_request_line
 
-    q2 = mock_queue()
+    q2 = mock_responder()
     Parser(q2).consume(b"GET /path HTTP/1.1\nhost: noplace\n\n")
-    data = q2.data[0]
+    data = q2.data
     assert data['method'] == 'GET'
     assert data['url'].path == '/path'
     assert data['version'] == 'HTTP/1.1'
@@ -111,26 +108,26 @@ def test_bad_version():
 
 
 def test_good_header_all():
-    q = mock_queue()
+    q = mock_responder()
     Parser(q).consume(b"GET / HTTP/1.1\r\nhost: nowhere.com\r\n\r\n")
-    headers = q.data[1]
+    headers = q.headers
     assert 'HOST' in headers
     assert headers['HOST'] == 'nowhere.com'
 
     for valid in [b"GET /path HTTP/1.1\nhost: nowhere.com\n\n",
                   b"GET /path HTTP/1.1\nhost: nowhere.com\nx:y\n z\n\n",
                   ]:
-        q = mock_queue()
+        q = mock_responder()
         Parser(q).consume(valid)
 
 
 def test_good_header_pieces():
-    q = mock_queue()
+    q = mock_responder()
     p = Parser(q)
     p.consume(b"GET / HTTP/1.1\r\n")
     p.consume(b"host: nowhere.com\r\n")
     p.consume(b"\r\n")
-    headers = q.data[1]
+    headers = q.headers
     assert not p.needs_headers
     assert 'HOST' in headers
     assert headers['HOST'] == 'nowhere.com'
@@ -149,7 +146,7 @@ def test_bad_headers():
                     b"GET /path HTTP/1.1\r\na\\:<\r\n",
                     ]:
         with pytest.raises(HTTPErrorInvalidHeader):
-            q = mock_queue()
+            q = mock_responder()
             Parser(q).consume(invalid)
 
 

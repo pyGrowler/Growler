@@ -31,14 +31,14 @@ class Parser:
     Upon finding an error the Parser will throw a 'BadHTTPRequest' exception.
     """
 
-    def __init__(self, queue):
+    def __init__(self, parent):
         """
         Construct a Parser object.
 
         @param queue asyncio.queue: The queue in which to put parsed items.
             This is assumed to be read from the responder which created it.
         """
-        self.queue = queue
+        self.parent = parent
         self.EOL_TOKEN = None
         self._buffer = []
         self.encoding = 'utf-8'
@@ -55,8 +55,7 @@ class Parser:
         except UnicodeDecodeError:
             raise HTTPErrorBadRequest
 
-        print("[Parser::consume] {}".format(data.encode()))
-
+        # if no newline - store in buffer
         if self._find_newline(data) == -1:
             self._buffer.append(data)
             return
@@ -74,21 +73,24 @@ class Parser:
         # process request line
         if self.needs_request_line:
             self.parse_request_line(lines.pop(0))
-            self.queue.put_nowait({
-                'method': self.method,
-                'version': self.version,
-                'url': self.parsed_url
-            })
+            self.parent.set_request_line(self.method,
+                                         self.parsed_url,
+                                         self.version)
             self.needs_request_line = False
 
+        if not lines:
+            return
+
         # process headers
-        if lines and self.needs_headers:
+        if self.needs_headers:
             self.store_headers_from_lines(lines)
 
             # nothing was left in buffer - we have finished headers
             if not self._header_buffer:
-                self.queue.put_nowait(self.headers)
+                self.parent.set_headers(self.headers)
                 self.needs_headers = False
+
+        # process... body?
 
     def parse_request_line(self, req_line):
         """

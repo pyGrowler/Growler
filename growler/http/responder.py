@@ -6,7 +6,10 @@ The Growler class responsible for responding to HTTP requests.
 """
 
 import asyncio
+
 from .parser import Parser
+from .request import HTTPRequest
+from .response import HTTPResponse
 
 
 class GrowlerHTTPResponder():
@@ -28,10 +31,9 @@ class GrowlerHTTPResponder():
         print("[HTTPResponder::HTTPResponder]")
         self._proto = protocol
         self.loop = protocol.loop
-        self.parsing_queue = asyncio.Queue(loop=self.loop)
-        self.parser = parser_factory(self.parsing_queue)
+        self.parser = parser_factory(self)
         self.endpoint = protocol.growler_app
-        self.parsing_task = self.loop.create_task(self.on_parsing_queue())
+        self.on_data = self.parser.consume
 
     def on_data(self, data):
         """
@@ -40,13 +42,21 @@ class GrowlerHTTPResponder():
         """
         self.parser.consume(data)
 
-    @asyncio.coroutine
-    def on_parsing_queue(self):
+    def set_request_line(self, method, url, version):
         """
-        The coroutine listening for some data on the queue
+        Sets the request line on the responder.
+        """
+        self.parsed_request = (method, url, version)
+
+    def set_headers(self, headers):
+        """
+        Sets the headers attribute and triggers the beginning of the req/res
+        construction.
         """
         print("Beginning [on_parsing_queue]")
-        self.parsed_request = yield from self.parsing_queue.get()
-        print("first_line:", self.parsed_request)
-        headers = yield from self.parsing_queue.get()
-        print("headers:", headers)
+        self.headers = headers
+
+    def build_req_res(self):
+        req = HTTPRequest(None)
+        res = HTTPResponse(None)
+        return req, res

@@ -14,31 +14,35 @@ from growler.http.Error import (
     HTTPErrorVersionNotSupported,
 )
 
+
 class mock_protocol():
 
     def __init__(self, data=[]):
         self.loop = asyncio.get_event_loop()
         self.growler_app = None
 
+
 class mock_parser():
 
-    def __init__(self, queue):
-        self.queue = queue
+    def __init__(self, parent):
+        self.parent = parent
         self.i = 0
         self.data = []
 
-    def consume(self, data):
-        if self.data:
-            self.queue.put_nowait(self.data.pop(0))
+    def consume(self, data, stuff=0):
+        if stuff == 0:
+            self.parent.set_request_line(data, 2, 3)
         else:
-            self.queue.put_nowait(data.decode())
+            self.parent.set_headers(data.decode())
+
 
 def test_responder_constructor():
     p = mock_protocol()
     r = GrowlerHTTPResponder(p)
     assert r.loop == p.loop
 
-def test_on_parsing_queue():
+
+def notest_on_parsing_queue():
     loop = asyncio.get_event_loop()
     r = GrowlerHTTPResponder(mock_protocol(), mock_parser)
     r.parsing_task.cancel()
@@ -51,15 +55,15 @@ def test_on_parsing_queue():
     r.parsing_queue.put_nowait('spam')
     loop.run_until_complete(_())
 
+
 def test_on_parsing_queue_1():
 
     loop = asyncio.get_event_loop()
     r = GrowlerHTTPResponder(mock_protocol(), mock_parser)
     r.on_data(b"GET")
-    r.on_data(b"SPAM\n")
-    loop.run_until_complete(r.parsing_task)
+    r.on_data(b"SPAM\n", 1)
 
-    assert r.parsed_request == 'GET'
+    assert r.parsed_request[0] == b'GET'
 
 
 if __name__ == '__main__':
