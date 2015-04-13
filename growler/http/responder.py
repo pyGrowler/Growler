@@ -31,9 +31,10 @@ class GrowlerHTTPResponder():
         self.parsing_queue = asyncio.Queue(loop=self.loop)
         self.parser = Parser(self.parsing_queue)
         self.endpoint = protocol.growler_app
+        self.parsing_task = self.loop.create_task(self.on_parsing_queue())
 
     def __del__(self):
-        self.parsing_queue.close()
+        self.parsing_task.close()
 
     def on_data(self, data):
         """

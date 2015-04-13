@@ -8,6 +8,7 @@ from growler.http.parser import Parser
 
 from growler.http.Error import (
     HTTPErrorBadRequest,
+    HTTPErrorInvalidHeader,
     HTTPErrorNotImplemented,
     HTTPErrorVersionNotSupported,
 )
@@ -31,7 +32,14 @@ class mock_queue:
 
     def put_nowait(self, data):
         self.data.append(data)
-        print(">>",self.data)
+
+
+class mock_responder:
+
+    def __init__(self):
+        self.loop = asyncio.get_event_loop()
+        self.parsing_queue = asyncio.Queue(loop=self.loop)
+        self.parsing_task = self.loop.create_task(self.on_parsing_queue())
 
 
 def pytest_configure(config):
@@ -101,12 +109,20 @@ def test_bad_version():
     with pytest.raises(HTTPErrorVersionNotSupported):
         Parser(None).consume(b"OOPS /path HTTP/1.3\r\nhost: nowhere.com\r\n")
 
+
 def test_good_header_all():
     q = mock_queue()
     Parser(q).consume(b"GET / HTTP/1.1\r\nhost: nowhere.com\r\n\r\n")
     headers = q.data[1]
     assert 'HOST' in headers
     assert headers['HOST'] == 'nowhere.com'
+
+    for valid in [b"GET /path HTTP/1.1\nhost: nowhere.com\n\n",
+                  b"GET /path HTTP/1.1\nhost: nowhere.com\nx:y\n z\n\n",
+                  ]:
+        q = mock_queue()
+        Parser(q).consume(valid)
+
 
 def test_good_header_pieces():
     q = mock_queue()
@@ -119,6 +135,25 @@ def test_good_header_pieces():
     assert 'HOST' in headers
     assert headers['HOST'] == 'nowhere.com'
     # assert p.headers['HOST'] == 'nowhere.com'
+
+
+def test_bad_headers():
+    for invalid in [b"GET /path HTTP/1.1\r\nhost nowhere.com\r\n",
+                    b"GET /path HTTP/1.1\r\nhost>: nowhere.com\r\n",
+                    b"GET /path HTTP/1.1\r\nhost?: nowhere.com\r\n",
+                    b"GET /path HTTP/1.1\r\n:host: nowhere.com\r\n",
+                    b"GET /path HTTP/1.1\r\n host: nowhere.com\r\n"
+                    b"GET /path HTTP/1.1\r\nhost=true:yes\r\n",
+                    b"GET /path HTTP/1.1\r\nandrew@here: good\r\n",
+                    b"GET /path HTTP/1.1\r\nb>a:x\r\n\r\n",
+                    b"GET /path HTTP/1.1\r\na\\:<\r\n",
+                    ]:
+        with pytest.raises(HTTPErrorInvalidHeader):
+            q = mock_queue()
+            Parser(q).consume(invalid)
+
+
+loop = asyncio.get_event_loop()
 
 # test_bad_request()
 test_parse_request_line()

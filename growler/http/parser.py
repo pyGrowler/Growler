@@ -11,11 +11,11 @@ from termcolor import colored
 from growler.http.Error import (
     HTTPErrorNotImplemented,
     HTTPErrorBadRequest,
+    HTTPErrorInvalidHeader,
     HTTPErrorVersionNotSupported,
 )
 
-INVALID_CHAR_REGEX = '[\x00-\x1F\x7F()<>@,;:\[\]={} \t\\\\\"]'
-is_invalid_header = re.compile(INVALID_CHAR_REGEX).search
+INVALID_CHAR_REGEX = re.compile('[\x00-\x1F\x7F(),/:;<=>?@\[\]{} \t\\\\\"]')
 
 MAX_REQUEST_LENGTH = 4096  # 4KB
 
@@ -168,12 +168,14 @@ class Parser:
                 break
 
             if line.startswith((' ', '\t')):
+                if self._header_buffer is None:
+                    raise HTTPErrorInvalidHeader
                 line = line.strip()
-                val = self.header_buffer['value']
+                val = self._header_buffer['value']
                 if isinstance(val, str):
-                    self.header_buffer['value'] = [val, line]
+                    self._header_buffer['value'] = [val, line]
                 else:
-                    self.header_buffer['value'] += [line]
+                    self._header_buffer['value'] += [line]
                 continue
 
             if self._header_buffer:
@@ -186,7 +188,7 @@ class Parser:
         """
         Takes a string and attempts to build a key-value pair for the header
         object. Header names are checked for validity. In the event that the
-        string can not be split on a ':' char, ta HTTPErrorBadRequest exception
+        string can not be split on a ':' char, a HTTPErrorBadRequest exception
         is raised. The keys are stored as UPPER case.
         """
         try:
@@ -194,13 +196,18 @@ class Parser:
         except ValueError as e:
             err_str = "ERROR parsing headers. Input '{}'".format(line)
             print(colored(err_str, 'red'))
-            raise HTTPErrorBadRequest(msg=e)
+            raise HTTPErrorInvalidHeader
 
-        if is_invalid_header(key):
-            raise HTTPErrorBadRequest
+        if cls.is_invalid_header_name(key):
+            raise HTTPErrorInvalidHeader
 
         key = key.upper()
         return {'key': key, 'value': value}
+
+    @classmethod
+    def is_invalid_header_name(cls, string):
+        return string is '' or \
+                bool(INVALID_CHAR_REGEX.search(string))
 
     def process_get_headers(self, data):
         pass

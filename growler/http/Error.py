@@ -52,6 +52,11 @@ class HTTPErrorBadRequest(HTTPError):
     msg = "Bad Request"
 
 
+class HTTPErrorInvalidHeader(HTTPError):
+    code = 400
+    msg = "Bad Request (Invalid Header Name)"
+
+
 class HTTPErrorUnauthorized(HTTPError):
     code = 401
     msg = "Unauthorized"
