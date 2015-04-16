@@ -85,6 +85,7 @@ class HTTPErrorRequestEntityTooLarge(HTTPError):
     code = 413
     msg = "Request Entity Too Large"
 
+
 class HTTPErrorRequestTooLarge(HTTPError):
     code = 414
     msg = "Request URI Too Large"

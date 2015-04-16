@@ -50,6 +50,7 @@ class Parser:
         self.needs_headers = True
 
         self.request_length = 0
+        self.body_buffer = None
 
     def consume(self, data):
         self.request_length += len(data)
@@ -96,7 +97,8 @@ class Parser:
                 self.parent.set_headers(self.headers)
                 self.needs_headers = False
 
-        # process... body?
+        # return None if we have not stored the body, else return the body
+        return self.body_buffer
 
     def parse_request_line(self, req_line):
         """
@@ -172,10 +174,11 @@ class Parser:
         there is no continuing header - place the header into self.headers and
         continue parsing.
         """
-        for line in lines:
+        for lineno, line in enumerate(lines):
             # we are done parsing headers!
             if line is b'':
                 self._flush_header_buffer()
+                self.body_buffer = b''.join(lines[lineno:])
                 break
 
             try:
@@ -222,6 +225,10 @@ class Parser:
 
     @classmethod
     def is_invalid_header_name(cls, string):
+        """
+        Returns true if the string passes the regex checking for invalid
+        header-key characters
+        """
         return string == '' or bool(INVALID_CHAR_REGEX.search(string))
 
     def process_get_headers(self, data):

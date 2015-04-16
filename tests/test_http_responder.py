@@ -19,7 +19,7 @@ class mock_protocol():
 
     def __init__(self, data=[]):
         self.loop = asyncio.get_event_loop()
-        self.growler_app = None
+        self.http_application = None
 
 
 class mock_parser():
@@ -54,16 +54,6 @@ def notest_on_parsing_queue():
 
     r.parsing_queue.put_nowait('spam')
     loop.run_until_complete(_())
-
-
-def test_on_parsing_queue_1():
-
-    loop = asyncio.get_event_loop()
-    r = GrowlerHTTPResponder(mock_protocol(), mock_parser)
-    r.on_data(b"GET")
-    r.on_data(b"SPAM\n", 1)
-
-    assert r.parsed_request[0] == b'GET'
 
 
 if __name__ == '__main__':
