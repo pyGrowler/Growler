@@ -289,15 +289,16 @@ class App(object):
 
     def all(self, path="/", middleware=None):
         """
-        An alias call for simple access to the default router. The middleware
-        provided is called upon a GET HTTP request matching the path.
+        An alias of the default router's 'all' method. The middleware provided
+        is called upon any HTTP request that matching the path, regardless of
+        the method.
         """
         return self.routers[0].all(path, middleware)
 
     def get(self, path="/", middleware=None):
         """
         An alias call for simple access to the default router. The middleware
-        provided is called upon a GET HTTP request matching the path.
+        provided is called upon any HTTP 'GET' request which matches the path.
         """
         if middleware is None:
             return self.routers[0].get(path, middleware)
@@ -305,8 +306,8 @@ class App(object):
 
     def post(self, path="/", middleware=None):
         """
-        An alias call for simple access to the default router. The middleware
-        provided is called upon a POST HTTP request matching the path.
+        An alias of the default router's 'post' method. The middleware provided
+        is called upon a POST HTTP request matching the path.
         """
         return self.routers[0].post(path, middleware)
 
