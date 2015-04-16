@@ -52,8 +52,7 @@ class HTTPErrorBadRequest(HTTPError):
     msg = "Bad Request"
 
 
-class HTTPErrorInvalidHeader(HTTPError):
-    code = 400
+class HTTPErrorInvalidHeader(HTTPErrorBadRequest):
     msg = "Bad Request (Invalid Header Name)"
 
 
@@ -67,7 +66,6 @@ class HTTPErrorPaymentRequired(HTTPError):
     msg = "Payment Required"
 
 
-# HTTPErrorForbidden = HTTPError.__init__({}, 403, "Forbidden")
 class HTTPErrorForbidden(HTTPError):
     code = 403
     msg = "Forbidden"
@@ -83,9 +81,13 @@ class HTTPErrorGone(HTTPError):
     msg = "Gone"
 
 
+class HTTPErrorRequestEntityTooLarge(HTTPError):
+    code = 413
+    msg = "Request Entity Too Large"
+
 class HTTPErrorRequestTooLarge(HTTPError):
     code = 414
-    msg = "Request-URI Too Large"
+    msg = "Request URI Too Large"
 
 
 class HTTPErrorUnsupportedMediaType(HTTPError):

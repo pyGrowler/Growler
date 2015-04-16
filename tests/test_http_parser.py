@@ -45,17 +45,18 @@ def pytest_configure(config):
     pprint(config)
 
 
-def test_find_newline():
+def testfind_newline():
     parser = Parser(None)
-    assert parser._find_newline("a line\n") == 6
-    assert parser.EOL_TOKEN == '\n'
+    assert parser.EOL_TOKEN is None
+    assert parser.find_newline(b"a line\n") == 6
+    assert parser.EOL_TOKEN == b'\n'
 
     p2 = Parser(None)
-    assert p2._find_newline("a line\r\n") == 6
-    assert p2.EOL_TOKEN == '\r\n'
+    assert p2.find_newline("a line\r\n") == 6
+    assert p2.EOL_TOKEN == b'\r\n'
 
     p3 = Parser(None)
-    assert p2._find_newline('no newline') == -1
+    assert p2.find_newline('no newline') == -1
 
 
 def test_parse_request_line():
@@ -72,7 +73,7 @@ def test_consume():
     q = mock_responder()
     p = Parser(q)
     p.consume(b"GET")
-    assert p._buffer == ["GET"]
+    assert p._buffer == [b"GET"]
     p.consume(b" /path HTTP/1.1")
     p.consume(b"\n")
     data = q.data
@@ -94,7 +95,7 @@ def test_bad_request():
         Parser(None).consume(b"OOPS\r\nhost: nowhere.com\r\n")
 
     with pytest.raises(HTTPErrorBadRequest):
-        Parser(None).consume(b"\x99Get Stuff")
+        Parser(None).consume(b"\x99Get Stuff]\n")
 
 
 def test_not_implemented():
@@ -150,7 +151,6 @@ def test_bad_headers():
             Parser(q).consume(invalid)
 
 
-loop = asyncio.get_event_loop()
-
-# test_bad_request()
-test_parse_request_line()
+if __name__ == "__main__":
+    testfind_newline()
+    # test_parse_request_line()

@@ -62,7 +62,6 @@ class GrowlerHTTPResponder():
         print("Beginning [on_parsing_queue]")
         self.headers = headers
 
-
     def build_req_res(self):
         req = self.build_req(self._proto, self.headers)
         res = self.build_res(None)

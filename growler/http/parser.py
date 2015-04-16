@@ -17,8 +17,8 @@ from growler.http.Error import (
 
 INVALID_CHAR_REGEX = re.compile('[\x00-\x1F\x7F(),/:;<=>?@\[\]{} \t\\\\\"]')
 
-MAX_REQUEST_LENGTH = 4096  # 4KB
-
+MAX_REQUEST_LENGTH = 1024 ** 2  # 1 MB
+MAX_REQUEST_LINE_LENGTH = 8 * 1024  # 8 KB
 
 class Parser:
     """
@@ -49,18 +49,20 @@ class Parser:
         self.needs_request_line = True
         self.needs_headers = True
 
+        self.request_length = 0
+
     def consume(self, data):
-        try:
-            data = data.decode(self.encoding)
-        except UnicodeDecodeError:
+        self.request_length += len(data)
+
+        if self.request_length > MAX_REQUEST_LENGTH:
             raise HTTPErrorBadRequest
 
         # if no newline - store in buffer
-        if self._find_newline(data) == -1:
+        if self.find_newline(data) == -1:
             self._buffer.append(data)
             return
 
-        lines = ''.join(self._buffer + [data]).split(self.EOL_TOKEN)
+        lines = b''.join(self._buffer + [data]).split(self.EOL_TOKEN)
 
         # The last element was NOT a complete line, put back in the buffer
         last_line = lines.pop()
@@ -72,7 +74,11 @@ class Parser:
 
         # process request line
         if self.needs_request_line:
-            self.parse_request_line(lines.pop(0))
+            try:
+                self.parse_request_line(lines.pop(0).decode())
+            except UnicodeDecodeError:
+                raise HTTPErrorBadRequest
+
             self.parent.set_request_line(self.method,
                                          self.parsed_url,
                                          self.version)
@@ -140,18 +146,21 @@ class Parser:
         self.headers[self._header_buffer['key']] = self._header_buffer['value']
         self._header_buffer = None
 
-    def _find_newline(self, string):
+    def find_newline(self, string):
         """
         Finds an End-Of-Line character in the string. If this has not been
         determined, simply look for the \n, then check if there was an \r
         before it. If not found, return -1.
         """
+        if isinstance(string, str):
+            string = string.encode()
+
         # we have not processed the first line yet
         if self.EOL_TOKEN is None:
-            line_end_pos = string.find('\n')
+            line_end_pos = string.find(b'\n')
             if line_end_pos != -1:
                 prev_char = string[line_end_pos-1]
-                self.EOL_TOKEN = '\r\n' if prev_char is '\r' else '\n'
+                self.EOL_TOKEN = b'\r\n' if (prev_char is b'\r'[0]) else b'\n'
             else:
                 return -1
         return string.find(self.EOL_TOKEN)
@@ -165,9 +174,14 @@ class Parser:
         """
         for line in lines:
             # we are done parsing headers!
-            if line is '':
+            if line is b'':
                 self._flush_header_buffer()
                 break
+
+            try:
+                line = line.decode(self.encoding)
+            except UnicodeDecodeError:
+                raise HTTPErrorBadRequest
 
             if line.startswith((' ', '\t')):
                 if self._header_buffer is None:
@@ -208,8 +222,7 @@ class Parser:
 
     @classmethod
     def is_invalid_header_name(cls, string):
-        return string is '' or \
-                bool(INVALID_CHAR_REGEX.search(string))
+        return string == '' or bool(INVALID_CHAR_REGEX.search(string))
 
     def process_get_headers(self, data):
         """
