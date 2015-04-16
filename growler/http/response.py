@@ -7,6 +7,7 @@ import sys
 import growler
 import json
 import time
+from datetime import datetime
 import io
 from wsgiref.handlers import format_date_time as format_RFC_1123
 
@@ -18,7 +19,7 @@ class HTTPResponse(object):
     Response class which handles writing to the client.
     """
 
-    def __init__(self, ostream, app=None, EOL="\r\n"):
+    def __init__(self, protocol, EOL="\r\n"):
         """
         Create the response
         @param ostream: asyncio.StreamWriter Output stream, expected
@@ -28,7 +29,7 @@ class HTTPResponse(object):
 
         from growler import __version__
 
-        self._stream = ostream
+        self._stream = protocol.transport
         self.send = self.write
         # Assume we are OK
         self.status_code = 200
@@ -36,7 +37,7 @@ class HTTPResponse(object):
         self.has_sent_headers = False
         self.message = ''
         self.headers = dict()
-        self.app = app
+        self.app = protocol.http_application
         self.EOL = EOL
         self.finished = False
         self.has_ended = False
@@ -51,7 +52,7 @@ class HTTPResponse(object):
         Create some default headers that should be sent along with every HTTP
         response
         """
-        time_string = format_RFC_1123(mktime(datetime.now().timetuple()))
+        time_string = format_RFC_1123(time.mktime(datetime.now().timetuple()))
         # time_string = time.strftime("%a, %d %b %Y %H:%M:%S GMT",
         #  time.gmtime())
         self.headers.setdefault('Date', time_string)

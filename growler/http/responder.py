@@ -53,8 +53,10 @@ class GrowlerHTTPResponder():
             # Headers are finished - build the request and response
             if data is not None:
                 self.build_req_res()
+                # self.loop.call_soon(self._proto.middleware_chain)
+                self._proto.middleware_chain(self.req, self.res)
 
-        # if true, 'data' now holds body data
+        # if truthy, 'data' now holds body data
         if data:
             self.validate_and_store_body_data(data)
 
@@ -84,7 +86,7 @@ class GrowlerHTTPResponder():
 
     def build_req_res(self):
         self.req = self.build_req(self._proto, self.headers)
-        self.res = self.build_res(None)
+        self.res = self.build_res(self._proto)
         return self.req, self.res
 
     def validate_and_store_body_data(self, data):

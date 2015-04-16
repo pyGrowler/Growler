@@ -101,17 +101,8 @@ class GrowlerProtocol(asyncio.Protocol):
 
         @param transport bytes: bytes in the latest data transmission
         """
-
-        self.loop.call_soon(self.responders[-1].on_data, data)
-        # self.loop.create_task(self.data_queue.put(data))
-        # self.call_soon(self.self.responders[-1].)
-        # print("[GrowlerProtocol::data_received]", id(self))
-        # print("[server::data_received]", ">>", data)
-        # print("Responders!",self.responders)
-        # asyncio.async(self.responders[-1].data_queue.put,
-        #               data,
-        #               loop=self.loop)
-        # self.responders[-1].on_data(data)
+        self.responders[-1].on_data(data)
+        # self.loop.call_soon(self.responders[-1].on_data, data)
 
     def eof_received(self):
         """

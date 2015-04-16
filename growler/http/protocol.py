@@ -33,3 +33,22 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
         super().__init__(loop=app.loop, responder_factory=GrowlerHTTPResponder)
         print("[GrowlerHTTPProtocol::__init__]", id(self))
         self.http_application = app
+
+    def middleware_chain(self, req, res):
+        """
+        Runs through the chain of middleware in app.
+        """
+        for mw in self.http_application.middleware_chain(req):
+            print("Running middleware:", mw)
+            try:
+                if asyncio.iscoroutine(mw):
+                    asyncio.run_until_complete(mw(req, res), loop=self.loop)
+                else:
+                    mw(req, res)
+            except Exception as error:
+                for handler in self.http_application.next_error_handler(req):
+                    handler(req, res, error)
+                break
+
+        if not res.has_ended:
+            raise HTTPErrorServerError

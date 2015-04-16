@@ -14,6 +14,8 @@ from termcolor import colored
 
 import asyncio
 
+from pprint import pprint
+
 
 class HTTPRequest(object):
     """
@@ -40,9 +42,9 @@ class HTTPRequest(object):
         self.app = protocol.http_application
         self.headers = headers
         self.hostname = headers['HOST']
-        self.originalURL = protocol.request['url']
+        self.originalURL = protocol.request['url'].path
         self.body = asyncio.Future() if 'CONTENT-LENGTH' in headers else None
-        self.path = ''
+        self.path = protocol.request['url'].path
 
     def param(self, name, default=None):
         """

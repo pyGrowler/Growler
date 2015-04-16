@@ -85,3 +85,11 @@ class Router():
 
     def match_path(self, request, path):
         return request == path
+
+    def middleware_chain(self, req):
+        """
+        A generator that yields a series of middleware which are appropriate
+        for the request 'req', provided.
+        """
+        print("req", req.originalURL)
+        yield from self.match_routes(req)

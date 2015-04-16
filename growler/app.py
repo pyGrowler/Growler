@@ -359,6 +359,21 @@ class App(object):
         for r in self.routers:
             r.print_tree()
 
+    def middleware_chain(self, req):
+        """
+        A generator which yields all the middleware in the chain which match
+        the provided request object 'req'
+        """
+        yield from self.routers[0].middleware_chain(req)
+
+
+    def next_error_handler(self, req):
+
+        def handle(req, res, error):
+            err = "Error: {}".format(error)
+            res.send_text(err)
+        yield handle
+
     #
     # Configuration functions
     #
