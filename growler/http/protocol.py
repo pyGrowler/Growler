@@ -30,6 +30,6 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
             this protocol, but any callable with a 'loop' attribute should
             work.
         """
-        super().__init__(loop=app.loop, responder_type=GrowlerHTTPResponder)
+        super().__init__(loop=app.loop, responder_factory=GrowlerHTTPResponder)
         print("[GrowlerHTTPProtocol::__init__]", id(self))
         self.http_application = app

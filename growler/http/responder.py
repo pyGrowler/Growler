@@ -67,6 +67,11 @@ class GrowlerHTTPResponder():
         Sets the request line on the responder.
         """
         self.parsed_request = (method, url, version)
+        self._proto.request = {
+            'method': method,
+            'url': url,
+            'version': version
+            }
         if method in ('POST', 'PUT'):
             self.content_length = 0
 

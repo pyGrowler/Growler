@@ -124,7 +124,7 @@ class App(object):
         self.routers = [] if no_default_router else [Router('/')]
 
         self.enable('x-powered-by')
-        self.set('env', os.getenv('GROWLER_ENV', 'development'))
+        self['env'] = os.getenv('GROWLER_ENV', 'development')
 
         self._on_connection = []
         self._on_headers = []

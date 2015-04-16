@@ -40,7 +40,7 @@ class HTTPRequest(object):
         self.app = protocol.http_application
         self.headers = headers
         self.hostname = headers['HOST']
-        self.originalURL = self.parsed_request
+        self.originalURL = protocol.request['url']
         self.body = asyncio.Future() if 'CONTENT-LENGTH' in headers else None
         self.path = ''
 
