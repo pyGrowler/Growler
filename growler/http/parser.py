@@ -212,7 +212,15 @@ class Parser:
                 bool(INVALID_CHAR_REGEX.search(string))
 
     def process_get_headers(self, data):
+        """
+        Called upon receiving a GET HTTP request to do specific 'GET' things to
+        the list of headers.
+        """
         pass
 
     def process_post_headers(self, data):
+        """
+        Called upon receiving a POST HTTP request to do specific 'POST' things
+        to the headers.
+        """
         pass

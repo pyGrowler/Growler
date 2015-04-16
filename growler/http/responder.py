@@ -20,7 +20,12 @@ class GrowlerHTTPResponder():
     which are finally passed to the app object found in protocol.
     """
 
-    def __init__(self, protocol, parser_factory=Parser):
+    def __init__(self,
+                 protocol,
+                 parser_factory=Parser,
+                 request_factory=HTTPRequest,
+                 response_factory=HTTPResponse
+                 ):
         """
         Construct an HTTPResponder.
 
@@ -28,12 +33,13 @@ class GrowlerHTTPResponder():
 
         @param protocol: The GrowlerHTTPProtocol which created the responder.
         """
-        print("[HTTPResponder::HTTPResponder]")
         self._proto = protocol
         self.loop = protocol.loop
         self.parser = parser_factory(self)
         self.endpoint = protocol.growler_app
         self.on_data = self.parser.consume
+        self.build_req = request_factory
+        self.build_res = response_factory
 
     def on_data(self, data):
         """
@@ -56,7 +62,8 @@ class GrowlerHTTPResponder():
         print("Beginning [on_parsing_queue]")
         self.headers = headers
 
+
     def build_req_res(self):
-        req = HTTPRequest(None)
-        res = HTTPResponse(None)
+        req = self.build_req(self._proto, self.headers)
+        res = self.build_res(None)
         return req, res
