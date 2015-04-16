@@ -40,7 +40,6 @@ class GrowlerHTTPResponder():
         self.build_req = request_factory
         self.build_res = response_factory
         self.headers = None
-        self.content_length = 0
 
     def on_data(self, data):
         """
@@ -56,7 +55,7 @@ class GrowlerHTTPResponder():
                 self.build_req_res()
 
         # if true, 'data' now holds body data
-        if data is not None:
+        if data:
             self.validate_and_store_body_data(data)
 
             # if we have reached end of content - put in the request's body
@@ -68,8 +67,8 @@ class GrowlerHTTPResponder():
         Sets the request line on the responder.
         """
         self.parsed_request = (method, url, version)
-        if method == 'POST':
-            self
+        if method in ('POST', 'PUT'):
+            self.content_length = 0
 
     def set_headers(self, headers):
         """
@@ -93,7 +92,11 @@ class GrowlerHTTPResponder():
         except KeyError:
             raise BadHTTPRequest
 
-        self.content_length += len(data)
+        try:
+            self.content_length += len(data)
+        except AttributeError:
+            raise BadHTTPRequest
+
         if self.content_length > maxlen:
             raise HTTPErrorBadRequest
 
