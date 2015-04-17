@@ -2,24 +2,53 @@
 # growler/router.py
 #
 
+import re
 
 class Router():
     """
-    The router class which contains a tree of routes which a path is chosen to.
+    The router class holds all the 'routes': callbacks connected assigned to
+    HTTP method and regular expression pairs. If a regex matches with the
+    request's path member, the callback is called with the req, res pair.
+
+    Routes are added on a per-method basis, using the router.*method*(path, cb)
+    syntax, for example:
+        router.get("/home", cb)
+    will call cb(req, res) upon every incoming HTTP connection with the request
+    line: GET /home HTTP/1.1. To catch all methods, use the 'router.all'
+    member.
+
+    Routers can be linked together in a tree-like structure using the member
+    'use'. so components of websites can be developed in their own "namespace"
+    and mounted to the website on its own path:
+        blog_router.get("/list", ...)
+        blog_router.post("/new_post", ...)
+
+        root_router.use("/blog", blog_router)
+
+    The default growler.App has its root router at self.router, and offers
+    convience aliases to automatically add routes:
+        app.get(..) == app.router.get(...)
     """
 
-    def __init__(self, path='/'):
-        """Create a router mounted at 'path'"""
-        self.path = path
+    def __init__(self):
+        """Create a router"""
         self.subrouters = []
         self.routes = []
 
-    def __call__(self, x):
-        print("calling router", x)
+    def __call__(self, req, res):
+        """
+        To call a router is to treat it as middleware...
+        ...this is not implemented yet.
+        """
+        raise NotImplemented
 
-    def add_router(self, router):
-        """Add a router to the list of subrouters."""
-        self.subrouters.append(router)
+    def add_router(self, path, router):
+        """
+        Add a (regex, router) pair to the list of subrouters. Any req.path that
+        matches the regex will pass the request/response objects to that
+        router.
+        """
+        self.subrouters.append((re.compile(path), router))
 
     def all(self, path='/', middleware=None):
         """
