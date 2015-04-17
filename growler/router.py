@@ -43,6 +43,7 @@ class Router():
                 return wrap
         else:
             self.routes.append(('GET', path, middleware))
+        print("print: ")
         return self
 
     def post(self, path='/', middleware=None):

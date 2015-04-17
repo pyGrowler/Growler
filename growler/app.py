@@ -129,6 +129,7 @@ class App(object):
         self._on_headers = []
         self._on_error = []
         self._on_http_error = []
+        self.error_handlers = []
 
         self._wait_for = [asyncio.sleep(0.1)]
 
@@ -299,9 +300,7 @@ class App(object):
         An alias call for simple access to the default router. The middleware
         provided is called upon any HTTP 'GET' request which matches the path.
         """
-        if middleware is None:
-            return self.router.get(path, middleware)
-        self.router.get(path, middleware)
+        return self.router.get(path, middleware)
 
     def post(self, path="/", middleware=None):
         """
@@ -316,7 +315,7 @@ class App(object):
         requests match the provided path. A None path matches every request.
         Returns 'self' so the middleware may be nicely chained.
         """
-        print("[App::use] Adding middleware", middleware)
+        print("[App::use] Adding middleware <{}>".format(middleware))
         self.middleware.append(middleware)
         return self
 
@@ -367,11 +366,18 @@ class App(object):
 
 
     def next_error_handler(self, req):
+        for cb in self.error_handlers:
+            yield cb
+        yield self.default_404
 
-        def handle(req, res, error):
-            err = "Error: {}".format(error)
-            res.send_text(err)
-        yield handle
+    @classmethod
+    def default_404(cls, req, res, error):
+        html = ("<html><head><title>404 - Not Found</title></head><body>"
+                "<h1>404 - Not Found</h1><hr>"
+                "<p style='font-family:monospace;'>"
+                "The page you requested: '%s', could not be found"
+                "</p></body></html")
+        res.send_html(html % req.path)
 
     #
     # Configuration functions
