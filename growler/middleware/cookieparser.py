@@ -47,4 +47,4 @@ class CookieParser():
             # print ("RES:", cookie_string)
             res.headerstrings.append(cookie_string)
 
-        res._manipulate_headerstrings.append(_send_headers)
+        res.on_headerstrings(_send_headers)

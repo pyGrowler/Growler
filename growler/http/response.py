@@ -30,6 +30,7 @@ class HTTPResponse(object):
         from growler import __version__
 
         self._stream = protocol.transport
+        self.app = protocol.http_application
         self.send = self.write
         # Assume we are OK
         self.status_code = 200
@@ -37,13 +38,14 @@ class HTTPResponse(object):
         self.has_sent_headers = False
         self.message = ''
         self.headers = dict()
-        self.app = protocol.http_application
         self.EOL = EOL
         self.finished = False
         self.has_ended = False
-        self._do_before_headers = []
-        self._do_after_send = []
-        self._manipulate_headerstrings = []
+        self._events = {
+            'before_headers': [],
+            'after_send': [],
+            'headerstrings': []
+        }
         info_tmpl = 'Python/{0[0]}.{0[1]} growler/{1}'
         self.SERVER_INFO = info_tmpl.format(sys.version_info, __version__)
 
@@ -63,7 +65,7 @@ class HTTPResponse(object):
 
     def send_headers(self):
         """Sends the headers to the client"""
-        for func in self._do_before_headers:
+        for func in self._events['before_headers']:
             func()
 
         self.headerstrings = [self.StatusLine()]
@@ -73,7 +75,7 @@ class HTTPResponse(object):
         self.headerstrings += ["{}: {}".format(k, v)
                                for k, v in self.headers.items()]
 
-        for func in self._manipulate_headerstrings:
+        for func in self._events['headerstrings']:
             func()
 
         # headerstrings += ["{}: {}".format(k, v)
@@ -94,7 +96,7 @@ class HTTPResponse(object):
         self._stream.write_eof()
         self.finished = True
         self.has_ended = True
-        for f in self._do_after_send:
+        for f in self._events['after_send']:
             f()
 
     def StatusLine(self):
@@ -209,10 +211,13 @@ class HTTPResponse(object):
         self.write_eof()
 
     def on_headers(self, cb):
-        self._do_before_headers.append(cb)
+        self._events['before_headers'].append(cb)
 
     def on_send_end(self, cb):
-        self._do_after_send.append(cb)
+        self._events['after_send'].append(cb)
+
+    def on_headerstrings(self, cb):
+        self._events['headerstrings'].append(cb)
 
     @property
     def info(self):
