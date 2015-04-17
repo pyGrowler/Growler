@@ -50,6 +50,11 @@ class Router():
         """
         self.subrouters.append((re.compile(path), router))
 
+
+    def add_route(self, method, path, endpoint):
+        self.routes.append((method, path, endpoint))
+        return self
+
     def all(self, path='/', middleware=None):
         """
         The middleware provided is called upon all HTTP requests matching the
@@ -65,27 +70,26 @@ class Router():
 
     def get(self, path='/', middleware=None):
         """Add a route in response to the GET HTTP method."""
-        print(__name__, path)
-        if middleware is None:  # assume decorator
-            def wrap(func):
-                self.routes.append(('GET', path, func))
-                return wrap
+
+        # Handle explicit and decorator calls
+        if middleware is not None:
+            return self.add_route('GET', path, middleware)
         else:
-            self.routes.append(('GET', path, middleware))
-        print("print: ")
-        return self
+            return lambda func: do_get('GET', path, func)
 
     def post(self, path='/', middleware=None):
         """Add a route in response to the POST HTTP method."""
-        print(__name__, path)
-        self.routes.append(('POST', path, middleware))
-        return self
+        if middleware is not None:
+            return self.add_route('POST', path, middleware)
+        else:
+            return lambda func: do_get('POST', path, func)
 
     def delete(self, path='/', middleware=None):
         """Add a route in response to the DELETE HTTP method."""
-        print(__name__, path)
-        self.routes.append(('DELETE', path, middleware))
-        return self
+        if middleware is not None:
+            return self.add_route('DELETE', path, middleware)
+        else:
+            return lambda func: do_get('DELETE', path, func)
 
     def use(self, middleware, path=None):
         """
@@ -111,7 +115,6 @@ class Router():
                 if self.match_path(req.path, path):
                     print("MATCHED path", req.path, path, ' yielding', func)
                     yield func
-        yield None
 
     def match_path(self, request, path):
         return request == path
