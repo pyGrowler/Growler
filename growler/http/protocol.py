@@ -39,11 +39,12 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
         Runs through the chain of middleware in app.
         """
         for mw in self.http_application.middleware_chain(req):
-            print("Running middleware:", mw)
             try:
                 if asyncio.iscoroutine(mw):
+                    print("Running middleware coroutine:", mw)
                     asyncio.run_until_complete(mw(req, res), loop=self.loop)
                 else:
+                    print("Running middleware:", mw)
                     mw(req, res)
             except Exception as error:
                 for handler in self.http_application.next_error_handler(req):

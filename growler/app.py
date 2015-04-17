@@ -120,7 +120,7 @@ class App(object):
         self.middleware = []  # [{'path': None, 'cb' : self._middleware_boot}]
 
         # set the default router
-        self.router = Router('/')
+        self.router = Router()
 
         self.enable('x-powered-by')
         self['env'] = os.getenv('GROWLER_ENV', 'development')

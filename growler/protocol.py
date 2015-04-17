@@ -109,7 +109,6 @@ class GrowlerProtocol(asyncio.Protocol):
         asyncio.Protocol member - called upon when the client signals it will
         not be sending any more data to the server.
         """
-        self.loop.create_task(self.data_queue.put(None))
         self.is_done_transmitting = True
         print("[GrowlerProtocol::eof_received]")
 

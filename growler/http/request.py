@@ -40,6 +40,7 @@ class HTTPRequest(object):
         self.ip = protocol.socket.getpeername()[0]
         self.protocol = 'https' if protocol.cipher else 'http'
         self.app = protocol.http_application
+        self.method = protocol.request['method']
         self.headers = headers
         self.hostname = headers['HOST']
         self.originalURL = protocol.request['url'].path
