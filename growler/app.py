@@ -68,7 +68,6 @@ class App(object):
     def __init__(self,
                  name=__name__,
                  loop=asyncio.get_event_loop(),
-                 no_default_router=False,
                  debug=True,
                  request_class=HTTPRequest,
                  response_class=HTTPResponse,
@@ -121,7 +120,7 @@ class App(object):
         self.middleware = []  # [{'path': None, 'cb' : self._middleware_boot}]
 
         # set the default router
-        self.routers = [] if no_default_router else [Router('/')]
+        self.router = Router('/')
 
         self.enable('x-powered-by')
         self['env'] = os.getenv('GROWLER_ENV', 'development')
@@ -208,7 +207,7 @@ class App(object):
                 print("[middleware] Res has ended.")
                 return
 
-        route_generator = self.routers[0].match_routes(req)
+        route_generator = self.router.match_routes(req)
         for route in route_generator:
             waitforme = asyncio.Future()
             if not route:
@@ -282,7 +281,7 @@ class App(object):
     # router.
     # These could be assigned on construction using the form:
     #
-    #    self.all = self.routers[0].all
+    #    self.all = self.router.all
     #
     # , but that would not allow the user to switch the root router (easily)
     #
@@ -293,7 +292,7 @@ class App(object):
         is called upon any HTTP request that matching the path, regardless of
         the method.
         """
-        return self.routers[0].all(path, middleware)
+        return self.router.all(path, middleware)
 
     def get(self, path="/", middleware=None):
         """
@@ -301,15 +300,15 @@ class App(object):
         provided is called upon any HTTP 'GET' request which matches the path.
         """
         if middleware is None:
-            return self.routers[0].get(path, middleware)
-        self.routers[0].get(path, middleware)
+            return self.router.get(path, middleware)
+        self.router.get(path, middleware)
 
     def post(self, path="/", middleware=None):
         """
         An alias of the default router's 'post' method. The middleware provided
         is called upon a POST HTTP request matching the path.
         """
-        return self.routers[0].post(path, middleware)
+        return self.router.post(path, middleware)
 
     def use(self, middleware, path=None):
         """
@@ -364,7 +363,7 @@ class App(object):
         A generator which yields all the middleware in the chain which match
         the provided request object 'req'
         """
-        yield from self.routers[0].middleware_chain(req)
+        yield from self.router.middleware_chain(req)
 
 
     def next_error_handler(self, req):
