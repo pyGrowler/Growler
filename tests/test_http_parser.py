@@ -6,7 +6,7 @@ import growler
 
 from growler.http.parser import Parser
 
-from growler.http.Error import (
+from growler.http.errors import (
     HTTPErrorBadRequest,
     HTTPErrorInvalidHeader,
     HTTPErrorNotImplemented,

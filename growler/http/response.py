@@ -22,6 +22,7 @@ class HTTPResponse(object):
     def __init__(self, protocol, EOL="\r\n"):
         """
         Create the response
+
         @param ostream: asyncio.StreamWriter Output stream, expected
         @param app growler.App: The growler app creating the response
         @param EOL str: The string with which to end lines

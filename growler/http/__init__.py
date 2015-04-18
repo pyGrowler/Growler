@@ -9,7 +9,7 @@ asyncio protocol, server, parser, and request and response objects.
 from .parser import Parser
 from .request import HTTPRequest
 from .response import HTTPResponse
-from .Error import *
+from .errors import *
 from .server import create_server
 
 from http.server import BaseHTTPRequestHandler
@@ -20,7 +20,7 @@ mimetypes.init()
 
 
 __all__ = ['HTTPRequest', 'HTTPResponse', 'HTTPParser', 'HTTPError']
-__all__.extend(Error.__all__)
+__all__.extend(errors.__all__)
 
 
 KB = 1024

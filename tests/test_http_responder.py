@@ -8,7 +8,7 @@ import pytest
 
 import growler
 from growler.http.responder import GrowlerHTTPResponder
-from growler.http.Error import (
+from growler.http.error import (
     HTTPErrorBadRequest,
     HTTPErrorNotImplemented,
     HTTPErrorVersionNotSupported,

@@ -8,7 +8,7 @@ import re
 from urllib.parse import (unquote, urlparse, parse_qs)
 from termcolor import colored
 
-from growler.http.Error import (
+from growler.http.errors import (
     HTTPErrorNotImplemented,
     HTTPErrorBadRequest,
     HTTPErrorInvalidHeader,

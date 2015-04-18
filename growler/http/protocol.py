@@ -7,6 +7,9 @@ Code containing Growler's asyncio.Protocol code for handling HTTP requests.
 
 from growler.protocol import GrowlerProtocol
 from growler.http.responder import GrowlerHTTPResponder
+from growler.http.errors import (
+    HTTPErrorInternalServerError
+)
 
 import asyncio
 import sys
@@ -33,6 +36,11 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
         super().__init__(loop=app.loop, responder_factory=GrowlerHTTPResponder)
         print("[GrowlerHTTPProtocol::__init__]", id(self))
         self.http_application = app
+        self.make_responder = lambda _self: GrowlerHTTPResponder(
+                                _self,
+                                request_factory=app._request_class,
+                                response_factory=app._response_class
+                                )
 
     def middleware_chain(self, req, res):
         """
@@ -52,4 +60,4 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
                 break
 
         if not res.has_ended:
-            raise HTTPErrorServerError
+            raise HTTPErrorInternalServerError

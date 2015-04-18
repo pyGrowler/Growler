@@ -3,7 +3,7 @@
 #
 
 from urllib.parse import (unquote, urlparse, parse_qs)
-from .Error import (
+from .errors import (
     HTTPErrorBadRequest,
     HTTPErrorVersionNotSupported,
     HTTPErrorNotImplemented
