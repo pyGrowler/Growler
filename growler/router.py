@@ -75,21 +75,21 @@ class Router():
         if middleware is not None:
             return self.add_route('GET', path, middleware)
         else:
-            return lambda func: do_get('GET', path, func)
+            return lambda func: self.add_route('GET', path, func)
 
     def post(self, path='/', middleware=None):
         """Add a route in response to the POST HTTP method."""
         if middleware is not None:
             return self.add_route('POST', path, middleware)
         else:
-            return lambda func: do_get('POST', path, func)
+            return lambda func: self.add_route('POST', path, func)
 
     def delete(self, path='/', middleware=None):
         """Add a route in response to the DELETE HTTP method."""
         if middleware is not None:
             return self.add_route('DELETE', path, middleware)
         else:
-            return lambda func: do_get('DELETE', path, func)
+            return lambda func: self.add_route('DELETE', path, func)
 
     def use(self, middleware, path=None):
         """
