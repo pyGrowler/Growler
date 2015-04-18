@@ -4,6 +4,7 @@
 
 import re
 
+
 class Router():
     """
     The router class holds all the 'routes': callbacks connected assigned to
@@ -49,7 +50,6 @@ class Router():
         router.
         """
         self.subrouters.append((re.compile(path), router))
-
 
     def add_route(self, method, path, endpoint):
         self.routes.append((method, path, endpoint))
