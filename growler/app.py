@@ -334,6 +334,7 @@ class App(object):
         return self.config[key]
 
     def __delitem__(self, key):
+        """Deletes a configuration parameter from the web-app"""
         del self.config[key]
 
     #
