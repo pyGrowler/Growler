@@ -28,6 +28,7 @@ import os
 from .http import (
     HTTPRequest,
     HTTPResponse,
+    GrowlerHTTPProtocol,
     HTTPError,
     HTTPErrorInternalServerError,
     HTTPErrorNotFound
@@ -354,7 +355,7 @@ class App(object):
             loop.run_until_complete()
         """
         return self.loop.create_server(
-            Growler.HTTPProtocol.get_factory(self, self.loop),
+            GrowlerHTTPProtocol.get_factory(self),
             **server_config
         )
 

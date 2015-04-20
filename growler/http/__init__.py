@@ -9,6 +9,7 @@ asyncio protocol, server, parser, and request and response objects.
 from .parser import Parser
 from .request import HTTPRequest
 from .response import HTTPResponse
+from .protocol import GrowlerHTTPProtocol
 from .errors import *
 from .server import create_server
 
@@ -19,7 +20,14 @@ import mimetypes
 mimetypes.init()
 
 
-__all__ = ['HTTPRequest', 'HTTPResponse', 'HTTPParser', 'HTTPError']
+__all__ = [
+    'HTTPRequest',
+    'HTTPResponse',
+    'HTTPParser',
+    'HTTPError',
+    'GrowlerHTTPProtocol',
+]
+
 __all__.extend(errors.__all__)
 
 
