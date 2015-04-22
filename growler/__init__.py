@@ -29,7 +29,7 @@ from os import path
 from copy import copy
 from pkg_resources import declare_namespace
 
-import growler.app
+import growler.application
 import growler.router
 
 from growler.http.server import create_server as create_http_server
@@ -45,10 +45,8 @@ __license__ = metadata.license
 
 declare_namespace('growler')
 
-App = growler.app.App
+App = growler.application.Application
 Router = growler.router.Router
-
-DEFAULT_HTTP_OPTS = {'backlog': 100}
 
 __all__ = [
     "App",

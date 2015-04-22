@@ -1,5 +1,5 @@
 #
-# growler/app.py
+# growler/application.py
 #
 """
 Defines the base application (App) that defines a 'growlerific' program. This
@@ -14,7 +14,7 @@ popular web frameworks.
 A simple app can be created raw (no subclassing) and then decorate functions or
 a class to modify the behavior of the app. (decorators explained elsewhere)
 
-app = App()
+app = growler.App()
 
 @app.use
 def myfunc(req, res):
@@ -35,7 +35,7 @@ from .http import (
 from .router import Router
 
 
-class App(object):
+class Application(object):
     """
     A Growler application object. You can use a 'raw' app and modify it by
     decorating functions and objects with the app object, or subclass App and
