@@ -30,7 +30,6 @@ from .http import (
     HTTPResponse,
     GrowlerHTTPProtocol,
     HTTPError,
-    HTTPErrorInternalServerError,
     HTTPErrorNotFound
 )
 from .router import Router
@@ -262,13 +261,6 @@ class App(object):
         print("_find_route done ({})".format(found))
         if found is None:
             raise HTTPErrorNotFound()
-        # return self.route_to_use
-        # yield from asyncio.sleep(1)
-        # yield
-
-    def _middleware_boot(self, req, res, next):
-        """The initial middleware"""
-        pass
 
     def print_router_tree(self):
         for r in self.routers:

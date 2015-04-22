@@ -126,3 +126,12 @@ class Router():
         """
         print("req", req.originalURL)
         yield from self.match_routes(req)
+
+    @classmethod
+    def sinatra_path_to_regex(cls, path):
+        """
+        Converts a sinatra-style path to a regex with named parameters.  
+        """
+        param_regex = "/:(\w+)"
+        
+        return re.compile(path)
