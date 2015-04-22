@@ -29,8 +29,10 @@ from .http import (
     HTTPRequest,
     HTTPResponse,
     GrowlerHTTPProtocol,
+)
+from .http.errors import (
     HTTPError,
-    HTTPErrorNotFound
+    HTTPErrorNotFound,
 )
 from .router import Router
 

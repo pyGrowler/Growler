@@ -10,26 +10,24 @@ from .parser import Parser
 from .request import HTTPRequest
 from .response import HTTPResponse
 from .protocol import GrowlerHTTPProtocol
-from .errors import *
 from .server import create_server
+from .errors import __all__ as http_errors
 
 from http.server import BaseHTTPRequestHandler
 
 import mimetypes
 
-mimetypes.init()
 
+mimetypes.init()
 
 __all__ = [
     'HTTPRequest',
     'HTTPResponse',
     'HTTPParser',
-    'HTTPError',
     'GrowlerHTTPProtocol',
 ]
 
-__all__.extend(errors.__all__)
-
+__all__.extend(http_errors)
 
 KB = 1024
 MB = KB ** 2

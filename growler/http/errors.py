@@ -1,6 +1,9 @@
 #
-# growler/http/Error.py
+# growler/http/errors.py
 #
+"""
+Custom Exception subclasses relating to specific http errors.
+"""
 
 import sys
 

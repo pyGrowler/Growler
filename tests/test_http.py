@@ -34,9 +34,9 @@ def test_server_bad_request():
     def _client():
         r, w = yield from asyncio.open_connection('127.0.0.1', port)
         assert isinstance(r, asyncio.StreamReader)
-        w.write(b"a98asdfyhsfhhb2l3irjwef")
+        w.write(b"a98asdfyhsfhhb2l3irjwef\n")
         data = yield from asyncio.wait_for(r.read(1024), 1.0)
-        print(data)
+        assert data.startswith(b"HTTP/1.1 400 Bad Request")
 
     asyncio.get_event_loop().run_until_complete(_client())
     teardown_server(server)

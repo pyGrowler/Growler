@@ -55,7 +55,7 @@ class HTTPResponse(object):
         Create some default headers that should be sent along with every HTTP
         response
         """
-        time_string = format_RFC_1123(time.mktime(datetime.now().timetuple()))
+        time_string = self.get_current_time()
         # time_string = time.strftime("%a, %d %b %Y %H:%M:%S GMT",
         #  time.gmtime())
         self.headers.setdefault('Date', time_string)
@@ -223,3 +223,7 @@ class HTTPResponse(object):
     @property
     def info(self):
         return 'Python/{0[0]}.{0[1]} growler/{1}'
+
+    @classmethod
+    def get_current_time(cls):
+        return format_RFC_1123(time.mktime(datetime.now().timetuple()))

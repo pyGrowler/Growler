@@ -101,7 +101,10 @@ class GrowlerProtocol(asyncio.Protocol):
 
         @param transport bytes: bytes in the latest data transmission
         """
-        self.responders[-1].on_data(data)
+        try:
+            self.responders[-1].on_data(data)
+        except Exception as error:
+            self.handle_error(error)
         # self.loop.call_soon(self.responders[-1].on_data, data)
 
     def eof_received(self):
@@ -111,6 +114,16 @@ class GrowlerProtocol(asyncio.Protocol):
         """
         self.is_done_transmitting = True
         print("[GrowlerProtocol::eof_received]")
+
+    def handle_error(self, error):
+        """
+        An error handling function which will be called when an error is raised
+        during a responder's on_data() function. There is no default
+        functionality and the subclasses must overload this.
+
+        @param error: Exception thrown in code
+        """
+        raise NotImplemented
 
     @classmethod
     def factory(cls, *args, **kw):
