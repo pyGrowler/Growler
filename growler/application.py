@@ -273,6 +273,7 @@ class Application(object):
         A generator which yields all the middleware in the chain which match
         the provided request object 'req'
         """
+        yield from self.middleware
         yield from self.router.middleware_chain(req)
 
     def next_error_handler(self, req):

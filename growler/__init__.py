@@ -29,11 +29,6 @@ from os import path
 from copy import copy
 from pkg_resources import declare_namespace
 
-import growler.application
-import growler.router
-
-from growler.http.server import create_server as create_http_server
-
 metafile = path.join(path.dirname(__file__), "metadata.py")
 metadata = SourceFileLoader("metadata", metafile).load_module()
 
@@ -44,6 +39,12 @@ __copyright__ = metadata.copyright
 __license__ = metadata.license
 
 declare_namespace('growler')
+
+import growler.application
+import growler.router
+
+from growler.http.server import create_server as create_http_server
+
 
 App = growler.application.Application
 Router = growler.router.Router

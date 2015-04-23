@@ -2,7 +2,6 @@
 # growler/http/Response.py
 #
 
-
 import sys
 import growler
 import json
@@ -18,18 +17,17 @@ class HTTPResponse(object):
     """
     Response class which handles writing to the client.
     """
+    SERVER_INFO = 'Python/{0[0]}.{0[1]} Growler/{1}'.format(sys.version_info,
+                                                            growler.__version__
+                                                            )
 
     def __init__(self, protocol, EOL="\r\n"):
         """
-        Create the response
+        Create the http response.
 
-        @param ostream: asyncio.StreamWriter Output stream, expected
-        @param app growler.App: The growler app creating the response
+        @param protocol: GrowlerHTTPProtocol object creating the response
         @param EOL str: The string with which to end lines
         """
-
-        from growler import __version__
-
         self._stream = protocol.transport
         self.app = protocol.http_application
         self.send = self.write
@@ -47,8 +45,6 @@ class HTTPResponse(object):
             'after_send': [],
             'headerstrings': []
         }
-        info_tmpl = 'Python/{0[0]}.{0[1]} growler/{1}'
-        self.SERVER_INFO = info_tmpl.format(sys.version_info, __version__)
 
     def _set_default_headers(self):
         """

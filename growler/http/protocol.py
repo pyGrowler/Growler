@@ -55,7 +55,9 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
                 else:
                     print("Running middleware:", mw)
                     mw(req, res)
+                    print(" -> DONE")
             except Exception as error:
+                print("EXCEPTION OCCURED", error)
                 for handler in self.http_application.next_error_handler(req):
                     handler(req, res, error)
                 break
@@ -84,5 +86,4 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
                                   ).format(error.code, error.msg,
                                            len(err_str),
                                            HTTPResponse.get_current_time(),
-                                           err_str).encode()
-            )
+                                           err_str).encode())

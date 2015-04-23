@@ -130,8 +130,8 @@ class Router():
     @classmethod
     def sinatra_path_to_regex(cls, path):
         """
-        Converts a sinatra-style path to a regex with named parameters.  
+        Converts a sinatra-style path to a regex with named parameters.
         """
         param_regex = "/:(\w+)"
-        
+
         return re.compile(path)

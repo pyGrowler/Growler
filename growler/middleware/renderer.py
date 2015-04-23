@@ -96,7 +96,7 @@ class MakoRenderer():
     growler app.
     """
 
-    default_file_exension = '.mako'
+    default_file_extension = '.mako'
 
     def __init__(self, renderer):
         """
@@ -135,7 +135,6 @@ class JadeRenderer():
         self._preprocessor = mako_preprocessor
 
     def __call__(self, filename, res):
-        print("[JadeRenderer] ::", filename)
         tmpl = self._render(filename=filename, preprocessor=self._preprocessor)
         html = tmpl.render(**res.locals)
         return html
