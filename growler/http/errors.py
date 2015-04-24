@@ -46,7 +46,16 @@ class HTTPError(Exception):
             402: HTTPErrorPaymentRequired,
             403: HTTPErrorForbidden,
             404: HTTPErrorNotFound,
-            410: HTTPErrorGone
+            405: HTTPErrorMethodNotAllowed,
+            406: HTTPErrorNotAcceptable,
+            407: HTTPErrorProxyAuthenticationRequired,
+            408: HTTPErrorRequestTimeout,
+            409: HTTPErrorConflict,
+            410: HTTPErrorGone,
+            411: HTTPErrorLengthRequired,
+            412: HTTPErrorPreconditionFailed,
+            413: HTTPErrorRequestEntityTooLarge,
+            414: HTTPErrorRequestTooLarge,
             }(code, None)
 
 
@@ -75,13 +84,48 @@ class HTTPErrorForbidden(HTTPError):
 
 
 class HTTPErrorNotFound(HTTPError):
-    code = 405
+    code = 404
     msg = "Not Found"
+
+
+class HTTPErrorMethodNotAllowed(HTTPError):
+    code = 405
+    msg = "Method Not Allowed"
+
+
+class HTTPErrorNotAcceptable(HTTPError):
+    code = 406
+    msg = "Not Acceptable"
+
+
+class HTTPErrorProxyAuthenticationRequired(HTTPError):
+    code = 407
+    msg = "Proxy Authentication Required"
+
+
+class HTTPErrorRequestTimeout(HTTPError):
+    code = 408
+    msg = "Request Timeout"
+
+
+class HTTPErrorConflict(HTTPError):
+    code = 409
+    msg = "Conflict"
 
 
 class HTTPErrorGone(HTTPError):
     code = 410
     msg = "Gone"
+
+
+class HTTPErrorLengthRequired(HTTPError):
+    code = 411
+    msg = "Length Required"
+
+
+class HTTPErrorPreconditionFailed(HTTPError):
+    code = 412
+    msg = "Precondition Failed"
 
 
 class HTTPErrorRequestEntityTooLarge(HTTPError):
@@ -97,6 +141,11 @@ class HTTPErrorRequestTooLarge(HTTPError):
 class HTTPErrorUnsupportedMediaType(HTTPError):
     code = 415
     msg = "Unsupported Media Type"
+
+
+class HTTPErrorTooManyRequests(HTTPError):
+    code = 429
+    msg = "Too Many Requests"
 
 
 class HTTPErrorInternalServerError(HTTPError):
@@ -122,7 +171,15 @@ __all__ = [
     'HTTPErrorPaymentRequired',
     'HTTPErrorForbidden',
     'HTTPErrorNotFound',
+    'HTTPErrorMethodNotAllowed',
+    'HTTPErrorNotAcceptable',
+    'HTTPErrorProxyAuthenticationRequired',
+    'HTTPErrorRequestTimeout',
+    'HTTPErrorConflict',
     'HTTPErrorGone',
+    'HTTPErrorLengthRequired',
+    'HTTPErrorPreconditionFailed',
+    'HTTPErrorRequestEntityTooLarge',
     'HTTPErrorRequestTooLarge',
     'HTTPErrorUnsupportedMediaType',
     'HTTPErrorInternalServerError',
