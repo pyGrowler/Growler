@@ -57,6 +57,7 @@ Example Usage
     from growler import (App, create_http_server)
     from growler.middleware import (Logger, Static, Renderer)
 
+
     app = App('GrowlerServer')
 
     app.use(Logger())
@@ -64,11 +65,11 @@ Example Usage
 
     @app.get('/')
     def index(req, res):
-      res.render("home")
+        res.render("home")
 
     @app.get('/hello')
     def hello_world(req, res):
-      res.send_text("Hello World!!")
+        res.send_text("Hello World!!")
 
     http = create_http_server(app(), host='127.0.0.1', port=8000)
     asyncio.get_event_loop().run_until_complete(http.listen())
@@ -112,7 +113,7 @@ submissions or comments would be appreciated.
 
 The name Growler comes from the `beer
 bottle <http://en.wikipedia.org/wiki/Beer_bottle#Growler>`__ due to the
-apparent convention of giving python micro-frameworks fluid-container
+apparent convention of giving python micro-web-frameworks fluid container
 names.
 
 License
