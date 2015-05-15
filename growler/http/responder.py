@@ -5,11 +5,13 @@
 The Growler class responsible for responding to HTTP requests.
 """
 
-import asyncio
-
 from .parser import Parser
 from .request import HTTPRequest
 from .response import HTTPResponse
+
+from .errors import (
+    HTTPErrorBadRequest
+)
 
 
 class GrowlerHTTPResponder():
@@ -97,12 +99,12 @@ class GrowlerHTTPResponder():
         try:
             maxlen = self.headers['CONTENT-LENGTH']
         except KeyError:
-            raise BadHTTPRequest
+            raise HTTPErrorBadRequest
 
         try:
             self.content_length += len(data)
         except AttributeError:
-            raise BadHTTPRequest
+            raise HTTPErrorBadRequest
 
         if self.content_length > maxlen:
             raise HTTPErrorBadRequest
