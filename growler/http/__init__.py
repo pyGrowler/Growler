@@ -6,22 +6,28 @@ Sub-package dealing with HTTP implementation. In this pacakge we have the
 asyncio protocol, server, parser, and request and response objects.
 """
 
-from .parser import HTTPParser
+from .parser import Parser
 from .request import HTTPRequest
 from .response import HTTPResponse
-from .Error import *
+from .protocol import GrowlerHTTPProtocol
 from .server import create_server
+from .errors import __all__ as http_errors
 
 from http.server import BaseHTTPRequestHandler
 
 import mimetypes
 
+
 mimetypes.init()
 
+__all__ = [
+    'HTTPRequest',
+    'HTTPResponse',
+    'HTTPParser',
+    'GrowlerHTTPProtocol',
+]
 
-__all__ = ['HTTPRequest', 'HTTPResponse', 'HTTPParser', 'HTTPError']
-__all__.extend(Error.__all__)
-
+__all__.extend(http_errors)
 
 KB = 1024
 MB = KB ** 2

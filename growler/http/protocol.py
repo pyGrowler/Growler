@@ -7,9 +7,13 @@ Code containing Growler's asyncio.Protocol code for handling HTTP requests.
 
 from growler.protocol import GrowlerProtocol
 from growler.http.responder import GrowlerHTTPResponder
+from growler.http.response import HTTPResponse
+from growler.http.errors import (
+    HTTPError,
+    HTTPErrorInternalServerError
+)
 
 import asyncio
-import sys
 
 
 # Or should this be called HTTPGrowlerProtocol?
@@ -30,6 +34,56 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
             this protocol, but any callable with a 'loop' attribute should
             work.
         """
-        super().__init__(loop=app.loop, responder_type=GrowlerHTTPResponder)
+        super().__init__(loop=app.loop, responder_factory=GrowlerHTTPResponder)
         print("[GrowlerHTTPProtocol::__init__]", id(self))
-        self.growler_app = app
+        self.http_application = app
+        self.make_responder = lambda _self: GrowlerHTTPResponder(
+                                _self,
+                                request_factory=app._request_class,
+                                response_factory=app._response_class
+                                )
+
+    def middleware_chain(self, req, res):
+        """
+        Runs through the chain of middleware in app.
+        """
+        for mw in self.http_application.middleware_chain(req):
+            try:
+                if asyncio.iscoroutine(mw):
+                    print("Running middleware coroutine:", mw)
+                    self.loop.run_until_complete(mw(req, res))
+                else:
+                    print("Running middleware:", mw)
+                    mw(req, res)
+                    print(" -> DONE")
+            except Exception as error:
+                print("EXCEPTION OCCURED", error)
+                for handler in self.http_application.next_error_handler(req):
+                    handler(req, res, error)
+                break
+
+        if not res.has_ended:
+            raise HTTPErrorInternalServerError
+
+    def handle_error(self, error):
+        """
+        An error handling function which will be called when an error is raised
+        during a responder's on_data() function. There is no default
+        functionality and the subclasses must overload this.
+
+        @param error: Exception thrown in code
+        """
+        # for error_handler in self.http_application.next_error_handler(req):
+        if isinstance(error, HTTPError):
+            err_str = ("<html>"
+                       "<head></head>"
+                       "<body><h1>HTTP Error : %d %s </h1></body>"
+                       "</html>") % (error.code, error.msg)
+            self.transport.write(("HTTP/1.1 {} {}\n"
+                                  "Content-Type: text/html; charset=UTF-8"
+                                  "Content-Length: {}"
+                                  "Date: {}\n\n{}"
+                                  ).format(error.code, error.msg,
+                                           len(err_str),
+                                           HTTPResponse.get_current_time(),
+                                           err_str).encode())

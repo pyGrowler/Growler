@@ -9,16 +9,35 @@ import uuid
 
 
 class CookieParser():
+    """
+    Middleware which adds a 'cookies' attribute to requests, which is a
+    standard library http.cookies.SimpleCookie object, allowing dict like
+    access to session variables.
 
-    def __init__(self, opts={}):
-        print("[CookieParser]")
+    This adds a 'on_headerstrings' event to the response, so the cookies will
+    be serialized and sent back to the client.
+
+    If the request already has a cookie attribute, this does nothing.
+    """
+
+    def __init__(self, **opts):
+        """
+        Construct a CookieParser with optional 'opts' keyword arguments. These
+        do nothing currently except get stored in the CookieParser.opts
+        attribute.
+        """
+        print("[CookieParser]", opts)
+        self.opts = opts
 
     def __call__(self, req, res):
-        """Parses cookies"""
+        """
+        Parses cookies of the header request (using the 'cookie' header key)
+        and adds a callback to the 'on_headerstrings' response event.
+        """
         # Do not clobber cookies
         try:
             req.cookies
-            return next()
+            return None
         except AttributeError:
             # Create an empty cookie state
             req.cookies = SimpleCookie()
@@ -37,14 +56,9 @@ class CookieParser():
             req.cookies['qid'] = uuid.uuid4()
             res.cookies['qid'] = uuid.uuid4()
 
-    # print ("===", req.headers['cookie'])
-    # print ("  Loaded in cookies :", req.cookies)
-    # print ("Loaded in cookies quick id :", req.cookies['qid'].value)
-
         def _send_headers():
             if res.cookies:
                 cookie_string = res.cookies.output(sep=res.EOL)
-            # print ("RES:", cookie_string)
-            res.headerstrings.append(cookie_string)
+                res.headerstrings.append(cookie_string)
 
-        res._manipulate_headerstrings.append(_send_headers)
+        res.on_headerstrings(_send_headers)

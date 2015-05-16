@@ -29,11 +29,6 @@ from os import path
 from copy import copy
 from pkg_resources import declare_namespace
 
-import growler.app
-import growler.router
-
-from growler.http.server import create_server as create_http_server
-
 metafile = path.join(path.dirname(__file__), "metadata.py")
 metadata = SourceFileLoader("metadata", metafile).load_module()
 
@@ -45,10 +40,14 @@ __license__ = metadata.license
 
 declare_namespace('growler')
 
-App = growler.app.App
-Router = growler.router.Router
+import growler.application
+import growler.router
 
-DEFAULT_HTTP_OPTS = {'backlog': 100}
+from growler.http.server import create_server as create_http_server
+
+
+App = growler.application.Application
+Router = growler.router.Router
 
 __all__ = [
     "App",

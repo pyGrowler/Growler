@@ -1,5 +1,5 @@
 #
-# growler/app.py
+# growler/application.py
 #
 """
 Defines the base application (App) that defines a 'growlerific' program. This
@@ -14,7 +14,7 @@ popular web frameworks.
 A simple app can be created raw (no subclassing) and then decorate functions or
 a class to modify the behavior of the app. (decorators explained elsewhere)
 
-app = App()
+app = growler.App()
 
 @app.use
 def myfunc(req, res):
@@ -28,14 +28,16 @@ import os
 from .http import (
     HTTPRequest,
     HTTPResponse,
+    GrowlerHTTPProtocol,
+)
+from .http.errors import (
     HTTPError,
-    HTTPErrorInternalServerError,
-    HTTPErrorNotFound
+    HTTPErrorNotFound,
 )
 from .router import Router
 
 
-class App(object):
+class Application(object):
     """
     A Growler application object. You can use a 'raw' app and modify it by
     decorating functions and objects with the app object, or subclass App and
@@ -68,7 +70,6 @@ class App(object):
     def __init__(self,
                  name=__name__,
                  loop=asyncio.get_event_loop(),
-                 no_default_router=False,
                  debug=True,
                  request_class=HTTPRequest,
                  response_class=HTTPResponse,
@@ -105,7 +106,6 @@ class App(object):
                 app['var'] #=> val
 
         @type kw: dict
-
         """
         self.name = name
         self.cache = {}
@@ -121,15 +121,19 @@ class App(object):
         self.middleware = []  # [{'path': None, 'cb' : self._middleware_boot}]
 
         # set the default router
-        self.routers = [] if no_default_router else [Router('/')]
+        self.router = Router()
 
         self.enable('x-powered-by')
-        self.set('env', os.getenv('GROWLER_ENV', 'development'))
+        self['env'] = os.getenv('GROWLER_ENV', 'development')
 
-        self._on_connection = []
-        self._on_headers = []
-        self._on_error = []
-        self._on_http_error = []
+        self._events = {
+            'startup': [],
+            'connection': [],
+            'headers': [],
+            'error': [],
+            'http_error': [],
+            }
+        self.error_handlers = []
 
         self._wait_for = [asyncio.sleep(0.1)]
 
@@ -141,92 +145,6 @@ class App(object):
         Calls the growler server with the request and response objects.
         """
         print("Calling growler", req, res)
-
-    @asyncio.coroutine
-    def _handle_connection(self, reader, writer):
-        """
-        Called upon a connection from remote client. This is the default
-        behavior if application is run using '_server_listen' method. Request
-        and response objects are created from the stream reader/writer and
-        middleware is cycled through and applied to each. Changing behavior of
-        the server should be handled using middleware and NOT overloading
-        _handle_connection.
-
-        @type reader: asyncio.StreamReader
-        @type writer: asyncio.StreamWriter
-        """
-
-        print('[_handle_connection]', self, reader, writer, "\n")
-
-        # Call each action for the event 'OnConnection'
-        for f in self._on_connection:
-            f(reader._transport)
-
-        # create the request object
-        req = self._request_class(reader, self)
-
-        # create the response object
-        res = self._response_class(writer, self)
-
-        # create an asynchronous task to process the request
-        processing_task = asyncio.Task(req.process())
-
-        try:
-            # run task
-            yield from processing_task
-        # Caught an HTTP Error - handle by running through HTTPError handlers
-        except HTTPError as err:
-            processing_task.cancel()
-            err.PrintSysMessage()
-            print(err)
-            for f in self._on_http_error:
-                f(err, req, res)
-            return
-        except Exception as err:
-            processing_task.cancel()
-            print("[Growler::App::_handle_connection] Caught Exception ")
-            print(err)
-            for f in self._on_error:
-                f(err, req, res)
-            return
-
-        # Call each action for the event 'OnHeaders'
-        for f in self._on_headers:
-            yield from self._call_and_handle_error(f, req, res)
-
-            if res.has_ended:
-                print("[OnHeaders] Res has ended.")
-                return
-
-        # Loop through middleware
-        for md in self.middleware:
-            print("Running Middleware : ", md)
-
-            yield from self._call_and_handle_error(md, req, res)
-
-            if res.has_ended:
-                print("[middleware] Res has ended.")
-                return
-
-        route_generator = self.routers[0].match_routes(req)
-        for route in route_generator:
-            waitforme = asyncio.Future()
-            if not route:
-                raise HTTPErrorInternalServerError()
-
-        yield from self._call_and_handle_error(route, req, res)
-
-        if res.has_ended:
-            print("[Route] Res has ended.")
-            return
-        else:
-            yield from waitforme
-
-        # Default
-        if not res.has_ended:
-            e = Exception("Routes didn't finish!")
-            for f in self._on_error:
-                f(e, req, res)
 
     def _call_and_handle_error(self, func, req, res):
 
@@ -248,20 +166,20 @@ class App(object):
             # func.cancel()
             err.PrintSysMessage()
             print(err)
-            for f in self._on_http_error:
+            for f in self._events['http_error']:
                 f(err, req, res)
             return
         except Exception as err:
             # func.cancel()
             print("[Growler::App::_handle_connection] Caught Exception ")
             print(err)
-            for f in self._on_error:
+            for f in self._events['error']:
                 f(err, req, res)
             return
 
-    def onstart(self, cb):
+    def on_start(self, cb):
         print("Callback : ", cb)
-        self._on_start.append(cb)
+        self._events['startup'].append(cb)
 
     @asyncio.coroutine
     def wait_for_required(self):
@@ -282,33 +200,32 @@ class App(object):
     # router.
     # These could be assigned on construction using the form:
     #
-    #    self.all = self.routers[0].all
+    #    self.all = self.router.all
     #
     # , but that would not allow the user to switch the root router (easily)
     #
 
     def all(self, path="/", middleware=None):
         """
-        An alias call for simple access to the default router. The middleware
-        provided is called upon a GET HTTP request matching the path.
+        An alias of the default router's 'all' method. The middleware provided
+        is called upon any HTTP request that matching the path, regardless of
+        the method.
         """
-        return self.routers[0].all(path, middleware)
+        return self.router.all(path, middleware)
 
     def get(self, path="/", middleware=None):
         """
         An alias call for simple access to the default router. The middleware
-        provided is called upon a GET HTTP request matching the path.
+        provided is called upon any HTTP 'GET' request which matches the path.
         """
-        if middleware is None:
-            return self.routers[0].get(path, middleware)
-        self.routers[0].get(path, middleware)
+        return self.router.get(path, middleware)
 
     def post(self, path="/", middleware=None):
         """
-        An alias call for simple access to the default router. The middleware
-        provided is called upon a POST HTTP request matching the path.
+        An alias of the default router's 'post' method. The middleware provided
+        is called upon a POST HTTP request matching the path.
         """
-        return self.routers[0].post(path, middleware)
+        return self.router.post(path, middleware)
 
     def use(self, middleware, path=None):
         """
@@ -316,7 +233,7 @@ class App(object):
         requests match the provided path. A None path matches every request.
         Returns 'self' so the middleware may be nicely chained.
         """
-        print("[App::use] Adding middleware", middleware)
+        print("[App::use] Adding middleware <{}>".format(middleware))
         self.middleware.append(middleware)
         return self
 
@@ -346,17 +263,32 @@ class App(object):
         print("_find_route done ({})".format(found))
         if found is None:
             raise HTTPErrorNotFound()
-        # return self.route_to_use
-        # yield from asyncio.sleep(1)
-        # yield
-
-    def _middleware_boot(self, req, res, next):
-        """The initial middleware"""
-        pass
 
     def print_router_tree(self):
         for r in self.routers:
             r.print_tree()
+
+    def middleware_chain(self, req):
+        """
+        A generator which yields all the middleware in the chain which match
+        the provided request object 'req'
+        """
+        yield from self.middleware
+        yield from self.router.middleware_chain(req)
+
+    def next_error_handler(self, req):
+        for cb in self.error_handlers:
+            yield cb
+        yield self.default_404
+
+    @classmethod
+    def default_404(cls, req, res, error):
+        html = ("<html><head><title>404 - Not Found</title></head><body>"
+                "<h1>404 - Not Found</h1><hr>"
+                "<p style='font-family:monospace;'>"
+                "The page you requested: '%s', could not be found"
+                "</p></body></html")
+        res.send_html(html % req.path)
 
     #
     # Configuration functions
@@ -397,6 +329,7 @@ class App(object):
         return self.config[key]
 
     def __delitem__(self, key):
+        """Deletes a configuration parameter from the web-app"""
         del self.config[key]
 
     #
@@ -418,7 +351,7 @@ class App(object):
             loop.run_until_complete()
         """
         return self.loop.create_server(
-            Growler.HTTPProtocol.get_factory(self, self.loop),
+            GrowlerHTTPProtocol.get_factory(self),
             **server_config
         )
 

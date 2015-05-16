@@ -6,8 +6,8 @@ Useful functions for all tests
 """
 
 import asyncio
-import growler.protocol
-
+from growler.http.protocol import GrowlerHTTPProtocol
+import growler
 
 def random_port():
     from random import randint
@@ -30,8 +30,9 @@ def setup_http_server(loop=asyncio.get_event_loop(), port=random_port()):
     Sets up a GrowlerHTTPProtocol server for testing
     """
     # proto = growler.protocol.GrowlerHTTPProtocol
+    app = growler.App()
     def proto():
-        return growler.protocol.GrowlerHTTPProtocol(loop=loop)
+        return GrowlerHTTPProtocol(app)
     coro = loop.create_server(proto, '127.0.0.1', port)
     server = loop.run_until_complete(coro)
     return server, port

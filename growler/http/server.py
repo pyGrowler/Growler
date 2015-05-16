@@ -202,7 +202,7 @@ class HTTPServer():
         Helper function to act as a protocol factory for the
         GrowlerHTTPProtocol
         """
-        return GrowlerHTTPProtocol(app=self, loop=self.loop)
+        return GrowlerHTTPProtocol(app=self.callback)
 
     def __call__(self, **kargs):
         """

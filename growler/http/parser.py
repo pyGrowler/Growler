@@ -1,69 +1,113 @@
 #
-# growler/http/Parser.py
+# growler/http/parser.py
 #
 
 import asyncio
+import re
 
 from urllib.parse import (unquote, urlparse, parse_qs)
 from termcolor import colored
 
-from growler.http.Error import (
+from growler.http.errors import (
     HTTPErrorNotImplemented,
     HTTPErrorBadRequest,
+    HTTPErrorInvalidHeader,
     HTTPErrorVersionNotSupported,
 )
 
-MAX_REQUEST_LENGTH = 4096  # 4KB
-# from urllib.parse import (quote, parse_qs)
+INVALID_CHAR_REGEX = re.compile('[\x00-\x1F\x7F(),/:;<=>?@\[\]{} \t\\\\\"]')
+
+MAX_REQUEST_LENGTH = 1024 ** 2  # 1 MB
+MAX_REQUEST_LINE_LENGTH = 8 * 1024  # 8 KB
 
 
 class Parser:
     """
     New version of the Growler HTTPParser class. Responsible for interpreting
     the reqests made by the client and creating a request object.
+
+    Current implementation accepts both LF and CRLF line endings, discovered
+    while processing the first line. Each header is read in one at a time.
+
+    Upon finding an error the Parser will throw a 'BadHTTPRequest' exception.
     """
 
-    def __init__(self, queue):
+    def __init__(self, parent):
         """
         Construct a Parser object.
 
         @param queue asyncio.queue: The queue in which to put parsed items.
             This is assumed to be read from the responder which created it.
         """
-        self.queue = queue
+        self.parent = parent
         self.EOL_TOKEN = None
         self._buffer = []
         self.encoding = 'utf-8'
         self.HTTP_VERSION = None
+        self._header_buffer = None
+        self.headers = dict()
+
+        self.needs_request_line = True
+        self.needs_headers = True
+
+        self.request_length = 0
+        self.body_buffer = None
 
     def consume(self, data):
-        try:
-            data = data.decode(self.encoding)
-        except UnicodeDecodeError:
+        self.request_length += len(data)
+
+        if self.request_length > MAX_REQUEST_LENGTH:
             raise HTTPErrorBadRequest
 
-        print("[Parser::consume]", data)
-        newline = self._find_newline(data)
-        if newline == -1:
+        # if no newline - store in buffer
+        if self.find_newline(data) == -1:
             self._buffer.append(data)
             return
-        lines = ''.join(self._buffer + [data]).split(self.EOL_TOKEN)
+
+        lines = b''.join(self._buffer + [data]).split(self.EOL_TOKEN)
+
+        # The last element was NOT a complete line, put back in the buffer
+        last_line = lines.pop()
+
+        if not data.endswith(self.EOL_TOKEN):
+            self._buffer = [last_line]
+        else:
+            self._buffer.clear()
 
         # process request line
-        if self.HTTP_VERSION is None:
-            self.parse_request_line(lines.pop(0))
-            self.queue.put_nowait({
-                'method': self.method,
-                'version': self.version,
-                'url': self.parsed_url
-                })
+        if self.needs_request_line:
+            try:
+                self.parse_request_line(lines.pop(0).decode())
+            except UnicodeDecodeError:
+                raise HTTPErrorBadRequest
+
+            self.parent.set_request_line(self.method,
+                                         self.parsed_url,
+                                         self.version)
+            self.needs_request_line = False
+
+        if not lines:
+            return
 
         # process headers
+        if self.needs_headers:
+            self.store_headers_from_lines(lines)
+
+            # nothing was left in buffer - we have finished headers
+            if not self._header_buffer:
+                self.parent.set_headers(self.headers)
+                self.needs_headers = False
+
+        # return None if we have not stored the body, else return the body
+        return self.body_buffer
 
     def parse_request_line(self, req_line):
         """
-        Simply splits the request line into three components.
-        TODO: Check that there are 3 and validate the method/path/version
+        Splits the request line given into three components. Ensures that the
+        version and method are valid for this server, and uses the urllib.parse
+        function to parse the request URI.
+
+        @return Tuple of (method, parsed_url, version)
         """
         try:
             method, request_uri, version = req_line.split()
@@ -80,6 +124,7 @@ class Parser:
         self.version_number = float(num_str)
         self.version = version
         self.method = method
+
         self._process_headers = {
           "GET": self.process_get_headers,
           "POST": self.process_post_headers
@@ -97,175 +142,107 @@ class Parser:
 
         return method, self.parsed_url, version
 
-    def _find_newline(self, string):
+    def _flush_header_buffer(self):
+        """
+        Stores the _header_buffer into the self.headers. Then Nonifies the
+        _header_buffer.
+        """
+        self.headers[self._header_buffer['key']] = self._header_buffer['value']
+        self._header_buffer = None
+
+    def find_newline(self, string):
+        """
+        Finds an End-Of-Line character in the string. If this has not been
+        determined, simply look for the \n, then check if there was an \r
+        before it. If not found, return -1.
+        """
+        if isinstance(string, str):
+            string = string.encode()
+
         # we have not processed the first line yet
         if self.EOL_TOKEN is None:
-            line_end_pos = string.find('\n')
+            line_end_pos = string.find(b'\n')
             if line_end_pos != -1:
                 prev_char = string[line_end_pos-1]
-                self.EOL_TOKEN = '\r\n' if prev_char == '\r' else '\n'
+                self.EOL_TOKEN = b'\r\n' if (prev_char is b'\r'[0]) else b'\n'
             else:
                 return -1
         return string.find(self.EOL_TOKEN)
 
-    def process_get_headers(self, data):
-        pass
-
-    def process_post_headers(self, data):
-        pass
-
-
-class HTTPParser(object):
-    """
-    Growler's implementation of an HTTP parsing class. An HTTPRequest object
-    uses this to read data from the stream and extract HTTP parameters,
-    headers, and body. The important functions are coroutines
-    'read_next_header' and 'read_body'.
-
-    Current implementation accepts both LF and CRLF line endings, discovered
-    while processing the first line. Each header is read in one at a time.
-    """
-    def __init__(self, req, instream=None):
+    def store_headers_from_lines(self, lines):
         """
-        Create a Growler HTTP Parser.
-
-        @param req: The HTTPRequest with the stream to build
-        @type req: growler.HTTPRequest
-
-        @param instream: The stream to read. If None, use the stream from the
-            req
-        @type instream: asyncio.StreamReader
+        Takes the list of lines and gets a header from each string, storing
+        first into the buffer, then checks for continuation of the header. If
+        there is no continuing header - place the header into self.headers and
+        continue parsing.
         """
-        self._stream = req._stream if not instream else instream
-        self._req = req
-        self._buffer = ''
-        self.EOL_TOKEN = None
-        self.read_buffer = ''
-        self.bytes_read = 0
-        self.max_read_size = MAX_REQUEST_LENGTH
-        self.max_bytes_read = MAX_REQUEST_LENGTH
-        self.data_future = asyncio.Future()
-        self._header_buffer = None
+        for lineno, line in enumerate(lines):
+            # we are done parsing headers!
+            if line is b'':
+                self._flush_header_buffer()
+                self.body_buffer = b''.join(lines[lineno:])
+                break
 
-    @asyncio.coroutine
-    def _read_data(self):
-        """
-        Reads in a block of data (at most self.max_read_size bytes) and returns
-        the decoded string.
-        """
-        data = yield from self._stream.read(self.max_read_size)
-        self.bytes_read += len(data)
-        return data.decode()
+            try:
+                line = line.decode(self.encoding)
+            except UnicodeDecodeError:
+                raise HTTPErrorBadRequest
 
-    @asyncio.coroutine
-    def read_next_line(self, line_future=None):
-        """
-        Returns a single line read from the stream. If the EOL char has not
-        been determined, it will wait for '\n' and set EOL to either LF or
-        CRLF. This returns a single line, and stores the rest of the read in
-        data in self._buffer
-
-        @param line_future: A future to save the line to, if requested, else
-                it is returned
-        @type line_future: asyncio.Future
-        """
-        # Keep reading data until a newline is found
-        while self.EOL_TOKEN is None:
-            next_str = yield from self._read_data()
-            line_end_pos = next_str.find('\n')
-            self._buffer += next_str
-            if line_end_pos != -1:
-                if next_str[line_end_pos-1] == '\r':
-                    self.EOL_TOKEN = '\r\n'
+            if line.startswith((' ', '\t')):
+                if self._header_buffer is None:
+                    raise HTTPErrorInvalidHeader
+                line = line.strip()
+                val = self._header_buffer['value']
+                if isinstance(val, str):
+                    self._header_buffer['value'] = [val, line]
                 else:
-                    self.EOL_TOKEN = '\n'
+                    self._header_buffer['value'] += [line]
+                continue
 
-        line_ends_at = self._buffer.find(self.EOL_TOKEN)
+            if self._header_buffer:
+                self._flush_header_buffer()
 
-        while line_ends_at == -1:
-            self._buffer += yield from self._read_data()
-            line_ends_at = self._buffer.find(self.EOL_TOKEN)
+            self._header_buffer = self.header_from_line(line)
 
-        # split!
-        line, self._buffer = self._buffer.split(self.EOL_TOKEN, 1)
-
-        # yield from asyncio.sleep(0.75) # artificial delay
-        return line
-
-    @asyncio.coroutine
-    def read_next_header(self):
+    @classmethod
+    def header_from_line(cls, line):
         """
-        A coroutine to generate headers. It uses read_next_line to get headers
-        line by line - allowing a quick response to invalid requests.
+        Takes a string and attempts to build a key-value pair for the header
+        object. Header names are checked for validity. In the event that the
+        string can not be split on a ':' char, a HTTPErrorBadRequest exception
+        is raised. The keys are stored as UPPER case.
         """
-        # No buffer has been saved - get the next line
-        if self._header_buffer is None:
-            line = yield from self.read_next_line()
-        # if there was a header saved, use that (and clear the buffer)
-        else:
-            line, self._header_buffer = self._header_buffer, None
-
-        # end of the headers - 'None' will end an iteration
-        if line == '':
-            return None
-
-        # TODO: warn better than a print statement
-        if line[0] == ' ':
-            print("WARNING: Header leads with whitespace")
-
-        next_line = yield from self.read_next_line()
-
-        # if next_line starts with a space, append this line to the previous
-        while next_line != '' and next_line[0] == ' ':
-            line += next_line
-            next_line = yield from self.read_next_line()
-
-        # next_line is now the beginning of the 'next_header', while 'line'
-        #  is the current header
-        self._header_buffer = next_line
-
         try:
-            key, value = map(str.strip, line.split(":", 1))
+            key, value = map(str.strip, line.split(':', 1))
         except ValueError as e:
             err_str = "ERROR parsing headers. Input '{}'".format(line)
             print(colored(err_str, 'red'))
-            raise HTTPErrorBadRequest(e)
+            raise HTTPErrorInvalidHeader
 
+        if cls.is_invalid_header_name(key):
+            raise HTTPErrorInvalidHeader
+
+        key = key.upper()
         return {'key': key, 'value': value}
 
-    @asyncio.coroutine
-    def read_body(self):
+    @classmethod
+    def is_invalid_header_name(cls, string):
         """
-        Finishes reading the request. This method expects content-length to be
-        defined in self.headers, and will read that many bytes from the stream.
+        Returns true if the string passes the regex checking for invalid
+        header-key characters
         """
-        # There is no body - return None
-        if self.headers['content-length'] == 0:
-            return None
+        return string == '' or bool(INVALID_CHAR_REGEX.search(string))
 
-        # Get length of whatever is already read into the buffer
-        bytes_read = len(self._buffer)
-        if self.headers['content-length'] < bytes_read:
-            err_str = "Body too large. Expecting {} bytes received {}".format(
-                self.headers['content-length'],
-                bytes_read)
-            raise HTTPErrorBadRequest(err_str)
-
-        self.max_read_size = self.headers['content-length'] - bytes_read
-
-        while self.max_read_size != 0:
-            next_str = yield from self._read_data()
-            bytes_read += len(next_str)
-            self.max_read_size = self.headers['content-length'] - bytes_read
-            self._buffer += next_str
-
-        res, self._buffer = self._buffer, ''
-        return res
-
-    def parse_request_line(self, req_line):
+    def process_get_headers(self, data):
         """
-        Simply splits the request line into three components.
-        TODO: Check that there are 3 and validate the method/path/version
+        Called upon receiving a GET HTTP request to do specific 'GET' things to
+        the list of headers.
         """
-        req_lst = req_line.split("\n")
-        return req_lst
+        pass
+
+    def process_post_headers(self, data):
+        """
+        Called upon receiving a POST HTTP request to do specific 'POST' things
+        to the headers.
+        """
+        pass

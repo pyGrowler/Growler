@@ -15,6 +15,8 @@ class Static():
     """
 
     def __init__(self, path):
+        if isinstance(path, list):
+            path = os.path.join(*path)
         self.path = os.path.abspath(path)  # os.getcwd() + path
         print("[Static] Serving static files out of {}".format(self.path))
         if not os.path.exists(self.path):

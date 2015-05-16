@@ -1,6 +1,9 @@
 #
-# growler/http/Error.py
+# growler/http/errors.py
 #
+"""
+Custom Exception subclasses relating to specific http errors.
+"""
 
 import sys
 
@@ -43,13 +46,26 @@ class HTTPError(Exception):
             402: HTTPErrorPaymentRequired,
             403: HTTPErrorForbidden,
             404: HTTPErrorNotFound,
-            410: HTTPErrorGone
+            405: HTTPErrorMethodNotAllowed,
+            406: HTTPErrorNotAcceptable,
+            407: HTTPErrorProxyAuthenticationRequired,
+            408: HTTPErrorRequestTimeout,
+            409: HTTPErrorConflict,
+            410: HTTPErrorGone,
+            411: HTTPErrorLengthRequired,
+            412: HTTPErrorPreconditionFailed,
+            413: HTTPErrorRequestEntityTooLarge,
+            414: HTTPErrorRequestTooLarge,
             }(code, None)
 
 
 class HTTPErrorBadRequest(HTTPError):
     code = 400
     msg = "Bad Request"
+
+
+class HTTPErrorInvalidHeader(HTTPErrorBadRequest):
+    msg = "Bad Request (Invalid Header Name)"
 
 
 class HTTPErrorUnauthorized(HTTPError):
@@ -62,15 +78,39 @@ class HTTPErrorPaymentRequired(HTTPError):
     msg = "Payment Required"
 
 
-# HTTPErrorForbidden = HTTPError.__init__({}, 403, "Forbidden")
 class HTTPErrorForbidden(HTTPError):
     code = 403
     msg = "Forbidden"
 
 
 class HTTPErrorNotFound(HTTPError):
-    code = 405
+    code = 404
     msg = "Not Found"
+
+
+class HTTPErrorMethodNotAllowed(HTTPError):
+    code = 405
+    msg = "Method Not Allowed"
+
+
+class HTTPErrorNotAcceptable(HTTPError):
+    code = 406
+    msg = "Not Acceptable"
+
+
+class HTTPErrorProxyAuthenticationRequired(HTTPError):
+    code = 407
+    msg = "Proxy Authentication Required"
+
+
+class HTTPErrorRequestTimeout(HTTPError):
+    code = 408
+    msg = "Request Timeout"
+
+
+class HTTPErrorConflict(HTTPError):
+    code = 409
+    msg = "Conflict"
 
 
 class HTTPErrorGone(HTTPError):
@@ -78,14 +118,34 @@ class HTTPErrorGone(HTTPError):
     msg = "Gone"
 
 
+class HTTPErrorLengthRequired(HTTPError):
+    code = 411
+    msg = "Length Required"
+
+
+class HTTPErrorPreconditionFailed(HTTPError):
+    code = 412
+    msg = "Precondition Failed"
+
+
+class HTTPErrorRequestEntityTooLarge(HTTPError):
+    code = 413
+    msg = "Request Entity Too Large"
+
+
 class HTTPErrorRequestTooLarge(HTTPError):
     code = 414
-    msg = "Request-URI Too Large"
+    msg = "Request URI Too Large"
 
 
 class HTTPErrorUnsupportedMediaType(HTTPError):
     code = 415
     msg = "Unsupported Media Type"
+
+
+class HTTPErrorTooManyRequests(HTTPError):
+    code = 429
+    msg = "Too Many Requests"
 
 
 class HTTPErrorInternalServerError(HTTPError):
@@ -111,7 +171,15 @@ __all__ = [
     'HTTPErrorPaymentRequired',
     'HTTPErrorForbidden',
     'HTTPErrorNotFound',
+    'HTTPErrorMethodNotAllowed',
+    'HTTPErrorNotAcceptable',
+    'HTTPErrorProxyAuthenticationRequired',
+    'HTTPErrorRequestTimeout',
+    'HTTPErrorConflict',
     'HTTPErrorGone',
+    'HTTPErrorLengthRequired',
+    'HTTPErrorPreconditionFailed',
+    'HTTPErrorRequestEntityTooLarge',
     'HTTPErrorRequestTooLarge',
     'HTTPErrorUnsupportedMediaType',
     'HTTPErrorInternalServerError',
