@@ -77,8 +77,8 @@ class GrowlerProtocol(asyncio.Protocol):
 
         self.responders = [self.make_responder(self)]
         self.transport = transport
-        self.remote_hostname, self.remote_port = transport.get_extra_info(
-                                                        'peername')
+        transport_info = transport.get_extra_info
+        self.remote_hostname, self.remote_port = transport_info('peername')
         self.socket = transport.get_extra_info('socket')
         self.cipher = transport.get_extra_info('cipher')
         self.is_done_transmitting = False
@@ -105,7 +105,6 @@ class GrowlerProtocol(asyncio.Protocol):
             self.responders[-1].on_data(data)
         except Exception as error:
             self.handle_error(error)
-        # self.loop.call_soon(self.responders[-1].on_data, data)
 
     def eof_received(self):
         """
