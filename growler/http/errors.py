@@ -127,7 +127,7 @@ class HTTPErrorLengthRequired(HTTPError):
     msg = "Length Required"
 
 
-class HTTPError74PreconditionFailed(HTTPError):
+class HTTPErrorPreconditionFailed(HTTPError):
     code = 412
     msg = "Precondition Failed"
 

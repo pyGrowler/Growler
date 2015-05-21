@@ -5,6 +5,7 @@
 import re
 from growler.http.errors import HTTPErrorNotFound
 
+
 class Router():
     """
     The router class holds all the 'routes': callbacks connected assigned to
@@ -131,7 +132,7 @@ class Router():
         for route in self.match_routes(req):
             matches += 1
             yield route
-        print("matched %d routes" % matched)
+        print("matched %d routes" % matches)
         if matches == 0:
             raise HTTPErrorNotFound()
 
