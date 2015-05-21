@@ -40,6 +40,10 @@ class HTTPError(Exception):
 
     @classmethod
     def get_from_code(cls, code):
+        """
+        A simple way of getting the Exception class of an http error from http
+        error code.
+        """
         return {
             400: HTTPErrorBadRequest,
             401: HTTPErrorUnauthorized,
@@ -56,7 +60,7 @@ class HTTPError(Exception):
             412: HTTPErrorPreconditionFailed,
             413: HTTPErrorRequestEntityTooLarge,
             414: HTTPErrorRequestTooLarge,
-            }(code, None)
+            }.get(code)
 
 
 class HTTPErrorBadRequest(HTTPError):
@@ -123,7 +127,7 @@ class HTTPErrorLengthRequired(HTTPError):
     msg = "Length Required"
 
 
-class HTTPErrorPreconditionFailed(HTTPError):
+class HTTPError74PreconditionFailed(HTTPError):
     code = 412
     msg = "Precondition Failed"
 

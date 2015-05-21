@@ -53,6 +53,12 @@ class Parser:
         self.body_buffer = None
 
     def consume(self, data):
+        """
+        Consumes data provided by the responder.
+
+        If headers have finished being read in, this returns asyncio.Future
+        which will contain the body. Else it returns None.
+        """
         self.request_length += len(data)
 
         if self.request_length > MAX_REQUEST_LENGTH:

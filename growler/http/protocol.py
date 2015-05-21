@@ -61,7 +61,7 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
                 print("EXCEPTION OCCURED", error)
                 for handler in self.http_application.next_error_handler(req):
                     handler(req, res, error)
-                break
+                return
 
         if not res.has_ended:
             raise HTTPErrorInternalServerError
@@ -80,11 +80,16 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
                        "<head></head>"
                        "<body><h1>HTTP Error : %d %s </h1></body>"
                        "</html>") % (error.code, error.msg)
-            self.transport.write(("HTTP/1.1 {} {}\n"
-                                  "Content-Type: text/html; charset=UTF-8"
-                                  "Content-Length: {}"
-                                  "Date: {}\n\n{}"
-                                  ).format(error.code, error.msg,
-                                           len(err_str),
-                                           HTTPResponse.get_current_time(),
-                                           err_str).encode())
+            header_info = {
+                'code': error.code,
+                'msg': error.msg,
+                'date': HTTPResponse.get_current_time(),
+                'length': len(err_str.encode()),
+                'contents': err_str
+                }
+            response = ("HTTP/1.1 {code} {msg}\n"
+                        "Content-Type: text/html; charset=UTF-8"
+                        "Content-Length: {length}"
+                        "Date: {date}\n\n"
+                        "{contents}").format(**header_info)
+            self.transport.write(response.encode())
