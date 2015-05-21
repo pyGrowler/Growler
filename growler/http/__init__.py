@@ -1,6 +1,8 @@
 #
 # growler/http/__init__.py
 #
+# flake8: noqa
+#
 """
 Sub-package dealing with HTTP implementation. In this pacakge we have the
 asyncio protocol, server, parser, and request and response objects.

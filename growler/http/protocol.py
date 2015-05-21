@@ -37,11 +37,12 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
         super().__init__(loop=app.loop, responder_factory=GrowlerHTTPResponder)
         print("[GrowlerHTTPProtocol::__init__]", id(self))
         self.http_application = app
-        self.make_responder = lambda _self: GrowlerHTTPResponder(
-                                _self,
-                                request_factory=app._request_class,
-                                response_factory=app._response_class
-                                )
+        resp_params = {
+            'request_factory': app._request_class,
+            'response_factory': app._response_class
+        }
+        self.make_responder = lambda _self: GrowlerHTTPResponder(_self,
+                                                                 **resp_params)
 
     def middleware_chain(self, req, res):
         """
