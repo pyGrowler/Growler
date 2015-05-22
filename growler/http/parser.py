@@ -2,7 +2,6 @@
 # growler/http/parser.py
 #
 
-import asyncio
 import re
 
 from urllib.parse import (unquote, urlparse, parse_qs)
@@ -54,6 +53,12 @@ class Parser:
         self.body_buffer = None
 
     def consume(self, data):
+        """
+        Consumes data provided by the responder.
+
+        If headers have finished being read in, this returns asyncio.Future
+        which will contain the body. Else it returns None.
+        """
         self.request_length += len(data)
 
         if self.request_length > MAX_REQUEST_LENGTH:
@@ -126,8 +131,8 @@ class Parser:
         self.method = method
 
         self._process_headers = {
-          "GET": self.process_get_headers,
-          "POST": self.process_post_headers
+            "GET": self.process_get_headers,
+            "POST": self.process_post_headers
         }.get(method, None)
 
         # Method not found
@@ -214,7 +219,7 @@ class Parser:
         """
         try:
             key, value = map(str.strip, line.split(':', 1))
-        except ValueError as e:
+        except ValueError:
             err_str = "ERROR parsing headers. Input '{}'".format(line)
             print(colored(err_str, 'red'))
             raise HTTPErrorInvalidHeader

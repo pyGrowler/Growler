@@ -2,8 +2,6 @@
 # growler/middleware/renderer.py
 #
 
-
-import asyncio
 import os
 
 

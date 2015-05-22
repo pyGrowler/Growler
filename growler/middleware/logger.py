@@ -1,6 +1,8 @@
 #
 # growler/middleware/logger.py
 #
+# flake8: noqa
+#
 
 from termcolor import colored
 

@@ -22,11 +22,8 @@ the successful Nodejs express framework, which allowing easy creation
 of complex websites using a middleware-based configuration.
 """
 
-import ssl
-import asyncio
 from importlib.machinery import SourceFileLoader
 from os import path
-from copy import copy
 from pkg_resources import declare_namespace
 
 metafile = path.join(path.dirname(__file__), "metadata.py")

@@ -48,6 +48,7 @@ class GrowlerHTTPResponder():
         This is the function called by the http protocol upon receipt of
         incoming client data.
         """
+        # Headers have not been read in yet
         if self.headers is None:
             # forward data to the parser
             data = self.parser.consume(data)

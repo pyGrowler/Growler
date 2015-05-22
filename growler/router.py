@@ -3,6 +3,7 @@
 #
 
 import re
+from growler.http.errors import HTTPErrorNotFound
 
 
 class Router():
@@ -108,13 +109,15 @@ class Router():
 
     def match_routes(self, req):
         print("matching routes to path '{}'".format(req.path))
-        print("# routes: ", len(self.routes))
+        print(" (# routes: %d)" % len(self.routes))
         for method, path, func in self.routes:
             if method == "ALL" or method.upper() == req.method.upper():
-                print("MATCHED method ", method)
+                print("MATCHED method", method)
                 if self.match_path(req.path, path):
                     print("MATCHED path", req.path, path, ' yielding', func)
                     yield func
+        print("End of match_routes")
+        return None
 
     def match_path(self, request, path):
         return request == path
@@ -125,7 +128,13 @@ class Router():
         for the request 'req', provided.
         """
         print("req", req.originalURL)
-        yield from self.match_routes(req)
+        matches = 0
+        for route in self.match_routes(req):
+            matches += 1
+            yield route
+        print("matched %d routes" % matches)
+        if matches == 0:
+            raise HTTPErrorNotFound()
 
     @classmethod
     def sinatra_path_to_regex(cls, path):

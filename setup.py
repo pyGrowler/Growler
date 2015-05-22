@@ -19,8 +19,8 @@ REQUIRES = [
 ]
 
 OPTIONAL_REQUIRES = {
-  'jade': ['pyjade'],
-  ':python_version=="3.3"': ['asyncio>=0.2.1']
+    'jade': ['pyjade'],
+    ':python_version=="3.3"': ['asyncio>=0.2.1']
 }
 
 PACKAGES = find_packages(
@@ -43,7 +43,7 @@ setup(
     author_email=metadata.author_email,
     description=__doc__.strip(),
     classifiers=[
-        "Development Status :: 2 - Pre-Alpha",
+        "Development Status :: 4 - Beta",
         "Environment :: Web Environment",
         "Operating System :: OS Independent",
         # "Framework :: Growler",

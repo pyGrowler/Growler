@@ -6,7 +6,7 @@ Functions and classes for running an http server
 """
 
 import asyncio
-import ssl
+from ssl import SSLContext
 
 from .protocol import GrowlerHTTPProtocol
 
@@ -36,7 +36,7 @@ def create_server(
     loop = asyncio.get_event_loop() if loop is None else loop
 
     if ssl:
-        sslctx = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+        sslctx = SSLContext(ssl.PROTOCOL_SSLv23)
         key = kargs.pop('key')
         try:
             sslctx.load_cert_chain(certfile=kargs.pop('cert'),
@@ -191,7 +191,7 @@ class HTTPServer():
             **self.server_options
             )
         if block:
-            srv = self.loop.run_until_complete(self.coro)
+            self.loop.run_until_complete(self.coro)
             print('Listening : {}'.format(self.srv.sockets[0].getsockname()))
             print(' sock {}'.format(self.srv.sockets[0]))
             self.loop.run_forever()
@@ -210,8 +210,8 @@ class HTTPServer():
         asyncio.BaseEventLoop.create_server, this coroutine can be wrapped in a
         task or called however the user wishes.
         """
-        coro = loop.create_server(self.generate_protocol, **self.server_kargs)
-        return coro
+        return self.loop.create_server(self.generate_protocol,
+                                       **self.server_kargs)
 
     @classmethod
     def get_random_port(cls, range_tuple, MAX=200):

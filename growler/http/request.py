@@ -2,19 +2,7 @@
 # growler/http/request.py
 #
 
-from urllib.parse import (unquote, urlparse, parse_qs)
-from .errors import (
-    HTTPErrorBadRequest,
-    HTTPErrorVersionNotSupported,
-    HTTPErrorNotImplemented
-)
-
-from . import Parser
-from termcolor import colored
-
 import asyncio
-
-from pprint import pprint
 
 
 class HTTPRequest(object):

@@ -1,6 +1,8 @@
 #
 # growler/middleware/__init__.py
 #
+# flake8: noqa
+#
 """
 Implementation of default middleware along with the virtual package for
 others to extend growler middleware with their own packages.

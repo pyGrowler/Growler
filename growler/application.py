@@ -276,13 +276,22 @@ class Application(object):
         yield from self.middleware
         yield from self.router.middleware_chain(req)
 
-    def next_error_handler(self, req):
-        for cb in self.error_handlers:
-            yield cb
-        yield self.default_404
+    def next_error_handler(self, req=None):
+        """
+        A generator providing the chain of error handlers for server exception
+        catching. If there are no error handlers set, the app will use the
+        classmethod 'default_error_handler'.
+
+        An optional 'req' parameter is present in the event that request
+        specific  handling (i.e. by path or session) is neccessary. This is
+        currently unimplemented and should be ignored.
+        """
+        if len(self.error_handlers) == 0:
+            yield self.default_error_handler
+        yield from self.error_handlers
 
     @classmethod
-    def default_404(cls, req, res, error):
+    def default_error_handler(cls, req, res, error):
         html = ("<html><head><title>404 - Not Found</title></head><body>"
                 "<h1>404 - Not Found</h1><hr>"
                 "<p style='font-family:monospace;'>"
@@ -344,7 +353,7 @@ class Application(object):
         This function exists only to remove boilerplate code for starting up a
         growler app.
 
-        @param server_config: These keyword arguments parameters are passed
+        @param server_config: These keyword-argument parameters are passed
             directly to the BaseEventLoop.create_server function. Consult their
             documentation for details.
         @returns asyncio.coroutine which should be run inside a call to
@@ -363,7 +372,7 @@ class Application(object):
         This function exists only to remove boilerplate code for starting up a
         growler app.
 
-        @param server_config: These keyword arguments parameters are passed
+        @param server_config: These keyword-argument parameters are passed
             directly to the BaseEventLoop.create_server function. Consult their
             documentation for details.
         """
