@@ -31,6 +31,7 @@ class Router():
     convience aliases to automatically add routes:
         app.get(..) == app.router.get(...)
     """
+    sinatra_param_regex = re.compile(":(\w+)")
 
     def __init__(self):
         """Create a router"""
@@ -141,6 +142,13 @@ class Router():
         """
         Converts a sinatra-style path to a regex with named parameters.
         """
-        param_regex = "/:(\w+)"
-
-        return re.compile(path)
+        # Build a regular expression string which is split on the '/' character
+        regex = []
+        for segment in path.split('/'):
+            if cls.sinatra_param_regex.match(segment):
+                regex.append("(?P<{}>\w+)".format(segment[1:]))
+            else:
+                regex.append(segment)
+        rstr = '/'.join(regex)
+        print("build regex", rstr)
+        return re.compile(rstr)
