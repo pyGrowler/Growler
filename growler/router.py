@@ -32,6 +32,7 @@ class Router():
         app.get(..) == app.router.get(...)
     """
     sinatra_param_regex = re.compile(":(\w+)")
+    regex_type = type(sinatra_param_regex)
 
     def __init__(self):
         """Create a router"""
@@ -142,13 +143,16 @@ class Router():
         """
         Converts a sinatra-style path to a regex with named parameters.
         """
+        # Return the path if already a (compiled) regex
+        if type(path) is cls.regex_type:
+            return path
+
         # Build a regular expression string which is split on the '/' character
-        regex = []
-        for segment in path.split('/'):
-            if cls.sinatra_param_regex.match(segment):
-                regex.append("(?P<{}>\w+)".format(segment[1:]))
-            else:
-                regex.append(segment)
+        regex = [
+            "(?P<{}>\w+)".format(segment[1:])
+            if cls.sinatra_param_regex.match(segment) else segment
+            for segment in path.split('/')
+        ]
         rstr = '/'.join(regex)
         print("build regex", rstr)
         return re.compile(rstr)

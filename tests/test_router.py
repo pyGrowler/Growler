@@ -26,5 +26,13 @@ def test_sinatra_key():
     gd = matches.groupdict()
     assert gd['name'] == 'growler'
 
+
+def test_sinatra_passes_regex():
+    import re
+    s = re.compile('/name/:name')
+    r = Router.sinatra_path_to_regex(s)
+    assert r.match("/not/right") is None
+
+
 if __name__ == '__main__':
     test_sinatra_path()
