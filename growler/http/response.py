@@ -187,11 +187,16 @@ class HTTPResponse(object):
         self.write_eof()
 
     def send_text(self, txt, status=200):
-        if isinstance(txt, str):
-            self.headers.setdefault('content-type', 'text/plain')
-            self.message = txt
-        else:
-            self.message = "{}".format(txt)
+        """
+        Sends plaintext response to client. Automatically sets the content-type
+        header to text/plain. If txt is not a string, it will be formatted as
+        one.
+
+        @param txt str: The plaintext string to be sent back to the client
+        @param status int: The HTTP status code, defaults to 200 (OK)
+        """
+        self.headers.setdefault('content-type', 'text/plain')
+        self.message = str(txt)
         self.status_code = status
         self.end()
 
