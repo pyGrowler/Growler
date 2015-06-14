@@ -65,3 +65,11 @@ class HTTPRequest(object):
         coro = asyncio.wait_for(self.body, timeout, loop=self._protocol.loop)
         self._protocol.loop.run_until_complete(coro)
         return self.body.result()
+
+
+    def type_is(self, mime_type):
+        """
+        returns True if content-type of the request matches the mime_type
+        parameter.
+        """
+        return self.headers['content-type'] == mime_type

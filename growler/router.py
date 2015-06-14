@@ -104,8 +104,6 @@ class Router():
         return self
 
     def print_tree(self, prefix=''):
-        for x in self.routes:
-            print("{}{}".format(prefix, x))
         for x in self.subrouters:
             x.print_tree(prefix + "  ")
 
@@ -129,12 +127,10 @@ class Router():
         A generator that yields a series of middleware which are appropriate
         for the request 'req', provided.
         """
-        print("req", req.originalURL)
         matches = 0
         for route in self.match_routes(req):
             matches += 1
             yield route
-        print("matched %d routes" % matches)
         if matches == 0:
             raise HTTPErrorNotFound()
 
@@ -150,9 +146,8 @@ class Router():
         # Build a regular expression string which is split on the '/' character
         regex = [
             "(?P<{}>\w+)".format(segment[1:])
-            if cls.sinatra_param_regex.match(segment) else segment
+            if cls.sinatra_param_regex.match(segment)
+            else segment
             for segment in path.split('/')
         ]
-        rstr = '/'.join(regex)
-        print("build regex", rstr)
-        return re.compile(rstr)
+        return re.compile('/'.join(regex))
