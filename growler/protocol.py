@@ -75,9 +75,10 @@ class GrowlerProtocol(asyncio.Protocol):
         @param transport asyncio.Transport: The Transport handling the socket
             communication
         """
-        print("[GrowlerProtocol::connection_made]", id(self))
-
         self.responders = [self.make_responder(self)]
+        if (not hasattr(self.responders[0],'on_data') or
+            not callable(self.responders[0].on_data)):
+            raise TypeError # ("Provided responder MUST implement an 'on_data' method")
         self.transport = transport
         transport_info = transport.get_extra_info
         self.remote_hostname, self.remote_port = transport_info('peername')

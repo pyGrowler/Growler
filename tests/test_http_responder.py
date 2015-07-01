@@ -1,18 +1,11 @@
 #
-#
+# tests/test_http_responder.py
 #
 
 
 import asyncio
-import pytest
 
-import growler
 from growler.http.responder import GrowlerHTTPResponder
-from growler.http.errors import (
-    HTTPErrorBadRequest,
-    HTTPErrorNotImplemented,
-    HTTPErrorVersionNotSupported,
-)
 
 
 class mock_protocol():
@@ -54,7 +47,3 @@ def notest_on_parsing_queue():
 
     r.parsing_queue.put_nowait('spam')
     loop.run_until_complete(_())
-
-
-if __name__ == '__main__':
-    test_on_parsing_queue_1()

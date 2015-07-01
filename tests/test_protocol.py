@@ -13,6 +13,9 @@ class TestResponder:
     def __init__(self, something):
         print("something")
 
+    def on_data(self, data):
+        pass
+
 
 class TestProtocol(growler.protocol.GrowlerProtocol):
     responder_type = TestResponder
@@ -78,7 +81,6 @@ def test_create_server(unused_tcp_port):
 
     asyncio.get_event_loop().run_until_complete(_client())
     teardown_server(server)
-    # asyncio.get_event_loop().close()
 
 
 def test_server_timeout(unused_tcp_port, event_loop=asyncio.get_event_loop()):
@@ -92,6 +94,12 @@ def test_server_timeout(unused_tcp_port, event_loop=asyncio.get_event_loop()):
     event_loop.run_until_complete(_client())
     teardown_server(server)
 
+
+def test_missing_responder():
+    with pytest.raises(TypeError):
+        proto = growler.protocol.GrowlerProtocol(asyncio.get_event_loop(),
+                                                 lambda arg: None)
+        proto.connection_made(None)
 
 if __name__ == '__main__':
     test_constructor()
