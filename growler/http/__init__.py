@@ -14,6 +14,7 @@ from .response import HTTPResponse
 from .protocol import GrowlerHTTPProtocol
 from .server import create_server
 from .errors import __all__ as http_errors
+from .status import Status
 
 from http.server import BaseHTTPRequestHandler
 
@@ -47,8 +48,4 @@ HEADER_DELIM = EOL * 2
 
 RESPONSES = BaseHTTPRequestHandler.responses
 
-HTTPCodes = {
-    200: "OK",
-    301: "Moved Permanently",
-    302: "Found"
-}
+HTTPStatusPhrase = Status.Phrase
