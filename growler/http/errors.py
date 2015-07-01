@@ -21,6 +21,7 @@ class HTTPError(Exception):
 
     msg = ''
     code = 0
+    code_to_error = dict()
 
     def __init__(self, code=None, phrase=None, ex=None):
         """
@@ -44,23 +45,7 @@ class HTTPError(Exception):
         A simple way of getting the Exception class of an http error from http
         error code.
         """
-        return {
-            400: HTTPErrorBadRequest,
-            401: HTTPErrorUnauthorized,
-            402: HTTPErrorPaymentRequired,
-            403: HTTPErrorForbidden,
-            404: HTTPErrorNotFound,
-            405: HTTPErrorMethodNotAllowed,
-            406: HTTPErrorNotAcceptable,
-            407: HTTPErrorProxyAuthenticationRequired,
-            408: HTTPErrorRequestTimeout,
-            409: HTTPErrorConflict,
-            410: HTTPErrorGone,
-            411: HTTPErrorLengthRequired,
-            412: HTTPErrorPreconditionFailed,
-            413: HTTPErrorRequestEntityTooLarge,
-            414: HTTPErrorRequestTooLarge,
-            }.get(code)
+        return cls.code_to_error.get(code)
 
 
 class HTTPErrorBadRequest(HTTPError):
@@ -166,6 +151,23 @@ class HTTPErrorVersionNotSupported(HTTPError):
     msg = "Version not supported"
     code = 505
 
+HTTPError.code_to_error = {
+    400: HTTPErrorBadRequest,
+    401: HTTPErrorUnauthorized,
+    402: HTTPErrorPaymentRequired,
+    403: HTTPErrorForbidden,
+    404: HTTPErrorNotFound,
+    405: HTTPErrorMethodNotAllowed,
+    406: HTTPErrorNotAcceptable,
+    407: HTTPErrorProxyAuthenticationRequired,
+    408: HTTPErrorRequestTimeout,
+    409: HTTPErrorConflict,
+    410: HTTPErrorGone,
+    411: HTTPErrorLengthRequired,
+    412: HTTPErrorPreconditionFailed,
+    413: HTTPErrorRequestEntityTooLarge,
+    414: HTTPErrorRequestTooLarge,
+}
 
 __all__ = [
     'HTTPError',
