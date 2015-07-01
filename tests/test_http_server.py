@@ -28,7 +28,7 @@ def test_server_constructor_default():
 
 def test_server_constructor_port():
     server = HTTPServer(port='80')
-    assert server.port == 80
+    assert server.port is 80
 
 
 def test_server_constructor_port_range():

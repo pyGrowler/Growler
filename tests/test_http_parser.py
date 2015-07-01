@@ -2,8 +2,6 @@
 # tests/test_http_parser.py
 #
 
-import growler
-
 from growler.http.parser import Parser
 
 from growler.http.errors import (
@@ -12,17 +10,7 @@ from growler.http.errors import (
     HTTPErrorNotImplemented,
     HTTPErrorVersionNotSupported,
 )
-
-import asyncio
-# from pytest_localserver import http
-import urllib.request
-
-import threading
-
-import socket
 import pytest
-
-import warnings
 
 
 class mock_responder:
@@ -45,28 +33,29 @@ def pytest_configure(config):
     pprint(config)
 
 
-def testfind_newline():
+@pytest.mark.parametrize("line, location, value", [
+    (b"a line\n", 6, b'\n'),
+    (b"a line\r\n", 6, b'\r\n'),
+    (b"no newline", -1, None),
+])
+def testfind_newline(line, location, value):
     parser = Parser(None)
     assert parser.EOL_TOKEN is None
-    assert parser.find_newline(b"a line\n") == 6
-    assert parser.EOL_TOKEN == b'\n'
-
-    p2 = Parser(None)
-    assert p2.find_newline("a line\r\n") == 6
-    assert p2.EOL_TOKEN == b'\r\n'
-
-    p3 = Parser(None)
-    assert p2.find_newline('no newline') == -1
+    assert parser.find_newline(line) == location
+    assert parser.EOL_TOKEN == value
 
 
-def test_parse_request_line():
+@pytest.mark.parametrize("data, method, path, query, version", [
+    ("GET /path HTTP/1.0", 'GET', '/path', '', 'HTTP/1.0'),
+    ("GET /path?test=true&q=1 HTTP/1.1", 'GET', '/path', 'test=true&q=1', 'HTTP/1.1'),
+])
+def test_parse_request_line(data, method, path, query, version):
     parser = Parser(None)
-    data = "GET /path?test=true&q=1 HTTP/1.1"
     m, u, v = parser.parse_request_line(data)
-    assert m == 'GET'
-    assert u.path == '/path'
-    assert u.query == 'test=true&q=1'
-    assert v == 'HTTP/1.1'
+    assert m == method
+    assert u.path == path
+    assert u.query == query
+    assert v == version
 
 
 def test_consume():
@@ -90,12 +79,13 @@ def test_consume():
     assert data['version'] == 'HTTP/1.1'
 
 
-def test_bad_request():
+@pytest.mark.parametrize("header", [
+    b"OOPS\r\nhost: nowhere.com\r\n",
+    b"\x99Get Stuff]\n",
+])
+def test_bad_request(header):
     with pytest.raises(HTTPErrorBadRequest):
-        Parser(None).consume(b"OOPS\r\nhost: nowhere.com\r\n")
-
-    with pytest.raises(HTTPErrorBadRequest):
-        Parser(None).consume(b"\x99Get Stuff]\n")
+        Parser(None).consume(header)
 
 
 def test_not_implemented():
@@ -105,21 +95,20 @@ def test_not_implemented():
 
 def test_bad_version():
     with pytest.raises(HTTPErrorVersionNotSupported):
-        Parser(None).consume(b"OOPS /path HTTP/1.3\r\nhost: nowhere.com\r\n")
+        Parser(None).consume(b"GET /path HTTP/1.3\r\nhost: nowhere.com\r\n")
 
 
-def test_good_header_all():
-    q = mock_responder()
-    Parser(q).consume(b"GET / HTTP/1.1\r\nhost: nowhere.com\r\n\r\n")
-    headers = q.headers
+@pytest.mark.parametrize("header", [
+    b"GET / HTTP/1.1\r\nhost: nowhere.com\r\n\r\n",
+    b"GET /path HTTP/1.1\nhost: nowhere.com\n\n",
+    b"GET /path HTTP/1.1\nhost: nowhere.com\nx:y\n z\n\n",
+])
+def test_good_header_all(header):
+    responder = mock_responder()
+    Parser(responder).consume(header)
+    headers = responder.headers
     assert 'HOST' in headers
     assert headers['HOST'] == 'nowhere.com'
-
-    for valid in [b"GET /path HTTP/1.1\nhost: nowhere.com\n\n",
-                  b"GET /path HTTP/1.1\nhost: nowhere.com\nx:y\n z\n\n",
-                  ]:
-        q = mock_responder()
-        Parser(q).consume(valid)
 
 
 def test_good_header_pieces():
@@ -135,20 +124,31 @@ def test_good_header_pieces():
     # assert p.headers['HOST'] == 'nowhere.com'
 
 
-def test_bad_headers():
-    for invalid in [b"GET /path HTTP/1.1\r\nhost nowhere.com\r\n",
-                    b"GET /path HTTP/1.1\r\nhost>: nowhere.com\r\n",
-                    b"GET /path HTTP/1.1\r\nhost?: nowhere.com\r\n",
-                    b"GET /path HTTP/1.1\r\n:host: nowhere.com\r\n",
-                    b"GET /path HTTP/1.1\r\n host: nowhere.com\r\n"
-                    b"GET /path HTTP/1.1\r\nhost=true:yes\r\n",
-                    b"GET /path HTTP/1.1\r\nandrew@here: good\r\n",
-                    b"GET /path HTTP/1.1\r\nb>a:x\r\n\r\n",
-                    b"GET /path HTTP/1.1\r\na\\:<\r\n",
-                    ]:
-        with pytest.raises(HTTPErrorInvalidHeader):
-            q = mock_responder()
-            Parser(q).consume(invalid)
+def test_consume_byte_by_byte():
+    responder = mock_responder()
+    p = Parser(responder)
+    for b in "GET / HTTP/1.1\nhost: nowhere.com\n\n":
+        p.consume(b.encode())
+    assert not p.needs_headers
+    assert 'HOST' in responder.headers
+    assert responder.headers['HOST'] == "nowhere.com"
+
+
+@pytest.mark.parametrize("header", [
+    b"GET /path HTTP/1.1\r\nhost nowhere.com\r\n",
+    b"GET /path HTTP/1.1\r\nhost>: nowhere.com\r\n",
+    b"GET /path HTTP/1.1\r\nhost?: nowhere.com\r\n",
+    b"GET /path HTTP/1.1\r\n:host: nowhere.com\r\n",
+    b"GET /path HTTP/1.1\r\n host: nowhere.com\r\n"
+    b"GET /path HTTP/1.1\r\nhost=true:yes\r\n",
+    b"GET /path HTTP/1.1\r\nandrew@here: good\r\n",
+    b"GET /path HTTP/1.1\r\nb>a:x\r\n\r\n",
+    b"GET /path HTTP/1.1\r\na\\:<\r\n",
+])
+def test_invalid_header(header):
+    with pytest.raises(HTTPErrorInvalidHeader):
+        q = mock_responder()
+        Parser(q).consume(header)
 
 
 if __name__ == "__main__":
