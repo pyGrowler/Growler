@@ -23,6 +23,11 @@ OPTIONAL_REQUIRES = {
     ':python_version=="3.3"': ['asyncio>=0.2.1']
 }
 
+TESTS_REQUIRE = [
+    'pytest',
+    'pytest-asyncio',
+]
+
 PACKAGES = find_packages(
     exclude=["*.tests", "*.tests.*", "tests.*", "tests"]
 )
@@ -56,6 +61,7 @@ setup(
     ],
     install_requires=REQUIRES,
     extras_require=OPTIONAL_REQUIRES,
+    tests_require=TESTS_REQUIRE,
     packages=PACKAGES,
     namespace_packages=NAMESPACES,
     platforms='all',

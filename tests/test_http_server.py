@@ -18,11 +18,12 @@ def test_random_port():
 def test_bad_port_range():
     # assume there will be a free port we could bind to in range [10000,11000)
     with pytest.raises(Exception):
-        port = HTTPServer.get_random_port((10001, 10000))
+        HTTPServer.get_random_port((10001, 10000))
 
 
 def test_server_constructor_default():
     server = HTTPServer()
+    assert isinstance(server, HTTPServer)
 
 
 def test_server_constructor_port():
@@ -37,8 +38,8 @@ def test_server_constructor_port_range():
 
 def test_server_constructor_host():
     hostname = '127.0.0.1'
-    server = HTTPServer(host='127.0.0.1')
-    assert server.host == '127.0.0.1'
+    server = HTTPServer(host=hostname)
+    assert server.host == hostname
 
 
 def test_server_constructor_socket():
@@ -49,5 +50,3 @@ def test_server_constructor_socket():
     assert server.port is 70
     with pytest.raises(KeyError):
         server.unix_socket
-
-# test_random_port()
