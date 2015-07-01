@@ -7,6 +7,7 @@ Functions and classes for running an http server
 
 import asyncio
 from ssl import SSLContext
+from types import GeneratorType
 
 from .protocol import GrowlerHTTPProtocol
 
@@ -39,8 +40,7 @@ def create_server(
         sslctx = SSLContext(ssl.PROTOCOL_SSLv23)
         key = kargs.pop('key')
         try:
-            sslctx.load_cert_chain(certfile=kargs.pop('cert'),
-                                   keyfile=key)
+            sslctx.load_cert_chain(certfile=kargs.pop('cert'), keyfile=key)
         except KeyError:
             sslctx.load_cert_chain(certfile=key)
     else:
@@ -83,7 +83,8 @@ class HTTPServer():
         @param host str: hostname or ip address on which to bind
         @param port: the port on which the server will listen. If port is a
             tuple of numbers, it randomly select an available port between them
-            domain: [port[0], port[1]).
+            domain: [port[0], port[1]). If port is a callable, it will run it,
+            cast the result to an int, and set this to 'port'.
         @param sockfile str: A filename which will act as a unix file socket
             for communication with the server. If this is set, the server will
             NOT listen on a port and will take this value. If host or port are
@@ -101,8 +102,18 @@ class HTTPServer():
 
         if isinstance(port, tuple):
             port = self.get_random_port(port)
+        elif isinstance(port, GeneratorType):
+            for p in port:
+                if self.port_is_open(p):
+                    break
+            else:
+                raise Exception("Could not find an open port from generator %s"
+                                % port)
+            port = p
+        elif callable(port):
+            port = int(port())
 
-        # presense of 'sockfile' takes precedence over host/port
+        # presence of 'sockfile' takes precedence over host/port
         if sockfile is not None:
             self.server_options['sockfile'] = sockfile
         else:
@@ -214,20 +225,44 @@ class HTTPServer():
                                        **self.server_kargs)
 
     @classmethod
-    def get_random_port(cls, range_tuple, MAX=200):
+    def get_random_port(cls, range_tuple, MAX_TRIES=200):
+        """
+        Return a port selected randomly the range provided.
+
+        @param range_tuple: tuple of two integers, between which the port will
+                            be selected. The numbers are generated from the
+                            standard library's random.randrange function.
+        @param MAX_TRIES: Number of total attempts the loop will run before
+                          giving up.
+        """
         import socket
         import random
-        CONNECTION_REFUSED = 61
         low, high = int(range_tuple[0]), int(range_tuple[1])
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        for counter in range(0, min(high-low, MAX)):
+        for counter in range(0, min(high-low, MAX_TRIES)):
             test_port = random.randrange(low, high)
-            if s.connect_ex(('0.0.0.0', test_port)) == CONNECTION_REFUSED:
-                print("FOUND", test_port)
-                s.close()
+            if HTTPServer.port_is_open(test_port, s):
                 return test_port
-            # if s.connect_ex(arg) == 0:
-                # return test_port
-            counter += 1
-        raise Exception("Could not find random port in range {}".format(range))
+        err_str = "Could not find random port in range {}"
+        raise Exception(err_str.format(range_tuple))
+
+    @staticmethod
+    def port_is_open(test_port, sock=None, host='0.0.0.0'):
+        """
+        Helper function which determines if a port is available. Attempts to
+        open a socket on hostname 'host' on the port provided, if connection is
+        refused, assume the port is open. A socket can be provided so the a new
+        one does not have to be created at every run.
+        @param test_port int: The port to test
+        @param sock: Optional socket on which to run the test.
+        @param host: The host the function attempts to connect to.
+        """
+        import socket
+        CONNECTION_REFUSED = (111, 61)
+        if sock is None:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        is_open = sock.connect_ex((host, test_port)) in CONNECTION_REFUSED
+        sock.close()
+        return is_open
