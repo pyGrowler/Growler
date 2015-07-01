@@ -68,7 +68,9 @@ class GrowlerProtocol(asyncio.Protocol):
         """
         asyncio.Protocol member - called upon when there is a new socket
         connection. This creates a new responder (as determined by the member
-        'responder_type') and stores in a list for
+        'responder_type') and stores in a list. Incoming data from this
+        connection will always call
+        on_data to the last element of this list.
 
         @param transport asyncio.Transport: The Transport handling the socket
             communication
