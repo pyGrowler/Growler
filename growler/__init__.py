@@ -41,16 +41,19 @@ declare_namespace('growler')
 
 import growler.application
 import growler.router
+import growler.protocol
 
 from growler.http.server import create_server as create_http_server
 
 
 App = growler.application.Application
 Router = growler.router.Router
+GrowlerProtocol = growler.protocol.GrowlerProtocol
 
 __all__ = [
     "App",
     "Router",
+    "GrowlerProtocol",
     "run_forever",
     "create_http_server",
     "create_https_server",
