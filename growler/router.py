@@ -151,3 +151,35 @@ class Router():
             for segment in path.split('/')
         ]
         return re.compile('/'.join(regex))
+
+
+def routerclass(cls):
+    """
+    A class decorator which parses a class, looking for an member functions
+    which match an HTTP verb (get, post, etc) followed by an underscore and
+    other letters, with a signature of two parameters (req and res) (e.g.
+        def get_index(req, res):
+            ...
+    ).
+    To determine the path to take, the string looks at the first complete word
+    of a stripped docstring, passing this in to the 'path matching algorithm'
+    The order wich the methods are defined are the order the requests will
+    attempt to match.
+    """
+    print("DEBUG: Creating a routerclass with class", cls)
+    regex = re.compile("(get|post|delete)_.*", re.IGNORECASE)
+    router = Router()
+    router_dict = {
+        'get': router.get,
+        'post': router.post,
+        'delete': router.delete
+    }
+
+    for name, val in cls.__dict__.items():
+        routeable = regex.match(name)
+        if routeable is None:
+            continue
+        func = router_dict[routeable.group(1).lower()]
+        path = val.__doc__.strip().split(' ', 1)[0]
+        func(path=path, middleware=val)
+    return router
