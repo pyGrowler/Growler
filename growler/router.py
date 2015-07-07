@@ -177,9 +177,10 @@ def routerclass(cls):
 
     for name, val in cls.__dict__.items():
         routeable = regex.match(name)
-        if routeable is None:
+        if routeable is None or val.__doc__ is None:
             continue
         func = router_dict[routeable.group(1).lower()]
         path = val.__doc__.strip().split(' ', 1)[0]
         func(path=path, middleware=val)
-    return router
+    cls.__growler_router = router
+    return cls
