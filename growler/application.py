@@ -24,6 +24,7 @@ def myfunc(req, res):
 
 import asyncio
 import os
+import types
 
 from .http import (
     HTTPRequest,
@@ -240,9 +241,10 @@ class Application(object):
         debug = "[App::use] Adding middleware <{}> listening on path {}"
         if hasattr(middleware, '__growler_router'):
             print("Found an object that appears to have been routerified.")
-            middleware = getattr(middleware, '__growler_router')
-            self.add_router(path, middleware)
-            return self
+            # middleware = getattr(middleware, '__growler_router')
+            if isinstance(middleware.__growler_router, types.MethodType):
+                middleware = middleware.__growler_router()
+
         print(debug.format(middleware, path))
         self.middleware.append(middleware)
         return self

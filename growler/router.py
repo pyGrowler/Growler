@@ -110,6 +110,10 @@ class Router():
             x.print_tree(prefix + "  ")
 
     def match_routes(self, req):
+        """
+        Yields a sequence of 'route' functions which match the path in the
+        request.
+        """
         print("matching routes to path '{}'".format(req.path))
         print(" (# routes: %d)" % len(self.routes))
         for method, path, func in self.routes:
@@ -199,7 +203,7 @@ def routerclass(cls):
     attempt to match.
     """
     print("DEBUG: Creating a routerclass with the class", cls)
-    routerify(cls)
+    cls.__growler_router = lambda self: routerify(self)
     return cls
 
 
