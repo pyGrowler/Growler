@@ -3,6 +3,7 @@
 #
 
 import re
+from collections import OrderedDict
 from growler.http.errors import HTTPErrorNotFound
 
 ROUTABLE_NAME_REGEX = re.compile("(all|get|post|delete)_.*", re.IGNORECASE)
@@ -159,7 +160,47 @@ class Router():
         return re.compile('/'.join(regex))
 
 
-def get_routing_attributes(obj, modify_doc=False):
+class RouterMeta(type):
+    """
+    A metaclass for classes that should automatically be converted into growler
+    application routers. The only feature this metaclass includes right now is
+    providing an ordered dictionary of members, allowing guarenteed route
+    placement.
+    """
+
+    @classmethod
+    def __prepare__(metacls, name, bases, **kargs):
+        """
+        Metaclass attribute which creates the mapping object - in this case the
+        a standard collections.OrderedDict object to preserve order of method
+        names. Name is the name of the class, bases are baseclasses, kargs are
+        any keyword arguments we may provide in the future for fun options.
+        """
+        return OrderedDict()
+
+    def __new__(cls, name, bases, classdict):
+        """
+        Creates the class type, adding an additional attributes
+        __ordered_attrs__, a snapshot of the dictionary keys, and
+        __growler_router, a method which will generate a growler.Router
+        """
+        child_class = type.__new__(cls, name, bases, classdict)
+
+        def build_router(self):
+            router = Router()
+            # should keys be instead classdict.keys()
+            nxt = get_routing_attributes(self, keys=self.__ordered_attrs__)
+            for method, path, func in nxt:
+                getattr(router, method)(path=path, middleware=func)
+            self.__growler_router = router
+            return router
+
+        child_class.__ordered_attrs__ = classdict.keys()
+        child_class.__growler_router = build_router
+        return child_class
+
+
+def get_routing_attributes(obj, modify_doc=False, keys=None):
     """
     Loops through the provided object (using the dir() function) and finds any
     callables which match the name signature (e.g. get_foo()) AND has a
@@ -171,7 +212,9 @@ def get_routing_attributes(obj, modify_doc=False):
     followed by a catch-all 'all'. Until a solution is found, just make a
     router by hand.
     """
-    for attr in dir(obj):
+    if keys is None:
+        keys = dir(obj)
+    for attr in keys:
         matches = ROUTABLE_NAME_REGEX.match(attr)
         val = getattr(obj, attr)
         if matches is None or not callable(val):
