@@ -28,7 +28,7 @@ def error_handler(req, res, err):
     res.send_text("404 : Hello World!!")
 
 
-http = create_http_server(app, host='127.0.0.1', port=(8000, 9000))
+http = create_http_server(app, host='127.0.0.1', port=8000)
 asyncio.get_event_loop().run_until_complete(http.listen())
 
 asyncio.get_event_loop().run_forever()

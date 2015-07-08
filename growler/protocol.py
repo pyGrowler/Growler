@@ -76,9 +76,14 @@ class GrowlerProtocol(asyncio.Protocol):
             communication
         """
         self.responders = [self.make_responder(self)]
-        if (not hasattr(self.responders[0],'on_data') or
-            not callable(self.responders[0].on_data)):
-            raise TypeError # ("Provided responder MUST implement an 'on_data' method")
+        try:
+            good_func = callable(self.responders[0].on_data)
+        except AttributeError:
+            good_func = False
+
+        if not good_func:
+            err_str = "Provided responder MUST implement an 'on_data' method"
+            raise TypeError(err_str)
         self.transport = transport
         transport_info = transport.get_extra_info
         self.remote_hostname, self.remote_port = transport_info('peername')
