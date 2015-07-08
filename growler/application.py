@@ -234,9 +234,15 @@ class Application(object):
         @param middleware callable: A function with signature '(req, res)' to
                                     be called with every request which matches
                                     'path'
-        @param path: A string or regex wich will be used to match request paths.
+        @param path: A string or regex wich will be used to match request
+                     paths.
         """
         debug = "[App::use] Adding middleware <{}> listening on path {}"
+        if hasattr(middleware, '__growler_router'):
+            print("Found an object that appears to have been routerified.")
+            middleware = getattr(middleware, '__growler_router')
+            self.add_router(path, middleware)
+            return self
         print(debug.format(middleware, path))
         self.middleware.append(middleware)
         return self

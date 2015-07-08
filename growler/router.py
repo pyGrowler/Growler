@@ -5,6 +5,8 @@
 import re
 from growler.http.errors import HTTPErrorNotFound
 
+ROUTABLE_NAME_REGEX = re.compile("(all|get|post|delete)_.*", re.IGNORECASE)
+
 
 class Router():
     """
@@ -153,6 +155,36 @@ class Router():
         return re.compile('/'.join(regex))
 
 
+def get_routing_attributes(obj, modify_doc=False):
+    """
+    Loops through the provided object (using the dir() function) and finds any
+    callables which match the name signature (e.g. get_foo()) AND has a
+    docstring beginning with a path-like char string. This does process things
+    in alphabetical order (rather than than the unpredictable __dict__
+    attribute) so take this into consideration if certain routes should be
+    checked before others. Unfortunately, this is a problem because the 'all'
+    method will always come before others, so there is no capturing one type
+    followed by a catch-all 'all'. Until a solution is found, just make a
+    router by hand.
+    """
+    for attr in dir(obj):
+        matches = ROUTABLE_NAME_REGEX.match(attr)
+        val = getattr(obj, attr)
+        if any(matches is None, not callable(val),):
+            continue
+        try:
+            if modify_doc:
+                path, val.__doc__ = val.__doc__.strip().split(' ', 1)
+            else:
+                path = val.__doc__.strip().split(' ', 1)[0]
+        except AttributeError:
+            continue
+        if path == '':
+            continue
+        method = matches.group(1).lower()
+        yield method, path, val
+
+
 def routerclass(cls):
     """
     A class decorator which parses a class, looking for an member functions
@@ -166,21 +198,24 @@ def routerclass(cls):
     The order wich the methods are defined are the order the requests will
     attempt to match.
     """
-    print("DEBUG: Creating a routerclass with class", cls)
-    regex = re.compile("(get|post|delete)_.*", re.IGNORECASE)
-    router = Router()
-    router_dict = {
-        'get': router.get,
-        'post': router.post,
-        'delete': router.delete
-    }
-
-    for name, val in cls.__dict__.items():
-        routeable = regex.match(name)
-        if routeable is None or val.__doc__ is None:
-            continue
-        func = router_dict[routeable.group(1).lower()]
-        path = val.__doc__.strip().split(' ', 1)[0]
-        func(path=path, middleware=val)
-    cls.__growler_router = router
+    print("DEBUG: Creating a routerclass with the class", cls)
+    routerify(cls)
     return cls
+
+
+def routerify(obj):
+    """
+    Scan through attributes of object parameter looking for any which match a
+    route signature. A router will be created and added to the object with
+    parameter.
+
+    @param obj: some object (with attributes) from which to setup a router
+    @return router: The router created.
+    """
+    router = Router()
+
+    for method, path, func in get_routing_attributes(obj):
+        getattr(router, method)(path=path, middleware=func)
+
+    obj.__growler_router = router
+    return router
