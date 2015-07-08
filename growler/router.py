@@ -170,7 +170,7 @@ def get_routing_attributes(obj, modify_doc=False):
     for attr in dir(obj):
         matches = ROUTABLE_NAME_REGEX.match(attr)
         val = getattr(obj, attr)
-        if any(matches is None, not callable(val),):
+        if matches is None or not callable(val):
             continue
         try:
             if modify_doc:
