@@ -3,7 +3,6 @@
 # Example3 - routerclass
 #
 
-import asyncio
 from growler import App
 from growler.router import routerclass
 
@@ -27,12 +26,11 @@ class QuickRoute:
         """
         res.send_json({'param': self.param})
 
-    @asyncio.coroutine
     def post_name(self, req, res):
         """ /name
         Submit your name to the server
         """
-        name = yield from req.body
+        name = req.get_body()
         if name in self.name_dict:
             txt = "Already Created %s (%d)" % (name, self.name_dict[name])
         else:
