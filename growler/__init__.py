@@ -28,14 +28,13 @@ from importlib.machinery import SourceFileLoader
 from os import path
 from pkg_resources import declare_namespace
 
-metafile = path.join(path.dirname(__file__), "metadata.py")
-metadata = SourceFileLoader("metadata", metafile).load_module()
-
-__version__ = metadata.version
-__author__ = metadata.author
-__date__ = metadata.date
-__copyright__ = metadata.copyright
-__license__ = metadata.license
+from .metadata import (
+    version as __version__,
+    author as __author__,
+    date as __date__,
+    copyright as __copyright__,
+    license as __license__,
+)
 
 declare_namespace('growler')
 
