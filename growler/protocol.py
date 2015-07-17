@@ -59,10 +59,8 @@ class GrowlerProtocol(asyncio.Protocol):
             bytes received. Note: 'on_data' should only me a function and NOT a
             coroutine.
         """
-        print("[GrowlerProtocol::__init__]", id(self))
         self.make_responder = responder_factory
-        self.loop = asyncio.get_event_loop if loop is None else loop
-        self.data_queue = asyncio.Queue()
+        self.loop = loop if (loop is not None) else asyncio.get_event_loop()
 
     def connection_made(self, transport):
         """
