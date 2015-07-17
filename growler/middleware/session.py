@@ -7,6 +7,7 @@ browser to the server.
 """
 
 import asyncio
+import uuid
 
 
 class Session(object):
@@ -80,28 +81,46 @@ class SessionStorage(object):
     def __init__(self, **kwargs):
         print("[SessionStorage]")
 
-    @asyncio.coroutine
     def save(self, sess):
         raise NotImplementedError
 
 
 class DefaultSessionStorage(SessionStorage):
+    """
+    The growler default session storage uses a standard python dict to store
+    all sessions ids and variables. The application must use a cookie parser
+    (for example, growler.middleware.CookieParser()) BEFORE using the
+    DefaultSessionStorage.
+    .. code: python
+        app.use(CookieParser())
+        app.use(DefaultSessionStorage())
+    """
+    def __init__(self, session_id_name='qid'):
+        """
 
-    def __init__(self):
+        """
         super().__init__()
-        # print("[DefaultSessionStorage]")
+        self.session_id_name = session_id_name
         self._sessions = {}
 
-    @asyncio.coroutine
     def __call__(self, req, res):
-        """The middleware action"""
-        sid = req.cookies['qid'].value
+        """
+        The middleware action. Adds a session member to the req object and the
+        session id to the resoponse object.
+        """
+        qid = self.session_id_name
+        try:
+            sid = req.cookies[qid].value
+        except KeyError:
+            sid = req.cookies[qid] = uuid.uuid4()
+
+        res.cookies[qid] = sid
+
         print("[DefaultSessionStorage] ", sid)
         if sid not in self._sessions:
             self._sessions[sid] = {'id': sid}
         req.session = Session(self, self._sessions[sid])
 
-    @asyncio.coroutine
     def save(self, sess):
         # print ("[DefaultSessionStorage::save] saving", sess.id)
         self._sessions[sess.id] = sess._data
