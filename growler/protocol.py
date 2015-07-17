@@ -86,9 +86,9 @@ class GrowlerProtocol(asyncio.Protocol):
             raise TypeError(err_str)
         self.transport = transport
         transport_info = transport.get_extra_info
-        self.remote_hostname, self.remote_port = transport_info('peername')
-        self.socket = transport.get_extra_info('socket')
-        self.cipher = transport.get_extra_info('cipher')
+        self.remote_hostname, self.remote_port = transport_info('peername')[:2]
+        self.socket = transport_info('socket')
+        self.cipher = transport_info('cipher')
         self.is_done_transmitting = False
         print("Growler Connection from {}:{}".format(self.remote_hostname,
                                                      self.remote_port))
