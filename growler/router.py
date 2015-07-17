@@ -61,41 +61,49 @@ class Router():
         self.routes.append((method, path, endpoint))
         return self
 
+    def _apply_decorator(self, method, path):
+        """
+        An internal function used when adding a route via a decorator instead
+        of the 'standard' function call. This is needed so we can return the
+        router in the add_route method, but return the original function when
+        decorating (else the decorated function name becomes this router!)
+        """
+        def wrapper(func):
+            self.add_route(method, path, func)
+            return func
+        return wrapper
+
     def all(self, path='/', middleware=None):
         """
         The middleware provided is called upon all HTTP requests matching the
         path.
         """
-        if middleware is None:  # assume decorator
-            def wrap(func):
-                self.routes.append(('ALL', path, func))
-            return wrap
+        if middleware is not None:
+            return self.add_route('ALL', path, middleware)
         else:
-            self.routes.append(('ALL', path, middleware))
-        return self
+            return self._apply_decorator('ALL', path)
 
     def get(self, path='/', middleware=None):
         """Add a route in response to the GET HTTP method."""
-
         # Handle explicit and decorator calls
         if middleware is not None:
             return self.add_route('GET', path, middleware)
         else:
-            return lambda func: self.add_route('GET', path, func)
+            return self._apply_decorator('GET', path)
 
     def post(self, path='/', middleware=None):
         """Add a route in response to the POST HTTP method."""
         if middleware is not None:
             return self.add_route('POST', path, middleware)
         else:
-            return lambda func: self.add_route('POST', path, func)
+            return self._apply_decorator('POST', path)
 
     def delete(self, path='/', middleware=None):
         """Add a route in response to the DELETE HTTP method."""
         if middleware is not None:
             return self.add_route('DELETE', path, middleware)
         else:
-            return lambda func: self.add_route('DELETE', path, func)
+            return self._apply_decorator('DELETE', path)
 
     def use(self, middleware, path=None):
         """
