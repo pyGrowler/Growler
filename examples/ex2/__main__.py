@@ -3,12 +3,11 @@
 # Ex2 - Lonely Server
 #
 
-import os
 import asyncio
 
-from growler import create_server
+import growler
 
-#
+
 # Small function to handle requests from server
 #
 # This is typically a growler.App object, which handles the middleware chain
