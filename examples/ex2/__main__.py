@@ -4,21 +4,17 @@
 #
 
 import asyncio
-
 import growler
 
 
+app = growler.App("Example2")
+
 # Small function to handle requests from server
-#
-# This is typically a growler.App object, which handles the middleware chain
-# and routing to endpoints.
-#
+@app.get("/")
 @asyncio.coroutine
 def handle_request(req, res):
     print("connection made by:", req)
-    res.close()
+    yield from asyncio.sleep(2)
+    res.send_text('')
 
-
-http_server = growler.create_server(handle_request)
-http_server.listen()
-http_server.run_forever()
+app.create_server_and_run_forever(host='127.0.0.1', port=8000)
