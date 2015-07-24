@@ -3,9 +3,7 @@
 #
 #
 
-from http.cookies import (SimpleCookie)
-
-import uuid
+from http.cookies import SimpleCookie
 
 
 class CookieParser():
@@ -40,25 +38,20 @@ class CookieParser():
             return None
         except AttributeError:
             # Create an empty cookie state
-            req.cookies = SimpleCookie()
-            res.cookies = SimpleCookie()
+            req.cookies, res.cookies = SimpleCookie(), SimpleCookie()
 
-        # print ("[CookieParser]")
-        # print ("   Headers", req.headers)
+        # print("[CookieParser]")
+        # print("   Headers", req.headers)
 
         # If the request had a cookie, load it!
-        if 'cookie' in req.headers.keys():
-            req.cookies.load(req.headers['cookie'])
-        else:
-            req.cookies["fig"] = "newton"
-
-        if 'qid' not in req.cookies:
-            req.cookies['qid'] = uuid.uuid4()
-            res.cookies['qid'] = uuid.uuid4()
+        if 'COOKIE' in req.headers:
+            req.cookies.load(req.headers['COOKIE'])
 
         def _send_headers():
+            # print("[CookieParser::_send_headers]")
             if res.cookies:
                 cookie_string = res.cookies.output(sep=res.EOL)
                 res.headerstrings.append(cookie_string)
+                # print("  ", cookie_string)
 
         res.on_headerstrings(_send_headers)

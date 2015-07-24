@@ -2,10 +2,11 @@
 # test_http.py
 #
 
-import growler.protocol
 import asyncio
-import pytest
-from tests.utils import *
+from tests.utils import (
+    setup_http_server,
+    teardown_server
+)
 
 
 def test_create_server_and_connect():

@@ -4,7 +4,6 @@
 
 import pytest
 import growler.protocol
-from utils import *
 
 import asyncio
 
@@ -13,6 +12,9 @@ class TestResponder:
 
     def __init__(self, something):
         print("something")
+
+    def on_data(self, data):
+        pass
 
 
 class TestProtocol(growler.protocol.GrowlerProtocol):
@@ -25,7 +27,7 @@ def test_constructor():
     assert isinstance(proto, asyncio.Protocol)
 
 
-def setup_server(loop=asyncio.get_event_loop(), port=8888):
+def setup_server(port, loop=asyncio.get_event_loop()):
     """
     Sets up a GrowlerProtocol server for testing
     """
@@ -62,10 +64,9 @@ def test_responder():
     trans.close()
 
 
-def test_create_server():
+def test_create_server(unused_tcp_port):
 
-    port = random_port()
-
+    port = unused_tcp_port
     server = setup_server(port=port)
 
     @asyncio.coroutine
@@ -80,23 +81,25 @@ def test_create_server():
 
     asyncio.get_event_loop().run_until_complete(_client())
     teardown_server(server)
-    # asyncio.get_event_loop().close()
 
 
-def test_server_timeout():
-    port = random_port()
-    server = setup_server(port=port)
-    loop = asyncio.get_event_loop()
+def test_server_timeout(unused_tcp_port, event_loop=asyncio.get_event_loop()):
+    server = setup_server(port=unused_tcp_port, loop=event_loop)
 
     @asyncio.coroutine
     def _client():
-        r, w = yield from asyncio.open_connection('127.0.0.1', port)
+        r, w = yield from asyncio.open_connection('127.0.0.1', unused_tcp_port)
         assert r is not None
 
-    loop.run_until_complete(_client())
+    event_loop.run_until_complete(_client())
     teardown_server(server)
-    loop.close()
 
+
+def test_missing_responder():
+    with pytest.raises(TypeError):
+        proto = growler.protocol.GrowlerProtocol(asyncio.get_event_loop(),
+                                                 lambda arg: None)
+        proto.connection_made(None)
 
 if __name__ == '__main__':
     test_constructor()

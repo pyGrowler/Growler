@@ -24,6 +24,7 @@ def myfunc(req, res):
 
 import asyncio
 import os
+import types
 
 from .http import (
     HTTPRequest,
@@ -187,8 +188,6 @@ class Application(object):
         Called before running the server, ensures all required coroutines have
         finished running.
         """
-        # print("[wait_for_all] Begin ", self._wait_for)
-
         for x in self._wait_for:
             yield from x
 
@@ -232,8 +231,21 @@ class Application(object):
         Use the middleware (a callable with parameters res, req, next) upon
         requests match the provided path. A None path matches every request.
         Returns 'self' so the middleware may be nicely chained.
+
+        @param middleware callable: A function with signature '(req, res)' to
+                                    be called with every request which matches
+                                    'path'
+        @param path: A string or regex wich will be used to match request
+                     paths.
         """
-        print("[App::use] Adding middleware <{}>".format(middleware))
+        debug = "[App::use] Adding middleware <{}> listening on path {}"
+        if hasattr(middleware, '__growler_router'):
+            print("Found an object that appears to have been routerified.")
+            # middleware = getattr(middleware, '__growler_router')
+            if isinstance(middleware.__growler_router, types.MethodType):
+                middleware = middleware.__growler_router()
+
+        print(debug.format(middleware, path))
         self.middleware.append(middleware)
         return self
 
@@ -353,7 +365,7 @@ class Application(object):
         This function exists only to remove boilerplate code for starting up a
         growler app.
 
-        @param server_config: These keyword-argument parameters are passed
+        @param server_config: These keyword arguments parameters are passed
             directly to the BaseEventLoop.create_server function. Consult their
             documentation for details.
         @returns asyncio.coroutine which should be run inside a call to
@@ -372,7 +384,7 @@ class Application(object):
         This function exists only to remove boilerplate code for starting up a
         growler app.
 
-        @param server_config: These keyword-argument parameters are passed
+        @param server_config: These keyword arguments parameters are passed
             directly to the BaseEventLoop.create_server function. Consult their
             documentation for details.
         """

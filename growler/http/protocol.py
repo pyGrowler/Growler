@@ -14,6 +14,8 @@ from growler.http.errors import (
 )
 
 import asyncio
+import traceback
+import sys
 
 
 # Or should this be called HTTPGrowlerProtocol?
@@ -34,15 +36,15 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
             this protocol, but any callable with a 'loop' attribute should
             work.
         """
-        super().__init__(loop=app.loop, responder_factory=GrowlerHTTPResponder)
         print("[GrowlerHTTPProtocol::__init__]", id(self))
+
+        def responder_factory(_self):
+            return GrowlerHTTPResponder(_self,
+                                        request_factory=app._request_class,
+                                        response_factory=app._response_class)
+
+        super().__init__(loop=app.loop, responder_factory=responder_factory)
         self.http_application = app
-        resp_params = {
-            'request_factory': app._request_class,
-            'response_factory': app._response_class
-        }
-        self.make_responder = lambda _self: GrowlerHTTPResponder(_self,
-                                                                 **resp_params)
 
     def middleware_chain(self, req, res):
         """
@@ -56,9 +58,12 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
                 else:
                     print("Running middleware:", mw)
                     mw(req, res)
-                    print(" -> DONE")
+                print(" -> DONE")
             except Exception as error:
-                print("EXCEPTION OCCURED", error)
+                print(" -> EXCEPTION OCCURED", error)
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                traceback.print_tb(exc_traceback, limit=5, file=sys.stdout)
+                # print(inspect.stack())
                 for handler in self.http_application.next_error_handler(req):
                     handler(req, res, error)
                 return
@@ -86,7 +91,7 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
                 'date': HTTPResponse.get_current_time(),
                 'length': len(err_str.encode()),
                 'contents': err_str
-                }
+            }
             response = ("HTTP/1.1 {code} {msg}\n"
                         "Content-Type: text/html; charset=UTF-8"
                         "Content-Length: {length}"

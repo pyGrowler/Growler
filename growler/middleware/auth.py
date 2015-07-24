@@ -11,7 +11,12 @@ class Auth():
     def __init__(self):
         print("[Auth]")
 
-    def __call__(self, req, res):
+    def __call__(self):
+        """
+        """
+        return self.do_authentication
+
+    def do_authentication(self, req, res):
         """
         Unimplemented middleware to be overloaded by subclasses
         """

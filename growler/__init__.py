@@ -1,7 +1,9 @@
 #
 # growler/__init__.py
 #
-#   Copyright (c) 2014 Andrew Kubera <andrew.kubera@gmail.com>
+# flake8: noqa
+#
+#   Copyright (c) 2015 Andrew Kubera <andrew.kubera@gmail.com>
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -26,29 +28,31 @@ from importlib.machinery import SourceFileLoader
 from os import path
 from pkg_resources import declare_namespace
 
-metafile = path.join(path.dirname(__file__), "metadata.py")
-metadata = SourceFileLoader("metadata", metafile).load_module()
-
-__version__ = metadata.version
-__author__ = metadata.author
-__date__ = metadata.date
-__copyright__ = metadata.copyright
-__license__ = metadata.license
+from .metadata import (
+    version as __version__,
+    author as __author__,
+    date as __date__,
+    copyright as __copyright__,
+    license as __license__,
+)
 
 declare_namespace('growler')
 
 import growler.application
 import growler.router
+import growler.protocol
 
 from growler.http.server import create_server as create_http_server
 
 
 App = growler.application.Application
 Router = growler.router.Router
+GrowlerProtocol = growler.protocol.GrowlerProtocol
 
 __all__ = [
     "App",
     "Router",
+    "GrowlerProtocol",
     "run_forever",
     "create_http_server",
     "create_https_server",

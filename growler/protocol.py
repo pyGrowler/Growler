@@ -59,28 +59,34 @@ class GrowlerProtocol(asyncio.Protocol):
             bytes received. Note: 'on_data' should only me a function and NOT a
             coroutine.
         """
-        print("[GrowlerProtocol::__init__]", id(self))
         self.make_responder = responder_factory
-        self.loop = asyncio.get_event_loop if loop is None else loop
-        self.data_queue = asyncio.Queue()
+        self.loop = loop if (loop is not None) else asyncio.get_event_loop()
 
     def connection_made(self, transport):
         """
         asyncio.Protocol member - called upon when there is a new socket
         connection. This creates a new responder (as determined by the member
-        'responder_type') and stores in a list for
+        'responder_type') and stores in a list. Incoming data from this
+        connection will always call
+        on_data to the last element of this list.
 
         @param transport asyncio.Transport: The Transport handling the socket
             communication
         """
-        print("[GrowlerProtocol::connection_made]", id(self))
-
         self.responders = [self.make_responder(self)]
+        try:
+            good_func = callable(self.responders[0].on_data)
+        except AttributeError:
+            good_func = False
+
+        if not good_func:
+            err_str = "Provided responder MUST implement an 'on_data' method"
+            raise TypeError(err_str)
         self.transport = transport
         transport_info = transport.get_extra_info
-        self.remote_hostname, self.remote_port = transport_info('peername')
-        self.socket = transport.get_extra_info('socket')
-        self.cipher = transport.get_extra_info('cipher')
+        self.remote_hostname, self.remote_port = transport_info('peername')[:2]
+        self.socket = transport_info('socket')
+        self.cipher = transport_info('cipher')
         self.is_done_transmitting = False
         print("Growler Connection from {}:{}".format(self.remote_hostname,
                                                      self.remote_port))
