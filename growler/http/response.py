@@ -1,5 +1,5 @@
 #
-# growler/http/Response.py
+# growler/http/response.py
 #
 
 import sys
