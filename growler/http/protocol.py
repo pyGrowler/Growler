@@ -46,9 +46,10 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
         super().__init__(loop=app.loop, responder_factory=responder_factory)
         self.http_application = app
 
-    def middleware_chain(self, req, res):
+    def process_middleware(self, req, res):
         """
-        Runs through the chain of middleware in app.
+        Entry method for the sequential calling of server middleware. This is
+        called by the responder upon the successful parsing of HTTP headers.
         """
         for mw in self.http_application.middleware_chain(req):
             try:
