@@ -74,6 +74,7 @@ class Application(object):
                  debug=True,
                  request_class=HTTPRequest,
                  response_class=HTTPResponse,
+                 protocol_factory=GrowlerHTTPProtocol.get_factory,
                  **kw
                  ):
         """
@@ -140,6 +141,7 @@ class Application(object):
 
         self._request_class = request_class
         self._response_class = response_class
+        self._protocol_factory = GrowlerHTTPProtocol.get_factory
 
     def __call__(self, req, res):
         """
@@ -372,7 +374,7 @@ class Application(object):
             loop.run_until_complete()
         """
         return self.loop.create_server(
-            GrowlerHTTPProtocol.get_factory(self),
+            self._protocol_factory(self),
             **server_config
         )
 
