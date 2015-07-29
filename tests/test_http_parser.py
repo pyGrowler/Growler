@@ -12,10 +12,8 @@ from growler.http.errors import (
 )
 import pytest
 from urllib.parse import ParseResult
-from unittest import mock
-from unittest.mock import (ANY, Mock)
 
-from mock_classes import (
+from mock_classes import (                                               # noqa
     responder,
     mock_protocol,
     mock_responder,
@@ -25,25 +23,6 @@ from mock_classes import (
 @pytest.fixture
 def parser(mock_responder):
     return Parser(mock_responder)
-
-
-# def responder():
-#     from growler.http.responder import GrowlerHTTPResponder
-#     Responder = mock.create_autospec(GrowlerHTTPResponder)
-#     responder = Responder()
-#     print("responder.headers", responder.headers)
-#     # responder.headers = dict()
-#     # def set_headers(headers):
-#         # responder.headers = headers
-#     # responder.set_headers = set_headers
-#     return responder
-#     # return Mock(mock_responder())
-
-
-def pytest_configure(config):
-    from pprint import pprint
-    print("[pytest_configure]")
-    pprint(config)
 
 
 @pytest.mark.parametrize("line, location, value", [
@@ -71,10 +50,9 @@ def test_aquire_newline_byte_by_byte(line, value, parser):
 
 @pytest.mark.parametrize("data, method, path, query, version", [
     ("GET /path HTTP/1.0", 'GET', '/path', '', 'HTTP/1.0'),
-    ("GET /path?test=true&q=1 HTTP/1.1", 'GET', '/path', 'test=true&q=1', 'HTTP/1.1'),
+    ("GET /path?tst=T&q=1 HTTP/1.1", 'GET', '/path', 'tst=T&q=1', 'HTTP/1.1'),
 ])
-def test_parse_request_line(data, method, path, query, version):
-    parser = Parser(None)
+def test_parse_request_line(data, method, path, query, version, parser):
     m, u, v = parser.parse_request_line(data)
     assert m == method
     assert u.path == path
@@ -138,7 +116,7 @@ def test_good_header_all(parser, header, header_dict):
     ((b"GET / HTTP/1.1\r\n", b"host: nowhere.com\r\n", b"\r\n"),
      {'HOST': 'nowhere.com'}),
 
-    ((b"GET / HTTP/1.1\r\n", b"hOsT:  nowhere.com\r\n", b"\r\n"),
+    ((b"GET / HTTP/1.1\r", b"\nh", b"OsT:  nowhere.com\r", b"\n\r\n"),
      {'HOST': 'nowhere.com'}),
 ])
 def test_good_header_pieces(parser, header_pieces, headers_set):
@@ -148,20 +126,14 @@ def test_good_header_pieces(parser, header_pieces, headers_set):
 
     parser.parent.set_headers.assert_called_with(headers_set)
 
-    # headers = mock_responder.headers
-    # assert not parser.needs_headers
-    # assert 'HOST' in headers
-    # assert headers['HOST'] == 'nowhere.com'
-    # assert p.headers['HOST'] == 'nowhere.com'
-
 
 @pytest.mark.parametrize("header, parsed, header_dict", [
-  ("GET / HTTP/1.1\r\nhost: nowhere.com\r\n\r\n",
+  ("GET /path HTTP/1.1\r\nhost: nowhere.com\r\n\r\n",
    ('', '', '/path', '', '', ''),
    {'HOST': 'nowhere.com'}),
 
   ("GET / HTTP/1.1\r\nhost: nowhere.com\r\n\r\n",
-   ('', '', '/path', '', '', ''),
+   ('', '', '/', '', '', ''),
    {'HOST': 'nowhere.com'}),
 
 ])
@@ -169,12 +141,9 @@ def test_consume_byte_by_byte(parser, header, parsed, header_dict):
     for c in header:
         parser.consume(c.encode())
 
-    # parser.parent.set_request_line.assert_called_with('GET',
-    #                                                   ParseResult(*parsed),
-    #                                                   'HTTP/1.1')
-    # parser.parent.set_headers.assert_called_with(header_dict)
-    # assert not parser.needs_headers
-    # assert responder.headers.get('HOST') == "nowhere.com"
+    parser.parent.set_request_line.assert_called_with('GET',
+                                                      ParseResult(*parsed),
+                                                      'HTTP/1.1')
 
 
 @pytest.mark.parametrize("header", [
@@ -194,5 +163,5 @@ def test_invalid_header(responder, header):
 
 
 if __name__ == "__main__":
-    testfind_newline()
+    test_find_newline()
     # test_parse_request_line()
