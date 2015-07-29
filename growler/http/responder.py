@@ -42,6 +42,7 @@ class GrowlerHTTPResponder():
         self.build_req = request_factory
         self.build_res = response_factory
         self.headers = None
+        self.content_length = None
 
     def on_data(self, data):
         """
@@ -55,9 +56,14 @@ class GrowlerHTTPResponder():
 
             # Headers are finished - build the request and response
             if data is not None:
-                self.build_req_res()
-                # self.loop.call_soon(self._proto.middleware_chain)
-                self._proto.middleware_chain(self.req, self.res)
+                # builds request and response out of self.headers and protocol
+                self.req, self.res = self.build_req_and_res()
+                # Add the middleware processing to the event loop
+                self.loop.call_soon(self._proto.process_middleware,
+                                    self.req,
+                                    self.res,
+                                    )
+                # self._proto.middleware_chain(self.req, self.res)
 
         # if truthy, 'data' now holds body data
         if data:
@@ -76,7 +82,7 @@ class GrowlerHTTPResponder():
             'method': method,
             'url': url,
             'version': version
-            }
+        }
         if method in ('POST', 'PUT'):
             self.content_length = 0
 
@@ -87,10 +93,10 @@ class GrowlerHTTPResponder():
         """
         self.headers = headers
 
-    def build_req_res(self):
-        self.req = self.build_req(self._proto, self.headers)
-        self.res = self.build_res(self._proto)
-        return self.req, self.res
+    def build_req_and_res(self):
+        req = self.build_req(self._proto, self.headers)
+        res = self.build_res(self._proto)
+        return req, res
 
     def validate_and_store_body_data(self, data):
         """
