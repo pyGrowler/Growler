@@ -51,10 +51,21 @@ def pytest_configure(config):
     (b"a line\r\n", 6, b'\r\n'),
     (b"no newline", -1, None),
 ])
-def testfind_newline(line, location, value):
-    parser = Parser(None)
+def test_find_newline(line, location, value, parser):
     assert parser.EOL_TOKEN is None
     assert parser.find_newline(line) == location
+    assert parser.EOL_TOKEN == value
+
+
+@pytest.mark.parametrize("line, value", [
+    ("GET / HTTP/1.1\n", b'\n'),
+    ("GET / HTTP/1.1\r\n", b'\r\n'),
+    ("GET / HTTP/1.1", None),
+])
+def test_aquire_newline_byte_by_byte(line, value, parser):
+    assert parser.EOL_TOKEN is None
+    for c in line:
+        parser.consume(c.encode())
     assert parser.EOL_TOKEN == value
 
 
@@ -149,11 +160,14 @@ def test_good_header_pieces(parser, header_pieces, headers_set):
    ('', '', '/path', '', '', ''),
    {'HOST': 'nowhere.com'}),
 
+  ("GET / HTTP/1.1\r\nhost: nowhere.com\r\n\r\n",
+   ('', '', '/path', '', '', ''),
+   {'HOST': 'nowhere.com'}),
+
 ])
 def test_consume_byte_by_byte(parser, header, parsed, header_dict):
-    pass
-    # for c in header:
-    #     parser.consume(c.encode())
+    for c in header:
+        parser.consume(c.encode())
 
     # parser.parent.set_request_line.assert_called_with('GET',
     #                                                   ParseResult(*parsed),

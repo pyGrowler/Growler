@@ -3,7 +3,7 @@
 #
 
 import re
-
+import sys
 from urllib.parse import (unquote, urlparse, parse_qs)
 from termcolor import colored
 
@@ -160,19 +160,43 @@ class Parser:
         Finds an End-Of-Line character in the string. If this has not been
         determined, simply look for the \n, then check if there was an \r
         before it. If not found, return -1.
+        Edgecase: If buffers end with '\r' and string starts with '\n' return
+                  -2
         """
         if isinstance(string, str):
             string = string.encode()
 
         # we have not processed the first line yet
         if self.EOL_TOKEN is None:
-            line_end_pos = string.find(b'\n')
-            if line_end_pos != -1:
-                prev_char = string[line_end_pos-1]
-                self.EOL_TOKEN = b'\r\n' if (prev_char is b'\r'[0]) else b'\n'
-            else:
+            token = self.determine_newline_from_string(string)
+            if token is None:
                 return -1
+            else:
+                self.EOL_TOKEN = token
+            position = string.find(self.EOL_TOKEN)
+            if position == -1:
+                position = -2
+            return position
+
         return string.find(self.EOL_TOKEN)
+
+    def determine_newline_from_string(self, string):
+        """
+        Looks for a newline character in bytestring parameter 'string'.
+        Currently only looks for chars '\r\n', '\n'. If '\n' is found in the
+        first position of the string, and there is at least one string in the
+        _buffer member, this will check if the last character in last element
+        of the buffer is '\r'.
+        """
+        line_end_pos = string.find(b'\n')
+        if line_end_pos == 0:
+            prev_char = self._buffer[-1][-1] if len(self._buffer) > 0 else b''
+        elif line_end_pos != -1:
+            prev_char = string[line_end_pos-1]
+        else:
+            return None
+
+        return b'\r\n' if (prev_char is b'\r'[0]) else b'\n'
 
     def store_headers_from_lines(self, lines):
         """
@@ -209,6 +233,11 @@ class Parser:
 
             self._header_buffer = self.header_from_line(line)
 
+    def join_and_clear_buffer(self, data=b''):
+        result = b''.join(self._buffer + [data])
+        self._buffer.clear()
+        return result
+
     @classmethod
     def header_from_line(cls, line):
         """
@@ -220,8 +249,10 @@ class Parser:
         try:
             key, value = map(str.strip, line.split(':', 1))
         except ValueError:
-            err_str = "ERROR parsing headers. Input '{}'".format(line)
-            print(colored(err_str, 'red'))
+            # rederr = colored('ERROR', 'red')
+            rederr ='ERROR'
+            err_str = "{} parsing headers. Input '{}'".format(rederr, line)
+            print(err_str, file=sys.stderr)
             raise HTTPErrorInvalidHeader
 
         if cls.is_invalid_header_name(key):
