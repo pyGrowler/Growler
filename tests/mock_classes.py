@@ -12,7 +12,6 @@ import growler
 from growler.http.responder import GrowlerHTTPResponder
 
 
-
 @pytest.fixture
 def MockApp():
     MockAppClass = mock.create_autospec(growler.App)
@@ -48,12 +47,20 @@ def MockProtocol():
 
 @pytest.fixture
 def MockRequest():
-    MockRequestClass = mock.create_autospec(growler.http.responder.HTTPRequest)
+    MockRequestClass = mock.create_autospec(growler.http.request.HTTPRequest)
 
     def build():
         return MockRequestClass()
     return build
 
+
+@pytest.fixture
+def MockResponse():
+    MockResponseClass = mock.create_autospec(growler.http.response.HTTPResponse)
+
+    def build():
+        return MockResponseClass()
+    return build
 
 
 @pytest.fixture
