@@ -79,6 +79,7 @@ class GrowlerProtocol(asyncio.Protocol):
         """
         self.transport = transport
         self.responders = [self.make_responder(self)]
+
         try:
             good_func = callable(self.responders[0].on_data)
         except AttributeError:
@@ -87,9 +88,6 @@ class GrowlerProtocol(asyncio.Protocol):
         if not good_func:
             err_str = "Provided responder MUST implement an 'on_data' method"
             raise TypeError(err_str)
-
-        peername = transport.get_extra_info('peername')
-        self.remote_hostname, self.remote_port = peername[:2]
 
         print("Growler Connection from {}:{}".format(self.remote_hostname,
                                                      self.remote_port))
@@ -140,6 +138,18 @@ class GrowlerProtocol(asyncio.Protocol):
     @property
     def cipher(self):
         return self.transport.get_extra_info('cipher')
+
+    @property
+    def remote_hostname(self):
+        return self.transport.get_extra_info('peername')[0]
+
+    @property
+    def remote_port(self):
+        return self.transport.get_extra_info('peername')[1]
+
+    @property
+    def peername(self):
+        return self.transport.get_extra_info('peername')
 
     @classmethod
     def factory(cls, *args, **kw):
