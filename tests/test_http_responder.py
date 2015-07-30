@@ -12,7 +12,8 @@ from unittest.mock import (Mock, MagicMock, create_autospec, patch)
 from unittest import mock
 from mock_classes import (
     responder,
-    mock_protocol
+    mock_protocol,
+    request_uri,
 )
 import mock_classes
 
@@ -66,14 +67,14 @@ def test_on_data(responder, data):
     assert responder.headers is None
 
 
-@pytest.mark.parametrize("method, url, clength", [
+@pytest.mark.parametrize("method, request_uri, clength", [
     ('GET', '/', None),
     ('POST', '/', 0),
     ('PUT', '/', 0),
     ('DELETE', '/', None)
 ])
-def test_set_request_line_content_length(responder, method, url, clength):
-    responder.set_request_line(method, url, "HTTP/1.1")
+def test_set_request_line_content_length(responder, method, request_uri, clength):
+    responder.set_request_line(method, request_uri, "HTTP/1.1")
     assert responder.content_length is clength
 
 
