@@ -108,8 +108,20 @@ class GrowlerHTTPResponder():
             self.content_length = 0
 
     @property
+    def method(self):
+        return self._proto.client_method
+
+    @method.setter
+    def method(self, method):
+        """
+        Sets the headers attribute and triggers the beginning of the req/res
+        construction.
+        """
+        self._proto.client_method = method
+
+    @property
     def parsed_query(self):
-        return self._proto.parsed_query
+        return self._proto.client_query
 
     @parsed_query.setter
     def parsed_query(self, value):
@@ -117,14 +129,19 @@ class GrowlerHTTPResponder():
         Stores the parsed query from the 'path' part of the client's request
         line. This value will be forwarded to the parent protocol object.
         """
-        self._proto.parsed_query = value
+        self._proto.client_query = value
 
-    def set_headers(self, headers):
+    @property
+    def headers(self):
+        return self._proto.client_headers
+
+    @headers.setter
+    def headers(self, header_dict):
         """
         Sets the headers attribute and triggers the beginning of the req/res
         construction.
         """
-        self.headers = headers
+        self._proto.client_headers = header_dict
 
     def build_req_and_res(self):
         req = self.build_req(self._proto, self.headers)

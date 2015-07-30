@@ -31,7 +31,9 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
     it may be wise to store HTTP information in this.
     """
 
-    parsed_query = None
+    client_method = None
+    client_query = None
+    client_headers = None
 
     def __init__(self, app):
         """

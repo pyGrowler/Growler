@@ -101,7 +101,7 @@ class Parser:
 
             # nothing was left in buffer - we have finished headers
             if not self._header_buffer:
-                self.parent.set_headers(self.headers)
+                self.parent.headers = self.headers
                 self.needs_headers = False
 
         # return None if we have not stored the body, else return the body
