@@ -74,12 +74,13 @@ class Parser:
         # The last element was NOT a complete line, put back in the buffer
         last_line = lines.pop()
 
+        # last line didn't terminate - store back in buffer. Else, clear buffer
         if not data.endswith(self.EOL_TOKEN):
             self._buffer = [last_line]
         else:
             self._buffer.clear()
 
-        # process request line
+        # process request line (first line in 'lines')
         if self.needs_request_line:
             try:
                 self.parse_request_line(lines.pop(0).decode())
@@ -144,7 +145,7 @@ class Parser:
         self.parsed_url = urlparse(request_uri)
         self.path = unquote(self.parsed_url.path)
         self.query = parse_qs(self.parsed_url.query)
-
+        self.parent.parsed_query = self.query
         return method, self.parsed_url, version
 
     def _flush_header_buffer(self):
