@@ -36,7 +36,6 @@ class GrowlerHTTPResponder():
         @param protocol: The GrowlerHTTPProtocol which created the responder.
         """
         self._proto = protocol
-        self.loop = protocol.loop
         self.parser = parser_factory(self)
         self.endpoint = protocol.http_application
         self.build_req = request_factory
@@ -117,3 +116,7 @@ class GrowlerHTTPResponder():
             raise HTTPErrorBadRequest
 
         self.body_buffer.append(data)
+
+    @property
+    def loop(self):
+        return self._proto.loop

@@ -34,15 +34,15 @@ def MockResponder():
 
 @pytest.fixture
 def MockProtocol():
-    # MockProtocolClass = mock.create_autospec(growler.http.GrowlerHTTPProtocol)
+    MockProtocolClass = mock.create_autospec(growler.http.GrowlerHTTPProtocol)
 
-    def MockProtocol(app):
-        protocol = mock.patch('growler.http.GrowlerHTTPProtocol')
-        print(protocol)
+    def buildMockProtocol(app):
+        protocol = mock.Mock(spec=growler.http.GrowlerHTTPProtocol)
+        # protocol = mock.patch('growler.http.GrowlerHTTPProtocol')
         return protocol
         #
     #     return MockProtocolClass(mock_app)
-    return MockProtocol
+    return buildMockProtocol
 
 
 @pytest.fixture
@@ -87,6 +87,7 @@ def mock_protocol():
     protocol.loop = None
     protocol.headers = None
     protocol.http_application = mock_app
+    protocol.socket.getpeername.return_value = ['', '']
 
     return protocol
 

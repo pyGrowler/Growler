@@ -25,15 +25,12 @@ class HTTPRequest(object):
         @param headers dict: The headers gathered from the incoming stream
         """
         self._protocol = protocol
-        self.ip = protocol.socket.getpeername()[0]
-        self.protocol = 'https' if protocol.cipher else 'http'
-        self.app = protocol.http_application
-        self.method = protocol.request['method']
         self.headers = headers
         self.hostname = headers['HOST']
-        self.originalURL = protocol.request['url'].path
+        self.protocol = 'https' if protocol.cipher else 'http'
+
+        self.method = protocol.request['method']
         self.body = asyncio.Future() if 'CONTENT-LENGTH' in headers else None
-        self.path = protocol.request['url'].path
 
     def param(self, name, default=None):
         """
@@ -45,10 +42,7 @@ class HTTPRequest(object):
 
         @param default: Returned if 'name' is not found in the query dict
         """
-        try:
-            return self.query[name]
-        except KeyError:
-            return default
+        return self.query.get(name, default)
 
     def get_body(self, timeout=0):
         """
@@ -72,3 +66,19 @@ class HTTPRequest(object):
         parameter.
         """
         return self.headers['content-type'] == mime_type
+
+    @property
+    def ip(self):
+        return self._protocol.socket.getpeername()[0]
+
+    @property
+    def app(self):
+        return self._protocol.http_application
+
+    @property
+    def path(self):
+        return self._protocol.request['url'].path
+
+    @property
+    def originalURL(self):
+        return self._protocol.request['url'].path
