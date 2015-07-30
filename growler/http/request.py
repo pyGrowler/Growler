@@ -26,9 +26,7 @@ class HTTPRequest(object):
         """
         self._protocol = protocol
         self.headers = headers
-        self.hostname = headers['HOST']
         self.protocol = 'https' if protocol.cipher else 'http'
-
         self.method = protocol.request['method']
         self.body = asyncio.Future() if 'CONTENT-LENGTH' in headers else None
 
@@ -42,7 +40,7 @@ class HTTPRequest(object):
 
         @param default: Returned if 'name' is not found in the query dict
         """
-        return self.query.get(name, default)
+        return self.query[name] # .get(name, default)
 
     def get_body(self, timeout=0):
         """
@@ -56,7 +54,7 @@ class HTTPRequest(object):
         """
         if self.body is None:
             return None
-        coro = asyncio.wait_for(self.body, timeout, loop=self._protocol.loop)
+        coro = asyncio.wait_for(self.body, timeout, loop=self.loop)
         self._protocol.loop.run_until_complete(coro)
         return self.body.result()
 
@@ -82,3 +80,15 @@ class HTTPRequest(object):
     @property
     def originalURL(self):
         return self._protocol.request['url'].path
+
+    @property
+    def loop(self):
+        return self._protocol.loop
+
+    @property
+    def query(self):
+        return self._protocol.parsed_query
+
+    @property
+    def hostname(self):
+        return self.headers['HOST']
