@@ -16,10 +16,11 @@ from .errors import (
 
 class GrowlerHTTPResponder():
     """
-    The Growler Responder for HTTP connections. This class responds to incoming
-    connections by parsing the incoming data as as ah HTTP request (using
-    functions in growler.http.parser) and creating request and response objects
-    which are finally passed to the app object found in protocol.
+    The Growler Responder for HTTP connections. This class responds to client
+    data by parsing the headers using the object created from the parser_factory
+    parameter (defaults to growler.http.parser.Parser). Upon completing headers
+    the request and response objects are created and passed to the 'app' object
+    found in protocol.
     """
 
     def __init__(self,
@@ -34,10 +35,31 @@ class GrowlerHTTPResponder():
         This should only be called from a growler protocol instance.
 
         @param protocol: The GrowlerHTTPProtocol which created the responder.
+
+        @param parser_factor: Factory function (or classname) of the object
+            responsible for parsing the client's request line and headers.
+            Default value is the growler.http.parser.Parser class. The object
+            must have a 'consume' method which accepts the incoming data. If
+            this data only has partial headers, consume returns None, and the
+            parser should expect consume to be called again. When the headers
+            have finished, the consume function returns any body data past the
+            headers.
+
+        @param request_factory: Factory function (or classname) of the request
+            object which gets passed to the applications middleware as the first
+            parameter. The default value is the class
+            growler.http.request.HTTPRequest. This function accepts two
+            arguments: the protocol handling the connection and the headers
+            returned from the parser.
+
+        @param response_factory: Factory function (or classname) of the response
+            object which gets passed to the applications middleware as the
+            second parameter. The default value is the class
+            growler.http.response.HTTPResponse. This function accepts one
+            argument: the protocol handling the connection.
         """
         self._proto = protocol
         self.parser = parser_factory(self)
-        self.endpoint = protocol.http_application
         self.build_req = request_factory
         self.build_res = response_factory
         self.headers = None
@@ -84,6 +106,18 @@ class GrowlerHTTPResponder():
         }
         if method in ('POST', 'PUT'):
             self.content_length = 0
+
+    @property
+    def parsed_query(self):
+        return self._proto.parsed_query
+
+    @parsed_query.setter
+    def parsed_query(self, value):
+        """
+        Stores the parsed query from the 'path' part of the client's request
+        line. This value will be forwarded to the parent protocol object.
+        """
+        self._proto.parsed_query = value
 
     def set_headers(self, headers):
         """

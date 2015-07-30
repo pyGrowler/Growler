@@ -25,7 +25,13 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
     growler.App instance, which contains the relevant event_loop. The default
     responder_type is GrowlerHTTPResponder, which does the data parsing and
     req/res creation.
+
+    Additional responders may be created and used, the req/res pair may be lost,
+    but only one GrowlerHTTPProtocol object will persist through the connection;
+    it may be wise to store HTTP information in this.
     """
+
+    parsed_query = None
 
     def __init__(self, app):
         """
