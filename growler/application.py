@@ -242,13 +242,13 @@ class Application(object):
         """
         debug = "[App::use] Adding middleware <{}> listening on path {}"
         if hasattr(middleware, '__growler_router'):
-            print("Found an object that appears to have been routerified.")
-            # middleware = getattr(middleware, '__growler_router')
-            if isinstance(middleware.__growler_router, types.MethodType):
-                middleware = middleware.__growler_router()
-
-        print(debug.format(middleware, path))
-        self.middleware.append(middleware)
+            router = getattr(middleware, '__growler_router')
+            if isinstance(router, types.MethodType):
+                router = router()
+            self.add_router(path, router)
+        else:
+            print(debug.format(middleware, path))
+            self.middleware.append(middleware)
         return self
 
     def add_router(self, path, router):
@@ -257,7 +257,9 @@ class Application(object):
         @type path: str
         @type router: growler.Router
         """
-        self.routers.append(router)
+        debug = "[App::add_router] Adding router {} on path {}"
+        print(debug.format(router, path))
+        self.router.add_router(path, router)
 
     def _find_route(self, method, path):
         """
