@@ -103,17 +103,14 @@ class GrowlerHTTPResponder():
         the content length header. If passes store the data into self._buffer.
         """
         try:
-            maxlen = self.headers['CONTENT-LENGTH']
-        except KeyError:
-            raise HTTPErrorBadRequest
-
-        try:
             self.content_length += len(data)
-        except AttributeError:
-            raise HTTPErrorBadRequest
-
-        if self.content_length > maxlen:
-            raise HTTPErrorBadRequest
+            if self.content_length > self.headers['CONTENT-LENGTH']:
+                problem = "Content length exceeds expected value (%d > %d)" % (
+                    self.content_length, self.headers['CONTENT-LENGTH']
+                )
+                raise HTTPErrorBadRequest(problem)
+        except (AttributeError, TypeError, KeyError):
+            raise HTTPErrorBadRequest("Unexpected body data sent")
 
         self.body_buffer.append(data)
 
