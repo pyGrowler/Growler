@@ -47,7 +47,6 @@ def proto():
     proto = mock.create_autospec(growler.http.GrowlerHTTPProtocol)
     return proto
 
-
 @pytest.fixture
 def app(app_name, router, mock_event_loop, MockProtocol):
     result = growler.application.Application(app_name,
