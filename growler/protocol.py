@@ -129,7 +129,7 @@ class GrowlerProtocol(asyncio.Protocol):
 
         @param error: Exception thrown in code
         """
-        raise NotImplemented
+        raise NotImplementedError()
 
     @property
     def socket(self):
