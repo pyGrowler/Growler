@@ -8,21 +8,12 @@ import pytest
 import asyncio
 from unittest import mock
 
-from mocks import (
-    mock_event_loop
-)
+from mocks import *
 
 
 @pytest.fixture
 def MockGrowlerProtocol():
     return mock.create_autospec(growler.protocol.GrowlerProtocol)
-
-
-@pytest.fixture
-def mock_transport():
-    transport = mock.Mock(spec=asyncio.BaseTransport)
-    transport.get_extra_info.return_value = ('mock.host', 2112)
-    return transport
 
 
 @pytest.fixture
@@ -33,8 +24,7 @@ def mock_responder(request):
 
 @pytest.fixture
 def m_make_responder(mock_responder):
-    mock_factory = mock.Mock()
-    mock_factory.return_value = mock_responder
+    mock_factory = mock.Mock(return_value=mock_responder)
     return mock_factory
 
 
@@ -57,9 +47,9 @@ def test_constructor(mock_event_loop):
     proto = growler.protocol.GrowlerProtocol(mock_event_loop, mock_responder)
 
     assert isinstance(proto, asyncio.Protocol)
-    assert proto.loop is mock_event_loop, 'Protocol does not store loop'
-    assert proto.make_responder is mock_responder, ('Protocol does not store'
-                                                    'responder factory')
+    assert proto.loop is mock_event_loop
+    assert proto.make_responder is mock_responder
+
 
 def test_connection_made(proto, mock_transport, mock_responder, m_make_responder):
     mock_transport.get_extra_info.return_value = ('mock.host', 2112)
