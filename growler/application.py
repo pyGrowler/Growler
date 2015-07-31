@@ -141,7 +141,7 @@ class Application(object):
 
         self._request_class = request_class
         self._response_class = response_class
-        self._protocol_factory = GrowlerHTTPProtocol.get_factory
+        self._protocol_factory = protocol_factory
 
     def __call__(self, req, res):
         """
@@ -246,6 +246,9 @@ class Application(object):
             if isinstance(router, types.MethodType):
                 router = router()
             self.add_router(path, router)
+        elif hasattr(middleware, '__iter__'):
+            for mw in middleware:
+                self.use(mw, path)
         else:
             print(debug.format(middleware, path))
             self.middleware.append(middleware)
@@ -260,29 +263,6 @@ class Application(object):
         debug = "[App::add_router] Adding router {} on path {}"
         print(debug.format(router, path))
         self.router.add_router(path, router)
-
-    def _find_route(self, method, path):
-        """
-        Internal function for finding a route which matches the path
-        """
-        found = None
-        for r in self.patterns:
-            print('r', r)
-            if r[1] == path:
-                print("path matches!!!")
-                # self.route_to_use.set_result(r(2))
-                # return
-                found = r[2]
-                print("found:: ", found)
-                break
-        self.route_to_use.set_result(found)
-        print("_find_route done ({})".format(found))
-        if found is None:
-            raise HTTPErrorNotFound()
-
-    def print_router_tree(self):
-        for r in self.routers:
-            r.print_tree()
 
     def middleware_chain(self, req):
         """
@@ -348,6 +328,7 @@ class Application(object):
     def __setitem__(self, key, value):
         """Sets a member of the application's configuration."""
         self.config[key] = value
+        return value
 
     def __getitem__(self, key):
         """Gets a member of the application's configuration."""
@@ -356,6 +337,9 @@ class Application(object):
     def __delitem__(self, key):
         """Deletes a configuration parameter from the web-app"""
         del self.config[key]
+
+    def __contains__(self, key):
+        return self.config.__contains__(key)
 
     #
     # Helper Functions for easy server creation
