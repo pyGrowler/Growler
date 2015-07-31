@@ -23,6 +23,10 @@ class GrowlerHTTPResponder():
     found in protocol.
     """
 
+    body_buffer = None
+    content_length = None
+    headers = None
+
     def __init__(self,
                  protocol,
                  parser_factory=Parser,
@@ -62,8 +66,6 @@ class GrowlerHTTPResponder():
         self.parser = parser_factory(self)
         self.build_req = request_factory
         self.build_res = response_factory
-        self.headers = None
-        self.content_length = None
 
     def on_data(self, data):
         """
@@ -159,9 +161,9 @@ class GrowlerHTTPResponder():
                 problem = "Content length exceeds expected value (%d > %d)" % (
                     self.content_length, self.headers['CONTENT-LENGTH']
                 )
-                raise HTTPErrorBadRequest(problem)
+                raise HTTPErrorBadRequest(phrase=problem)
         except (AttributeError, TypeError, KeyError):
-            raise HTTPErrorBadRequest("Unexpected body data sent")
+            raise HTTPErrorBadRequest(phrase="Unexpected body data sent")
 
         self.body_buffer.append(data)
 
