@@ -9,6 +9,7 @@ import pytest
 from unittest import mock
 
 from mocks import *
+from mocks import mock_event_loop as event_loop
 
 from test_protocol import (
     MockGrowlerProtocol,

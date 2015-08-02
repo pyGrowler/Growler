@@ -9,8 +9,6 @@ import asyncio
 import pytest
 from unittest import mock
 
-from unittest.mock import (Mock, MagicMock, create_autospec, patch)
-
 from mocks import *
 
 from test_http_protocol import (
