@@ -2,6 +2,7 @@
 # tests/test_http_parser.py
 #
 
+import growler
 from growler.http.parser import Parser
 
 from growler.http.errors import (
@@ -13,11 +14,20 @@ from growler.http.errors import (
 import pytest
 from urllib.parse import ParseResult
 
+from unittest import mock
+
+from mocks import *
+
 from mock_classes import (                                               # noqa
     responder,
     mock_protocol,
-    mock_responder,
+    request_uri,
 )
+
+@pytest.fixture
+def mock_responder():
+    responder = mock.MagicMock(spec=growler.http.responder.GrowlerHTTPResponder)
+    return responder
 
 
 @pytest.fixture
@@ -106,25 +116,26 @@ def test_bad_version():
      {'HOST': 'nowhere.com', 'X': ['y', 'z']}),
 
 ])
-def test_good_header_all(parser, header, header_dict):
+def test_good_header_all(parser, mock_responder, header, header_dict):
     # Parser(mock_responder).consume(header
     parser.consume(header)
-    parser.parent.set_headers.assert_called_with(header_dict)
+    print(mock_responder.mock_calls)
+    assert mock_responder.headers == header_dict
 
 
-@pytest.mark.parametrize("header_pieces, headers_set", [
+@pytest.mark.parametrize("header_pieces, header_dict", [
     ((b"GET / HTTP/1.1\r\n", b"host: nowhere.com\r\n", b"\r\n"),
      {'HOST': 'nowhere.com'}),
 
     ((b"GET / HTTP/1.1\r", b"\nh", b"OsT:  nowhere.com\r", b"\n\r\n"),
      {'HOST': 'nowhere.com'}),
 ])
-def test_good_header_pieces(parser, header_pieces, headers_set):
+def test_good_header_pieces(parser, mock_responder, header_pieces, header_dict):
 
     for piece in header_pieces:
         parser.consume(piece)
 
-    parser.parent.set_headers.assert_called_with(headers_set)
+    assert mock_responder.headers == header_dict
 
 
 @pytest.mark.parametrize("header, parsed, header_dict", [

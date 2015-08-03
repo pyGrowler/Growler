@@ -2,108 +2,109 @@
 # tests/test_protocol.py
 #
 
+import growler
+
 import pytest
-import growler.protocol
-
 import asyncio
+from unittest import mock
+
+from mocks import *
 
 
-class TestResponder:
-
-    def __init__(self, something):
-        print("something")
-
-    def on_data(self, data):
-        pass
+@pytest.fixture
+def MockGrowlerProtocol():
+    return mock.create_autospec(growler.protocol.GrowlerProtocol)
 
 
-class TestProtocol(growler.protocol.GrowlerProtocol):
-    responder_type = TestResponder
+@pytest.fixture
+def mock_responder(request):
+    responder = mock.Mock(spec=growler.http.responder.GrowlerHTTPResponder)
+    return responder
 
 
-def test_constructor():
-    loop = asyncio.get_event_loop()
-    proto = growler.protocol.GrowlerProtocol(loop, TestResponder)
+@pytest.fixture
+def m_make_responder(mock_responder):
+    mock_factory = mock.Mock(return_value=mock_responder)
+    return mock_factory
+
+
+@pytest.fixture
+def proto(mock_event_loop, m_make_responder):
+    return growler.protocol.GrowlerProtocol(mock_event_loop, m_make_responder)
+
+
+@pytest.fixture
+def listening_proto(proto, mock_transport):
+    proto.connection_made(mock_transport)
+    return proto
+
+
+def test_mock_protocol(MockGrowlerProtocol):
+    MockGrowlerProtocol(mock_event_loop(), mock_responder)
+
+
+def test_constructor(mock_event_loop):
+    proto = growler.protocol.GrowlerProtocol(mock_event_loop, mock_responder)
+
     assert isinstance(proto, asyncio.Protocol)
+    assert proto.loop is mock_event_loop
+    assert proto.make_responder is mock_responder
 
 
-def setup_server(port, loop=asyncio.get_event_loop()):
-    """
-    Sets up a GrowlerProtocol server for testing
-    """
-    # proto = growler.protocol.GrowlerProtocol
-    proto = TestProtocol
-    coro = loop.create_server(proto, '127.0.0.1', port)
-    server = loop.run_until_complete(coro)
-    return server
+def test_connection_made(proto, mock_transport, mock_responder, m_make_responder):
+    mock_transport.get_extra_info.return_value = ('mock.host', 2112)
+    proto.connection_made(mock_transport)
+    assert proto.transport is mock_transport
+    assert proto.responders[0] is mock_responder
+    assert proto.remote_port is 2112
+    mock_transport.get_extra_info.assert_called_with('peername')
+    m_make_responder.assert_called_with(proto)
 
 
-def teardown_server(server, loop=asyncio.get_event_loop()):
-    server.close()
-    loop.run_until_complete(server.wait_closed())
+def test_on_data(listening_proto, mock_responder):
+    data = b'data'
+    listening_proto.data_received(data)
+    mock_responder.on_data.assert_called_with(data)
 
 
-def test_responder():
-    class mock_transport:
-        def get_extra_info(self, key):
-            return {
-                'peername': ('mock.host', -1)
-            }.get(key, None)
-
-        def write(self, data):
-            print("writing", len(data), "bytes")
-
-        def close(self):
-            pass
-    loop = asyncio.get_event_loop()
-    trans = mock_transport()
-    proto = growler.protocol.GrowlerProtocol(loop, TestResponder)
-    proto.responder_type = TestResponder
-    proto.connection_made(trans)
-    trans.write(b"x")
-    trans.close()
-
-
-def test_create_server(unused_tcp_port):
-
-    port = unused_tcp_port
-    server = setup_server(port=port)
-
-    @asyncio.coroutine
-    def _client():
-        # with pytest.raises(Exception):
-        r, w = yield from asyncio.open_connection('127.0.0.1', port)
-        assert r is not None
-        assert w is not None
-
-        w.write_eof()
-        w.close()
-
-    asyncio.get_event_loop().run_until_complete(_client())
-    teardown_server(server)
-
-
-def test_server_timeout(unused_tcp_port, event_loop=asyncio.get_event_loop()):
-    server = setup_server(port=unused_tcp_port, loop=event_loop)
-
-    @asyncio.coroutine
-    def _client():
-        r, w = yield from asyncio.open_connection('127.0.0.1', unused_tcp_port)
-        assert r is not None
-
-    event_loop.run_until_complete(_client())
-    teardown_server(server)
-
-
-def test_missing_responder():
+@pytest.mark.parametrize('mock_responder', [
+    None,
+    mock.Mock(spec=int)
+])
+def test_missing_responder(proto, mock_transport):
     with pytest.raises(TypeError):
-        proto = growler.protocol.GrowlerProtocol(asyncio.get_event_loop(),
-                                                 lambda arg: None)
-        proto.connection_made(None)
+        proto.connection_made(mock_transport)
 
-if __name__ == '__main__':
-    test_constructor()
-    test_create_server()
-    test_responder()
-    test_missing_responder()
-    test_server_timeout()
+
+def test_eof_received(proto):
+    proto.eof_received()
+    assert proto.is_done_transmitting
+
+
+def test_connection_lost_no_exception(proto):
+    proto.connection_lost(None)
+
+
+def test_connection_lost_with_exception(proto):
+    ex = Exception()
+    proto.connection_lost(ex)
+
+
+def test_on_data_error(listening_proto, mock_responder):
+    data = b'data'
+    ex = Exception()
+    mock_responder.on_data.side_effect = ex
+    with pytest.raises(NotImplementedError):
+        listening_proto.data_received(data)
+
+
+def test_factory():
+    proto = growler.protocol.GrowlerProtocol.factory(None, None)
+    assert isinstance(proto, growler.protocol.GrowlerProtocol)
+
+
+def test_get_factory():
+    factory = growler.protocol.GrowlerProtocol.get_factory(None, None)
+    assert callable(factory)
+    proto = factory()
+    assert isinstance(proto, growler.protocol.GrowlerProtocol)

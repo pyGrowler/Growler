@@ -12,6 +12,11 @@ class HTTPRequest(object):
     function.
     """
 
+    _protocol = None
+    headers = None
+    body = None
+    protocol = 'http'
+
     def __init__(self, protocol, headers):
         """
         The HTTPRequest object is all the information you could want about the
@@ -27,8 +32,8 @@ class HTTPRequest(object):
         self._protocol = protocol
         self.headers = headers
         self.protocol = 'https' if protocol.cipher else 'http'
-        self.method = protocol.request['method']
-        self.body = asyncio.Future() if 'CONTENT-LENGTH' in headers else None
+        if 'CONTENT-LENGTH' in headers:
+            self.body = asyncio.Future()
 
     def param(self, name, default=None):
         """
@@ -92,3 +97,7 @@ class HTTPRequest(object):
     @property
     def hostname(self):
         return self.headers['HOST']
+
+    @property
+    def method(self):
+        return self._protocol.client_method
