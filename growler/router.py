@@ -58,6 +58,8 @@ class Router():
         self.subrouters.append((re.compile(path), router))
 
     def add_route(self, method, path, endpoint):
+        """
+        """
         self.routes.append((method, path, endpoint))
         return self
 

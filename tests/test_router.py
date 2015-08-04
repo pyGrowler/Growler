@@ -2,29 +2,90 @@
 # tests/test_router.py
 #
 
+import growler
 from growler.router import Router
+from unittest import mock
+import pytest
 
 
-def test_sinatra_path():
-    s = '/something'
-    r = Router.sinatra_path_to_regex(s)
-    assert r.match("/else") is None
-
-    m = r.match(s)
-    assert m is not None
-    assert m.groupdict() == {}
+# @pytest.fixture
+# def req_path():
+#     return "??"
 
 
-def test_sinatra_key():
-    s = '/name/:name'
-    r = Router.sinatra_path_to_regex(s)
-    assert r.match("/not/right") is None
+@pytest.fixture
+def mock_req(req_path):
+    return mock.MagicMock(spec=growler.http.request.HTTPRequest,
+                          path=req_path,
+                          method="GET")
 
-    matches = r.match("/name/growler")
-    assert matches.group('name') == 'growler'
 
-    gd = matches.groupdict()
-    assert gd['name'] == 'growler'
+@pytest.fixture
+def router():
+    router = growler.router.Router()
+    return router
+
+
+@pytest.fixture
+def mock_router():
+    router = mock.MagicMock(spec=growler.router.Router)
+    return router
+
+
+@pytest.mark.parametrize("mount, req_path, mount_at", [
+    ("/", "/blahh", "/blahh"),
+    ("/x", "/x/blahh", "/blahh"),
+    ("/x/", "/x/blahh", "/blahh"),
+    ("/x", "/y/A", None),
+])
+def test_add_router(router, mock_router, mock_req, mount, req_path, mount_at):
+    router.add_router(mount, mock_router)
+    assert len(router.subrouters) == 1
+    for route in router.match_routes(mock_req):
+        pass
+    if mount_at is None:
+        assert mock_router.match_routes.called is False
+    else:
+        mock_router.match_routes.assert_called_with(mock_req)
+
+
+@pytest.mark.parametrize("method, mount_point, endpoint, req_path", [
+    ("GET", "/", " ", "/"),
+    ("GET", "/", None, "/x"),
+    ("POST", "/", None, "/x"),
+])
+def test_add_route(router, mock_req, method, mount_point, endpoint, req_path):
+    router.add_route(method, mount_point, endpoint)
+    m = [x for x in router.match_routes(mock_req)]
+    if endpoint is None:
+        assert len(m) is 0
+    else:
+        assert len(m) is 1
+        assert m[0] is endpoint
+
+
+@pytest.mark.parametrize("path, req_path, matches", [
+    ("/", "/", True),
+    ("/name/:name", "/name/foo", True),
+    ("/", "/x", False),
+    ("/y", "/x", False),
+])
+def test_sinatra_path_matches(path, req_path, matches):
+    r = Router.sinatra_path_to_regex(path)
+    assert (r.fullmatch(req_path) is not None) == matches
+
+
+@pytest.mark.parametrize("path, req_path, match_dict", [
+    ("/", "/", {}),
+    ("/:x", "/yyy", {"x": "yyy"}),
+    ("/user/:user_id", "/user/500", {"user_id": "500"}),
+    ("/:x/:y", "/10/345", {"x": "10", "y": "345"}),
+    ("/:x/via/:y", "/010/via/101", {"x": "010", "y": "101"}),
+])
+def test_sinatra_path_groupdict(path, req_path, match_dict):
+    r = Router.sinatra_path_to_regex(path)
+    m = r.match(req_path)
+    assert m.groupdict() == match_dict
 
 
 class Foo:
@@ -81,7 +142,3 @@ def test_routerclass():
     foo.__growler_router()
     foo_route = foo.__growler_router.routes[0]
     assert first_route[2](None, None) is not foo_route[2](None, None)
-
-
-if __name__ == '__main__':
-    test_sinatra_path()
