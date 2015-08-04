@@ -337,13 +337,14 @@ class Application(object):
         del self.config[key]
 
     def __contains__(self, key):
+        """Returns whether a key is in the application configuration."""
         return self.config.__contains__(key)
 
     #
     # Helper Functions for easy server creation
     #
 
-    def create_server(self, **server_config):
+    def create_server(self, gen_coroutine=False, **server_config):
         """
         Helper function which constructs a listening server, using the default
         growler.http.protocol.Protocol which responds to this app.
@@ -351,16 +352,25 @@ class Application(object):
         This function exists only to remove boilerplate code for starting up a
         growler app.
 
+        @param gen_coroutine bool: If True, this function only returns the
+            coroutine generator returned by self.loop.create_server, else it
+            will 'run_until_complete' the generator and return the created
+            server object.
         @param server_config: These keyword arguments parameters are passed
             directly to the BaseEventLoop.create_server function. Consult their
             documentation for details.
-        @returns asyncio.coroutine which should be run inside a call to
-            loop.run_until_complete()
+        @returns mixed: An asyncio.coroutine which should be run inside a call
+            to loop.run_until_complete() if gen_coroutine is True, else an
+            asyncio.Server object created with teh server_config parameters.
         """
-        return self.loop.create_server(
+        create_server = self.loop.create_server(
             self._protocol_factory(self),
             **server_config
         )
+        if gen_coroutine:
+            return create_server
+        else:
+            return self.loop.run_until_complete(create_server)
 
     def create_server_and_run_forever(self, **server_config):
         """
@@ -374,5 +384,5 @@ class Application(object):
             directly to the BaseEventLoop.create_server function. Consult their
             documentation for details.
         """
-        self.loop.run_until_complete(self.create_server(**server_config))
+        self.create_server(**server_config)
         self.loop.run_forever()
