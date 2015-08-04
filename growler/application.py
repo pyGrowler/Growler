@@ -25,6 +25,7 @@ def myfunc(req, res):
 import asyncio
 import os
 import types
+import logging
 
 from .http import (
     HTTPRequest,
@@ -70,7 +71,7 @@ class Application(object):
 
     def __init__(self,
                  name=__name__,
-                 loop=asyncio.get_event_loop(),
+                 loop=None,
                  debug=True,
                  request_class=HTTPRequest,
                  response_class=HTTPResponse,
@@ -110,14 +111,11 @@ class Application(object):
         @type kw: dict
         """
         self.name = name
-        self.cache = {}
+        self._cache = {}
 
         self.config = kw
 
-        # rendering engines
-        self.engines = {}
-        self.patterns = []
-        self.loop = loop
+        self.loop = asyncio.get_event_loop() if loop is None else loop
         self.loop.set_debug(debug)
 
         self.middleware = []  # [{'path': None, 'cb' : self._middleware_boot}]
@@ -134,7 +132,7 @@ class Application(object):
             'headers': [],
             'error': [],
             'http_error': [],
-            }
+        }
         self.error_handlers = []
 
         self._wait_for = [asyncio.sleep(0.1)]
@@ -250,7 +248,7 @@ class Application(object):
             for mw in middleware:
                 self.use(mw, path)
         else:
-            print(debug.format(middleware, path))
+            logging.info(debug.format(middleware, path))
             self.middleware.append(middleware)
         return self
 
