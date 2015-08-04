@@ -4,7 +4,7 @@
 """Project Metadata"""
 
 package = 'growler'
-project = 'Micro-Framework using asyncio corutines'
+project = 'Web framework using standard python asyncio'
 project_no_spaces = project.replace(' ', '')
 
 version_info = (0, 5, 5)
