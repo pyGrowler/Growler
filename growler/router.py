@@ -60,7 +60,7 @@ class Router():
     def add_route(self, method, path, endpoint):
         """
         """
-        self.routes.append((method, path, endpoint))
+        self.routes.append((method, re.compile(path), endpoint))
         return self
 
     def _apply_decorator(self, method, path):
@@ -137,14 +137,21 @@ class Router():
 
         for mount_point, sub_router in self.subrouters:
             print("trying subrouter", sub_router, 'at', mount_point)
-            if mount_point.match(req.path):
-                yield from sub_router.match_routes(req)
-
+            print(mount_point, '??', req.path)
+            matches = mount_point.match(req.path)
+            print("matches>", matches)
+            if matches:
+                print('matches', matches)
+                req.path = req.path[matches.span()[1]:]
+                for submatch in sub_router.match_routes(req):
+                    print("==", submatch)
+                    yield submatch
         print("End of match_routes")
         return None
 
     def match_path(self, request, path):
-        return request == path
+        # return request == path
+        return path.fullmatch(request)
 
     def middleware_chain(self, req):
         """
