@@ -26,9 +26,9 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
     responder_type is GrowlerHTTPResponder, which does the data parsing and
     req/res creation.
 
-    Additional responders may be created and used, the req/res pair may be lost,
-    but only one GrowlerHTTPProtocol object will persist through the connection;
-    it may be wise to store HTTP information in this.
+    Additional responders may be created and used, the req/res pair may be
+    lost, but only one GrowlerHTTPProtocol object will persist through the
+    connection; it may be wise to store HTTP information in this.
     """
 
     client_method = None
@@ -40,11 +40,10 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
         Construct a GrowlerHTTPProtocol object. This should only be called from
         a growler.HTTPServer instance (or any asyncio.create_server function).
 
-        @param app: Typically a growler application which is the 'endpoint' for
-            this protocol, but any callable with a 'loop' attribute should
-            work.
+        @param app: Typically a growler application which is the 'target' for
+            this protocol, but any callable with a 'loop' and middleware_chain
+            generator attributes should work.
         """
-        print("[GrowlerHTTPProtocol::__init__]", id(self))
 
         def responder_factory(_self):
             return GrowlerHTTPResponder(_self,
