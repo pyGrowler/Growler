@@ -44,7 +44,7 @@ class HTTPRequest(object):
 
         @param default: Returned if 'name' is not found in the query dict
         """
-        return self.query[name] # .get(name, default)
+        return self.query.get(name, default)
 
     def get_body(self, timeout=0):
         """
