@@ -42,8 +42,6 @@ import growler.application
 import growler.router
 import growler.protocol
 
-from growler.http.server import create_server as create_http_server
-
 
 App = growler.application.Application
 Router = growler.router.Router
