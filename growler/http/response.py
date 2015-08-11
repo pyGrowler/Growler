@@ -36,8 +36,8 @@ class HTTPResponse(object):
         """
         Create the http response.
 
-        @param protocol: GrowlerHTTPProtocol object creating the response
-        @param EOL str: The string with which to end lines
+        :param protocol: GrowlerHTTPProtocol object creating the response
+        :param EOL str: The string with which to end lines
         """
         self.protocol = protocol
         self.EOL = EOL
@@ -189,8 +189,8 @@ class HTTPResponse(object):
         header to text/plain. If txt is not a string, it will be formatted as
         one.
 
-        @param txt str: The plaintext string to be sent back to the client
-        @param status int: The HTTP status code, defaults to 200 (OK)
+        :param txt str: The plaintext string to be sent back to the client
+        :param status int: The HTTP status code, defaults to 200 (OK)
         """
         self.headers.setdefault('content-type', 'text/plain')
         self.message = str(txt)

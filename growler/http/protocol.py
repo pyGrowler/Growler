@@ -40,7 +40,7 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
         Construct a GrowlerHTTPProtocol object. This should only be called from
         a growler.HTTPServer instance (or any asyncio.create_server function).
 
-        @param app: Typically a growler application which is the 'target' for
+        :param app: Typically a growler application which is the 'target' for
             this protocol, but any callable with a 'loop' and middleware_chain
             generator attributes should work.
         """
@@ -85,7 +85,7 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
         during a responder's on_data() function. There is no default
         functionality and the subclasses must overload this.
 
-        @param error: Exception thrown in code
+        :param error: Exception thrown in code
         """
         # for error_handler in self.http_application.next_error_handler(req):
         if isinstance(error, HTTPError):

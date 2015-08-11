@@ -83,41 +83,43 @@ class Application(object):
         """
         Creates an application object.
 
-        @param name: does nothing right now
-        @type name: str
+        :param name: does nothing right now
+        :type name: str
 
-        @param loop: The event loop to run on
-        @type loop: asyncio.AbstractEventLoop
+        :param loop: The event loop to run on
+        :type loop: asyncio.AbstractEventLoop
 
-        @param debug: (de)Activates the loop's debug setting
-        @type debug: boolean
+        :param debug: (de)Activates the loop's debug setting
+        :type debug: boolean
 
-        @param request_class: The factory of request objects, the default of
+        :param request_class: The factory of request objects, the default of
             which is growler.HTTPRequest. This should only be set in special
             cases, like debugging or if the dev doesn't want to modify default
             request objects via middleware.
-        @type request_class: runnable
+        :type request_class: runnable
 
-        @param response_class: The factory of response objects, the default of
+        :param response_class: The factory of response objects, the default of
             which is growler.HTTPResponse. This should only be set in special
             cases, like debugging or if the dev doesn't want to modify default
             response objects via middleware.
-        @type response_class: runnable
+        :type response_class: runnable
 
 
-        @param protocol_factory: Factory function this application uses to
+        :param protocol_factory: Factory function this application uses to
             construct the asyncio protocol object which responds to client
             connections. The default is the GrowlerHTTPProtocol.get_factory
             method, which simply
-        @type protocol_factory: runnable
+        :type protocol_factory: runnable
 
-        @param kw: Any other custom variables for the application. This dict is
+        :param kw: Any other custom variables for the application. This dict is
             stored as 'self.config' in the application. These variables are
             accessible by the application's dict-access, as in:
-                app = app(..., val='VALUE')
-                app['var'] #=> val
 
-        @type kw: dict
+            ``app = app(..., val='VALUE')``
+            ``app['val'] #=> VALUE``
+
+        :type kw: dict
+
         """
         self.name = name
         self._cache = {}
@@ -241,10 +243,10 @@ class Application(object):
         requests match the provided path. A None path matches every request.
         Returns 'self' so the middleware may be nicely chained.
 
-        @param middleware callable: A function with signature '(req, res)' to
+        :param middleware callable: A function with signature '(req, res)' to
                                     be called with every request which matches
                                     'path'
-        @param path: A string or regex wich will be used to match request
+        :param path: A string or regex wich will be used to match request
                      paths.
         """
         debug = "[App::use] Adding middleware <{}> listening on path {}"
@@ -264,8 +266,12 @@ class Application(object):
     def add_router(self, path, router):
         """
         Adds a router to the list of routers
-        @type path: str
-        @type router: growler.Router
+
+        :param path: The path the router binds to
+        :type path: str
+
+        :param router: The router which will respond to objects
+        :type router: growler.Router
         """
         debug = "[App::add_router] Adding router {} on path {}"
         print(debug.format(router, path))
@@ -361,14 +367,14 @@ class Application(object):
         This function exists only to remove boilerplate code for starting up a
         growler app.
 
-        @param gen_coroutine bool: If True, this function only returns the
+        :param gen_coroutine bool: If True, this function only returns the
             coroutine generator returned by self.loop.create_server, else it
             will 'run_until_complete' the generator and return the created
             server object.
-        @param server_config: These keyword arguments parameters are passed
+        :param server_config: These keyword arguments parameters are passed
             directly to the BaseEventLoop.create_server function. Consult their
             documentation for details.
-        @returns mixed: An asyncio.coroutine which should be run inside a call
+        :returns mixed: An asyncio.coroutine which should be run inside a call
             to loop.run_until_complete() if gen_coroutine is True, else an
             asyncio.Server object created with teh server_config parameters.
         """
@@ -389,7 +395,7 @@ class Application(object):
         This function exists only to remove boilerplate code for starting up a
         growler app.
 
-        @param server_config: These keyword arguments parameters are passed
+        :param server_config: These keyword arguments parameters are passed
             directly to the BaseEventLoop.create_server function. Consult their
             documentation for details.
         """

@@ -39,7 +39,7 @@ class Parser:
         """
         Construct a Parser object.
 
-        @param queue asyncio.queue: The queue in which to put parsed items.
+        :param queue asyncio.queue: The queue in which to put parsed items.
             This is assumed to be read from the responder which created it.
         """
         self.parent = parent
