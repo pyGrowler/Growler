@@ -15,6 +15,7 @@ from .protocol import GrowlerHTTPProtocol
 from .server import create_server
 from .errors import __all__ as http_errors
 from .status import Status
+from .methods import HTTPMethod
 
 from http.server import BaseHTTPRequestHandler
 
