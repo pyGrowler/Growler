@@ -14,11 +14,13 @@ popular web frameworks.
 A simple app can be created raw (no subclassing) and then decorate functions or
 a class to modify the behavior of the app. (decorators explained elsewhere)
 
-app = growler.App()
+.. code:: python
 
-@app.use
-def myfunc(req, res):
-    print("myfunc")
+    app = growler.App()
+
+    @app.use
+    def myfunc(req, res):
+        print("myfunc")
 
 """
 
