@@ -4,7 +4,7 @@
 
 import growler
 from growler.http.parser import Parser
-
+from growler.http.methods import HTTPMethod
 from growler.http.errors import (
     HTTPErrorBadRequest,
     HTTPErrorInvalidHeader,
@@ -16,7 +16,9 @@ from urllib.parse import ParseResult
 
 from unittest import mock
 
-from mocks import *
+GET, POST = HTTPMethod.GET, HTTPMethod.POST
+
+from mocks import *                                                      # noqa
 
 from mock_classes import (                                               # noqa
     responder,
@@ -24,10 +26,12 @@ from mock_classes import (                                               # noqa
     request_uri,
 )
 
+
 @pytest.fixture
 def mock_responder():
-    responder = mock.MagicMock(spec=growler.http.responder.GrowlerHTTPResponder)
-    return responder
+    return mock.MagicMock(
+            spec=growler.http.responder.GrowlerHTTPResponder
+           )
 
 
 @pytest.fixture
@@ -59,8 +63,8 @@ def test_aquire_newline_byte_by_byte(line, value, parser):
 
 
 @pytest.mark.parametrize("data, method, path, query, version", [
-    ("GET /path HTTP/1.0", 'GET', '/path', '', 'HTTP/1.0'),
-    ("GET /path?tst=T&q=1 HTTP/1.1", 'GET', '/path', 'tst=T&q=1', 'HTTP/1.1'),
+    ("GET /path HTTP/1.0", GET, '/path', '', 'HTTP/1.0'),
+    ("GET /path?tst=T&q=1 HTTP/1.1", GET, '/path', 'tst=T&q=1', 'HTTP/1.1'),
 ])
 def test_parse_request_line(data, method, path, query, version, parser):
     m, u, v = parser.parse_request_line(data)
@@ -76,8 +80,9 @@ def test_consume_buffer(parser):
 
 
 @pytest.mark.parametrize("data, method, parsed, version", [
-  (b"GET /path HTTP/1.1\n", 'GET', ('', '', '/path', '', '', ''), 'HTTP/1.1'),
-  (b"GET /a#q HTTP/1.1\n", 'GET', ('', '', '/a', '', '', 'q'), 'HTTP/1.1'),
+  (b"GET /path HTTP/1.1\n", GET, ('', '', '/path', '', '', ''), 'HTTP/1.1'),
+  (b"GET /a#q HTTP/1.1\n", GET, ('', '', '/a', '', '', 'q'), 'HTTP/1.1'),
+  (b"POST /p HTTP/1.1\n", POST, ('', '', '/p', '', '', ''), 'HTTP/1.1'),
 ])
 def test_consume_request_line(parser, data, method, parsed, version):
     parser.consume(data)
@@ -123,19 +128,19 @@ def test_good_header_all(parser, mock_responder, header, header_dict):
     assert mock_responder.headers == header_dict
 
 
-@pytest.mark.parametrize("header_pieces, header_dict", [
+@pytest.mark.parametrize("header_pieces, header_d", [
     ((b"GET / HTTP/1.1\r\n", b"host: nowhere.com\r\n", b"\r\n"),
      {'HOST': 'nowhere.com'}),
 
     ((b"GET / HTTP/1.1\r", b"\nh", b"OsT:  nowhere.com\r", b"\n\r\n"),
      {'HOST': 'nowhere.com'}),
 ])
-def test_good_header_pieces(parser, mock_responder, header_pieces, header_dict):
+def test_good_header_pieces(parser, mock_responder, header_pieces, header_d):
 
     for piece in header_pieces:
         parser.consume(piece)
 
-    assert mock_responder.headers == header_dict
+    assert mock_responder.headers == header_d
 
 
 @pytest.mark.parametrize("header, parsed, header_dict", [
@@ -152,7 +157,7 @@ def test_consume_byte_by_byte(parser, header, parsed, header_dict):
     for c in header:
         parser.consume(c.encode())
 
-    parser.parent.set_request_line.assert_called_with('GET',
+    parser.parent.set_request_line.assert_called_with(HTTPMethod.GET,
                                                       ParseResult(*parsed),
                                                       'HTTP/1.1')
 

@@ -5,7 +5,11 @@
 import re
 import sys
 from urllib.parse import (unquote, urlparse, parse_qs)
-from termcolor import colored
+
+from .methods import (
+    HTTPMethod,
+    string_to_method as Gen_HTTP_Method
+)
 
 from growler.http.errors import (
     HTTPErrorNotImplemented,
@@ -123,30 +127,31 @@ class Parser:
         if version not in ('HTTP/1.1', 'HTTP/1.0'):
             raise HTTPErrorVersionNotSupported()
 
+        try:
+            self.method = Gen_HTTP_Method[method]
+        except KeyError:
+            # Method not found
+            err = "Unknown HTTP Method '{}'".format(method)
+            raise HTTPErrorNotImplemented(err)
+
         # save 'method' to self and get the correct function to finish
         # processing
         num_str = version[version.find('/')+1:]
         self.HTTP_VERSION = tuple(num_str.split('.'))
         self.version_number = float(num_str)
         self.version = version
-        self.method = method
 
         self._process_headers = {
-            "GET": self.process_get_headers,
-            "POST": self.process_post_headers
-        }.get(method, None)
-
-        # Method not found
-        if self._process_headers is None:
-            err = "Unknown HTTP Method '{}'".format(method)
-            raise HTTPErrorNotImplemented(err)
+            HTTPMethod.GET: self.process_get_headers,
+            HTTPMethod.POST: self.process_post_headers
+        }.get(self.method, None)
 
         self.original_url = request_uri
         self.parsed_url = urlparse(request_uri)
         self.path = unquote(self.parsed_url.path)
         self.query = parse_qs(self.parsed_url.query)
         self.parent.parsed_query = self.query
-        return method, self.parsed_url, version
+        return self.method, self.parsed_url, version
 
     def _flush_header_buffer(self):
         """
@@ -251,7 +256,7 @@ class Parser:
             key, value = map(str.strip, line.split(':', 1))
         except ValueError:
             # rederr = colored('ERROR', 'red')
-            rederr ='ERROR'
+            rederr = 'ERROR'
             err_str = "{} parsing headers. Input '{}'".format(rederr, line)
             print(err_str, file=sys.stderr)
             raise HTTPErrorInvalidHeader
