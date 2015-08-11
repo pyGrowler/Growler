@@ -15,7 +15,6 @@ class HTTPRequest(object):
     _protocol = None
     headers = None
     body = None
-    protocol = 'http'
 
     def __init__(self, protocol, headers):
         """
@@ -24,14 +23,14 @@ class HTTPRequest(object):
         object to all the middleware of the app.
 
         @param protocol growler.HTTPProtocol: A reference to the protocol which
-            was responsible for handling the client's request and creating this
-            HTTPRequest object.
+            was responsible for handling th e client's request and creating
+            this HTTPRequest object.
 
         @param headers dict: The headers gathered from the incoming stream
         """
         self._protocol = protocol
         self.headers = headers
-        self.protocol = 'https' if protocol.cipher else 'http'
+
         if 'CONTENT-LENGTH' in headers:
             self.body = asyncio.Future()
 
@@ -101,3 +100,10 @@ class HTTPRequest(object):
     @property
     def method(self):
         return self._protocol.client_method
+
+    @property
+    def protocol(self):
+        """
+        The name of the protocol being used
+        """
+        return 'https' if (self.protocol.cipher) else 'http'

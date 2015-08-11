@@ -56,7 +56,7 @@ def notest_missing_host_request(mock_protocol, headers):
 
 @pytest.mark.parametrize('request_uri, headers, param', [
     ('/', {'x': 'Y'}, ''),
-    ('/', {'x':'x'}, ''),
+    ('/', {'x': 'x'}, ''),
 ])
 def test_request_headers(get_req, request_uri, headers, param):
     assert get_req.headers['x'] == headers['x']
