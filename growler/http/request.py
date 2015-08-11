@@ -22,11 +22,11 @@ class HTTPRequest(object):
         incoming http connection. It gets passed along with the HTTPResponse
         object to all the middleware of the app.
 
-        @param protocol growler.HTTPProtocol: A reference to the protocol which
+        :param protocol growler.HTTPProtocol: A reference to the protocol which
             was responsible for handling th e client's request and creating
             this HTTPRequest object.
 
-        @param headers dict: The headers gathered from the incoming stream
+        :param headers dict: The headers gathered from the incoming stream
         """
         self._protocol = protocol
         self.headers = headers
@@ -39,10 +39,10 @@ class HTTPRequest(object):
         Return value of HTTP parameter 'name' if found, else return provided
         'default'
 
-        @param name: Key to search the query dict for
-        @type name: str
+        :param name: Key to search the query dict for
+        :type name: str
 
-        @param default: Returned if 'name' is not found in the query dict
+        :param default: Returned if 'name' is not found in the query dict
         """
         return self.query.get(name, default)
 

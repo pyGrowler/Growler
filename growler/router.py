@@ -278,7 +278,7 @@ def routerify(obj):
     route signature. A router will be created and added to the object with
     parameter.
 
-    @param obj: some object (with attributes) from which to setup a router
+    :param obj: some object (with attributes) from which to setup a router
     @return router: The router created.
     """
     router = Router()

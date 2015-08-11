@@ -38,9 +38,9 @@ class GrowlerHTTPResponder():
 
         This should only be called from a growler protocol instance.
 
-        @param protocol: The GrowlerHTTPProtocol which created the responder.
+        :param protocol: The GrowlerHTTPProtocol which created the responder.
 
-        @param parser_factor: Factory function (or classname) of the object
+        :param parser_factor: Factory function (or classname) of the object
             responsible for parsing the client's request line and headers.
             Default value is the growler.http.parser.Parser class. The object
             must have a 'consume' method which accepts the incoming data. If
@@ -49,14 +49,14 @@ class GrowlerHTTPResponder():
             have finished, the consume function returns any body data past the
             headers.
 
-        @param request_factory: Factory function (or classname) of the request
+        :param request_factory: Factory function (or classname) of the request
             object which gets passed to the applications middleware as the first
             parameter. The default value is the class
             growler.http.request.HTTPRequest. This function accepts two
             arguments: the protocol handling the connection and the headers
             returned from the parser.
 
-        @param response_factory: Factory function (or classname) of the response
+        :param response_factory: Factory function (or classname) of the response
             object which gets passed to the applications middleware as the
             second parameter. The default value is the class
             growler.http.response.HTTPResponse. This function accepts one
