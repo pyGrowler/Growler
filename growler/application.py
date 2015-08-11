@@ -102,6 +102,13 @@ class Application(object):
             response objects via middleware.
         @type response_class: runnable
 
+
+        @param protocol_factory: Factory function this application uses to
+            construct the asyncio protocol object which responds to client
+            connections. The default is the GrowlerHTTPProtocol.get_factory
+            method, which simply
+        @type protocol_factory: runnable
+
         @param kw: Any other custom variables for the application. This dict is
             stored as 'self.config' in the application. These variables are
             accessible by the application's dict-access, as in:
