@@ -54,15 +54,20 @@ Example Usage
 
     import asyncio
 
-    from growler import (App, create_http_server)
+    from growler import App
     from growler.middleware import (Logger, Static, Renderer)
 
+    loop = asyncio.get_event_loop()
 
-    app = App('GrowlerServer')
+    # Construct our application with name GrowlerServer
+    app = App('GrowlerServer', loop=loop)
 
+    # Add some growler middleware to the application
     app.use(Logger())
+    app.use(Static(path='public'))
     app.use(Renderer("views/", "jade"))
 
+    # Add some routes to the application
     @app.get('/')
     def index(req, res):
         res.render("home")
@@ -71,8 +76,12 @@ Example Usage
     def hello_world(req, res):
         res.send_text("Hello World!!")
 
-    http = create_http_server(app(), host='127.0.0.1', port=8000)
-    asyncio.get_event_loop().run_until_complete(http.listen())
+    # Create the server - this automatically adds it to the asyncio event loop
+    Server = app.create_server(host='127.0.0.1', port=8000)
+
+    # Tell the event loop to run forever - this will listen to the server's
+    # socket and wake up the growler application upon each connection
+    loop.run_forever()
 
 
 This code creates an application which is identified by 'GrowlerServer'
