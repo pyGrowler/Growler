@@ -8,4 +8,14 @@ Growler.Application
 
 .. automodule:: growler.application
    :members:
-   :show-inheritance:
+   :special-members:
+   :exclude-members: __call__
+
+Contents:
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
