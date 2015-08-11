@@ -12,6 +12,11 @@ class HTTPRequest(object):
     function.
     """
 
+    _protocol = None
+    headers = None
+    body = None
+    protocol = 'http'
+
     def __init__(self, protocol, headers):
         """
         The HTTPRequest object is all the information you could want about the
@@ -25,15 +30,10 @@ class HTTPRequest(object):
         @param headers dict: The headers gathered from the incoming stream
         """
         self._protocol = protocol
-        self.ip = protocol.socket.getpeername()[0]
-        self.protocol = 'https' if protocol.cipher else 'http'
-        self.app = protocol.http_application
-        self.method = protocol.request['method']
         self.headers = headers
-        self.hostname = headers['HOST']
-        self.originalURL = protocol.request['url'].path
-        self.body = asyncio.Future() if 'CONTENT-LENGTH' in headers else None
-        self.path = protocol.request['url'].path
+        self.protocol = 'https' if protocol.cipher else 'http'
+        if 'CONTENT-LENGTH' in headers:
+            self.body = asyncio.Future()
 
     def param(self, name, default=None):
         """
@@ -45,10 +45,7 @@ class HTTPRequest(object):
 
         @param default: Returned if 'name' is not found in the query dict
         """
-        try:
-            return self.query[name]
-        except KeyError:
-            return default
+        return self.query[name] # .get(name, default)
 
     def get_body(self, timeout=0):
         """
@@ -62,7 +59,7 @@ class HTTPRequest(object):
         """
         if self.body is None:
             return None
-        coro = asyncio.wait_for(self.body, timeout, loop=self._protocol.loop)
+        coro = asyncio.wait_for(self.body, timeout, loop=self.loop)
         self._protocol.loop.run_until_complete(coro)
         return self.body.result()
 
@@ -72,3 +69,35 @@ class HTTPRequest(object):
         parameter.
         """
         return self.headers['content-type'] == mime_type
+
+    @property
+    def ip(self):
+        return self._protocol.socket.getpeername()[0]
+
+    @property
+    def app(self):
+        return self._protocol.http_application
+
+    @property
+    def path(self):
+        return self._protocol.request['url'].path
+
+    @property
+    def originalURL(self):
+        return self._protocol.request['url'].path
+
+    @property
+    def loop(self):
+        return self._protocol.loop
+
+    @property
+    def query(self):
+        return self._protocol.client_query
+
+    @property
+    def hostname(self):
+        return self.headers['HOST']
+
+    @property
+    def method(self):
+        return self._protocol.client_method

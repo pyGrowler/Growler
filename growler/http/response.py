@@ -1,5 +1,5 @@
 #
-# growler/http/Response.py
+# growler/http/response.py
 #
 
 import sys
@@ -21,6 +21,17 @@ class HTTPResponse(object):
                                                             growler.__version__
                                                             )
 
+    protocol = None
+    has_sent_headers = False
+    has_ended = False
+    status_code = 200
+    headers = None
+    message = ''
+    EOL = ''
+    phrase = None
+
+    _events = None
+
     def __init__(self, protocol, EOL="\r\n"):
         """
         Create the http response.
@@ -28,18 +39,11 @@ class HTTPResponse(object):
         @param protocol: GrowlerHTTPProtocol object creating the response
         @param EOL str: The string with which to end lines
         """
-        self._stream = protocol.transport
-        self.app = protocol.http_application
-        self.send = self.write
-        # Assume we are OK
-        self.status_code = 200
-        self.phrase = None
-        self.has_sent_headers = False
-        self.message = ''
-        self.headers = dict()
+        self.protocol = protocol
         self.EOL = EOL
-        self.finished = False
-        self.has_ended = False
+
+        self.headers = dict()
+
         self._events = {
             'before_headers': [],
             'after_send': [],
@@ -69,29 +73,22 @@ class HTTPResponse(object):
 
         self._set_default_headers()
 
-        self.headerstrings += ["{}: {}".format(k, v)
+        self.headerstrings += ["%s: %s".format(k, v)
                                for k, v in self.headers.items()]
 
         for func in self._events['headerstrings']:
             func()
 
-        # headerstrings += ["{}: {}".format(k, v)
-        #                   if instanceof(v,str) else
-        #                   for k, v in self.headers]
-        # print ("[send_headers] Sending headerstrings '{}'".format(
-        #        self.headerstrings))
-        self._stream.write(self.EOL.join(self.headerstrings).encode())
-        self._stream.write((self.EOL * 2).encode())
-        # print ("[send_headers] DONE ")
+        http_header = self.EOL.join(self.headerstrings + [self.EOL])
+        self.protocol.transport.write(http_header.encode())
 
     def write(self, msg=None):
         msg = self.message if msg is None else msg
         msg = msg.encode() if isinstance(msg, str) else msg
-        self._stream.write(msg)
+        self.protocol.transport.write(msg)
 
     def write_eof(self):
-        self._stream.write_eof()
-        self.finished = True
+        self.protocol.transport.write_eof()
         self.has_ended = True
         for f in self._events['after_send']:
             f()
@@ -221,10 +218,21 @@ class HTTPResponse(object):
     def on_headerstrings(self, cb):
         self._events['headerstrings'].append(cb)
 
+    def send(self, *args, **kwargs):
+        return self.write(*args, **kwargs)
+
     @property
     def info(self):
         return 'Python/{0[0]}.{0[1]} growler/{1}'
 
-    @classmethod
-    def get_current_time(cls):
+    @property
+    def stream(self):
+        return self.protocol.transport
+
+    @property
+    def app(self):
+        return self.protocol.http_application
+
+    @staticmethod
+    def get_current_time():
         return format_RFC_1123(time.mktime(datetime.now().timetuple()))

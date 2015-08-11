@@ -43,6 +43,10 @@ class GrowlerProtocol(asyncio.Protocol):
     instance of the protocol.
     """
 
+    transport = None
+    responders = None
+    is_done_transmitting = False
+
     def __init__(self, loop, responder_factory):
         """
         Construct a GrowlerProtocol object.
@@ -73,7 +77,9 @@ class GrowlerProtocol(asyncio.Protocol):
         @param transport asyncio.Transport: The Transport handling the socket
             communication
         """
+        self.transport = transport
         self.responders = [self.make_responder(self)]
+
         try:
             good_func = callable(self.responders[0].on_data)
         except AttributeError:
@@ -82,12 +88,7 @@ class GrowlerProtocol(asyncio.Protocol):
         if not good_func:
             err_str = "Provided responder MUST implement an 'on_data' method"
             raise TypeError(err_str)
-        self.transport = transport
-        transport_info = transport.get_extra_info
-        self.remote_hostname, self.remote_port = transport_info('peername')[:2]
-        self.socket = transport_info('socket')
-        self.cipher = transport_info('cipher')
-        self.is_done_transmitting = False
+
         print("Growler Connection from {}:{}".format(self.remote_hostname,
                                                      self.remote_port))
 
@@ -128,7 +129,27 @@ class GrowlerProtocol(asyncio.Protocol):
 
         @param error: Exception thrown in code
         """
-        raise NotImplemented
+        raise NotImplementedError()
+
+    @property
+    def socket(self):
+        return self.transport.get_extra_info('socket')
+
+    @property
+    def cipher(self):
+        return self.transport.get_extra_info('cipher')
+
+    @property
+    def remote_hostname(self):
+        return self.transport.get_extra_info('peername')[0]
+
+    @property
+    def remote_port(self):
+        return self.transport.get_extra_info('peername')[1]
+
+    @property
+    def peername(self):
+        return self.transport.get_extra_info('peername')
 
     @classmethod
     def factory(cls, *args, **kw):

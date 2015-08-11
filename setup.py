@@ -39,12 +39,15 @@ NAMESPACES = [
     'growler.mw',
 ]
 
+tar_url = 'https://github.com/pygrowler/growler/archive/v%s.tar.gz' % (metadata.version)  # noqa
+
 setup(
     name="growler",
     version=metadata.version,
     author=metadata.author,
     license=metadata.license,
     url=metadata.url,
+    download_url=tar_url,
     author_email=metadata.author_email,
     description=__doc__.strip(),
     classifiers=[

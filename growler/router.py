@@ -58,7 +58,9 @@ class Router():
         self.subrouters.append((re.compile(path), router))
 
     def add_route(self, method, path, endpoint):
-        self.routes.append((method, path, endpoint))
+        """
+        """
+        self.routes.append((method, re.compile(path), endpoint))
         return self
 
     def _apply_decorator(self, method, path):
@@ -128,14 +130,28 @@ class Router():
         for method, path, func in self.routes:
             if method == "ALL" or method.upper() == req.method.upper():
                 print("MATCHED method", method)
+                print("path", req.path, path, req.path == path)
                 if self.match_path(req.path, path):
                     print("MATCHED path", req.path, path, ' yielding', func)
                     yield func
+
+        for mount_point, sub_router in self.subrouters:
+            print("trying subrouter", sub_router, 'at', mount_point)
+            print(mount_point, '??', req.path)
+            matches = mount_point.match(req.path)
+            print("matches>", matches)
+            if matches:
+                print('matches', matches)
+                req.path = req.path[matches.span()[1]:]
+                for submatch in sub_router.match_routes(req):
+                    print("==", submatch)
+                    yield submatch
         print("End of match_routes")
         return None
 
     def match_path(self, request, path):
-        return request == path
+        # return request == path
+        return path.fullmatch(request)
 
     def middleware_chain(self, req):
         """
@@ -220,18 +236,16 @@ def get_routing_attributes(obj, modify_doc=False, keys=None):
     followed by a catch-all 'all'. Until a solution is found, just make a
     router by hand.
     """
-    if keys is None:
-        keys = dir(obj)
-    for attr in keys:
+    for attr in dir(obj) if keys is None else keys:
         matches = ROUTABLE_NAME_REGEX.match(attr)
         val = getattr(obj, attr)
         if matches is None or not callable(val):
             continue
         try:
             if modify_doc:
-                path, val.__doc__ = val.__doc__.strip().split(' ', 1)
+                path, val.__doc__ = val.__doc__.split(maxsplit=1)
             else:
-                path = val.__doc__.strip().split(' ', 1)[0]
+                path = val.__doc__.split(maxsplit=1)[0]
         except AttributeError:
             continue
         if path == '':

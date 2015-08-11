@@ -25,18 +25,25 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
     growler.App instance, which contains the relevant event_loop. The default
     responder_type is GrowlerHTTPResponder, which does the data parsing and
     req/res creation.
+
+    Additional responders may be created and used, the req/res pair may be
+    lost, but only one GrowlerHTTPProtocol object will persist through the
+    connection; it may be wise to store HTTP information in this.
     """
+
+    client_method = None
+    client_query = None
+    client_headers = None
 
     def __init__(self, app):
         """
         Construct a GrowlerHTTPProtocol object. This should only be called from
         a growler.HTTPServer instance (or any asyncio.create_server function).
 
-        @param app: Typically a growler application which is the 'endpoint' for
-            this protocol, but any callable with a 'loop' attribute should
-            work.
+        @param app: Typically a growler application which is the 'target' for
+            this protocol, but any callable with a 'loop' and middleware_chain
+            generator attributes should work.
         """
-        print("[GrowlerHTTPProtocol::__init__]", id(self))
 
         def responder_factory(_self):
             return GrowlerHTTPResponder(_self,
@@ -46,9 +53,10 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
         super().__init__(loop=app.loop, responder_factory=responder_factory)
         self.http_application = app
 
-    def middleware_chain(self, req, res):
+    def process_middleware(self, req, res):
         """
-        Runs through the chain of middleware in app.
+        Entry method for the sequential calling of server middleware. This is
+        called by the responder upon the successful parsing of HTTP headers.
         """
         for mw in self.http_application.middleware_chain(req):
             try:
