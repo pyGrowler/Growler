@@ -129,7 +129,8 @@ class Router():
         print(" (# routes: %d)" % len(self.routes))
         for method, path, func in self.routes:
             print("Checking",  method, path, func)
-            if method is HTTPMethod.ALL or method is req.method:
+            # bitwise-and method matching
+            if method & req.method:
                 print("MATCHED method", method)
                 print("path", req.path, path, req.path == path)
                 if self.match_path(req.path, path):

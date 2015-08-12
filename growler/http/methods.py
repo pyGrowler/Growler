@@ -6,12 +6,12 @@
 import enum
 
 
-class HTTPMethod(enum.Enum):
-    ALL = 0x0
-    GET = 0x1
-    POST = 0x2
-    DELETE = 0x4
-    PUT = 0x8
+class HTTPMethod(enum.IntEnum):
+    ALL =    0b011111
+    GET =    0b000001
+    POST =   0b000010
+    DELETE = 0b000100
+    PUT =    0b001000
 
 
 string_to_method = {
@@ -20,3 +20,7 @@ string_to_method = {
     "DELETE": HTTPMethod.DELETE,
     "PUT": HTTPMethod.PUT,
 }
+
+x = HTTPMethod.GET | HTTPMethod.POST
+print(x)
+assert None
