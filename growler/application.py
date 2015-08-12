@@ -122,7 +122,6 @@ class Application(object):
 
         """
         self.name = name
-        self._cache = {}
 
         self.config = kw
 
@@ -192,15 +191,6 @@ class Application(object):
     def on_start(self, cb):
         print("Callback : ", cb)
         self._events['startup'].append(cb)
-
-    @asyncio.coroutine
-    def wait_for_required(self):
-        """
-        Called before running the server, ensures all required coroutines have
-        finished running.
-        """
-        for x in self._wait_for:
-            yield from x
 
     #
     # Middleware adding functions
@@ -329,9 +319,10 @@ class Application(object):
 
     def require(self, future):
         """
-        Will wait for the future before beginning to serve web pages. Useful
+        Will wait for the future before creating the asyncio server. Useful
         for things like database connections.
         """
+        # TODO: Is this _actually_ useful?
         self._wait_for.append(future)
 
     #
@@ -382,6 +373,10 @@ class Application(object):
             self._protocol_factory(self),
             **server_config
         )
+
+        if self._wait_for:
+            self.loop.run_until_complete(asyncio.wait(self._wait_for,
+                                                      loop=self.loop))
         if gen_coroutine:
             return create_server
         else:
