@@ -151,43 +151,6 @@ class Application(object):
         self._response_class = response_class
         self._protocol_factory = protocol_factory
 
-    def __call__(self, req, res):
-        """
-        Calls the growler server with the request and response objects.
-        """
-        print("Calling growler", req, res)
-
-    def _call_and_handle_error(self, func, req, res):
-
-        def cofunctitize(_func):
-            @asyncio.coroutine
-            def cowrap(_req, _res):
-                return _func(_req, _res)
-            return cowrap
-
-        # Provided middleware is a 'normal' function - we just wrap with the
-        # local 'cofunction'
-        if not (asyncio.iscoroutinefunction(func) or
-                asyncio.iscoroutine(func)):
-            func = cofunctitize(func)
-
-        try:
-            yield from func(req, res)
-        except HTTPError as err:
-            # func.cancel()
-            err.PrintSysMessage()
-            print(err)
-            for f in self._events['http_error']:
-                f(err, req, res)
-            return
-        except Exception as err:
-            # func.cancel()
-            print("[Growler::App::_handle_connection] Caught Exception ")
-            print(err)
-            for f in self._events['error']:
-                f(err, req, res)
-            return
-
     def on_start(self, cb):
         print("Callback : ", cb)
         self._events['startup'].append(cb)
