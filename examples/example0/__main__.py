@@ -3,7 +3,7 @@ from os import path
 
 import asyncio
 
-from growler import (App, create_http_server)
+from growler import (App)
 from growler.middleware import (Logger, Renderer)
 
 app = App('GrowlerServer')
@@ -28,8 +28,9 @@ def hello_world(req, res):
 def error_handler(req, res, err):
     res.send_text("404 : Hello World!!")
 
+loop = asyncio.get_event_loop()
 
-http = create_http_server(app, host='127.0.0.1', port=8000)
-asyncio.get_event_loop().run_until_complete(http.listen())
-
-asyncio.get_event_loop().run_forever()
+loop.run_until_complete(loop.create_server(app._protocol_factory(app),
+                                           host='127.0.0.1',
+                                           port=8000))
+loop.run_forever()
