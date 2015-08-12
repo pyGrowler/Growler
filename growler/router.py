@@ -5,9 +5,9 @@
 import re
 from collections import OrderedDict
 from growler.http.errors import HTTPErrorNotFound
+from growler.http.methods import HTTPMethod
 
 ROUTABLE_NAME_REGEX = re.compile("(all|get|post|delete)_.*", re.IGNORECASE)
-
 
 class Router():
     """
@@ -81,31 +81,31 @@ class Router():
         path.
         """
         if middleware is not None:
-            return self.add_route('ALL', path, middleware)
+            return self.add_route(HTTPMethod.ALL, path, middleware)
         else:
-            return self._apply_decorator('ALL', path)
+            return self._apply_decorator(HTTPMethod.ALL, path)
 
     def get(self, path='/', middleware=None):
         """Add a route in response to the GET HTTP method."""
         # Handle explicit and decorator calls
         if middleware is not None:
-            return self.add_route('GET', path, middleware)
+            return self.add_route(HTTPMethod.GET, path, middleware)
         else:
-            return self._apply_decorator('GET', path)
+            return self._apply_decorator(HTTPMethod.GET, path)
 
     def post(self, path='/', middleware=None):
         """Add a route in response to the POST HTTP method."""
         if middleware is not None:
-            return self.add_route('POST', path, middleware)
+            return self.add_route(HTTPMethod.POST, path, middleware)
         else:
-            return self._apply_decorator('POST', path)
+            return self._apply_decorator(HTTPMethod.POST, path)
 
     def delete(self, path='/', middleware=None):
         """Add a route in response to the DELETE HTTP method."""
         if middleware is not None:
-            return self.add_route('DELETE', path, middleware)
+            return self.add_route(HTTPMethod.DELETE, path, middleware)
         else:
-            return self._apply_decorator('DELETE', path)
+            return self._apply_decorator(HTTPMethod.DELETE, path)
 
     def use(self, middleware, path=None):
         """
@@ -128,7 +128,8 @@ class Router():
         print("matching routes to path '{}'".format(req.path))
         print(" (# routes: %d)" % len(self.routes))
         for method, path, func in self.routes:
-            if method == "ALL" or method.upper() == req.method.upper():
+            print("Checking",  method, path, func)
+            if method is HTTPMethod.ALL or method is req.method:
                 print("MATCHED method", method)
                 print("path", req.path, path, req.path == path)
                 if self.match_path(req.path, path):

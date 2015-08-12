@@ -87,13 +87,13 @@ class Parser:
         # process request line (first line in 'lines')
         if self.needs_request_line:
             try:
-                self.parse_request_line(lines.pop(0).decode())
+                req_str = lines.pop(0).decode()
             except UnicodeDecodeError:
                 raise HTTPErrorBadRequest
 
-            self.parent.set_request_line(self.method,
-                                         self.parsed_url,
-                                         self.version)
+            req_data = self.parse_request_line(req_str)
+
+            self.parent.set_request_line(*req_data)
             self.needs_request_line = False
 
         if not lines:

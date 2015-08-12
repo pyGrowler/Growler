@@ -4,21 +4,24 @@
 
 import growler
 from growler.router import Router
+from growler.http.methods import HTTPMethod
 from unittest import mock
 import pytest
 import re
 import types
 
-# @pytest.fixture
-# def req_path():
-#     return "??"
+
+GET = HTTPMethod.GET
+POST = HTTPMethod.POST
+PUT = HTTPMethod.PUT
+DELETE = HTTPMethod.DELETE
 
 
 @pytest.fixture
 def mock_req(req_path):
     return mock.MagicMock(spec=growler.http.request.HTTPRequest,
                           path=req_path,
-                          method="GET")
+                          method=GET)
 
 
 @pytest.fixture
@@ -33,9 +36,9 @@ def mock_router():
     return router
 
 @pytest.mark.parametrize("method, mount_point, endpoint, req_path", [
-    ("GET", "/", " ", "/"),
-    ("GET", "/", None, "/x"),
-    ("POST", "/", None, "/x"),
+    (GET, "/", mock.Mock(), "/"),
+    (GET, "/", None, "/x"),
+    (POST, "/", None, "/x"),
 ])
 def test_add_route(router, mock_req, method, mount_point, endpoint, req_path):
     router.add_route(method, mount_point, endpoint)
@@ -97,7 +100,7 @@ def test_sinatra_path_groupdict(path, req_path, match_dict):
 def test_subrouter_groupdict(router, mock_req, mounts, req_path, match_dict):
     subrouter = Router()
     endpoint = mock.Mock()
-    subrouter.add_route("GET", mounts[1], endpoint)
+    subrouter.add_route(GET, mounts[1], endpoint)
     router.add_router(mounts[0], subrouter)
     m = [x for x in router.match_routes(mock_req)]
     if m:
@@ -128,7 +131,7 @@ def test_routerify():
     routerify(foo)
     assert hasattr(foo, '__growler_router')
     first_route = foo.__growler_router.routes[0]
-    assert first_route[0] == 'GET'
+    assert first_route[0] == GET
     assert first_route[1] == re.compile('/')
     assert first_route[2](None, None) is foo.get_something(None, None)
 
@@ -156,7 +159,7 @@ def test_routerclass():
     sf.__growler_router()
     assert hasattr(sf, '__growler_router')
     first_route = sf.__growler_router.routes[0]
-    assert first_route[0] == 'GET'
+    assert first_route[0] == GET
     assert first_route[1] == re.compile('/')
     assert first_route[2](None, None) is sf.get_something(None, None)
     assert len(sf.__growler_router.routes) == 1

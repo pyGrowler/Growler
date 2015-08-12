@@ -8,6 +8,7 @@ The Growler class responsible for responding to HTTP requests.
 from .parser import Parser
 from .request import HTTPRequest
 from .response import HTTPResponse
+from .methods import HTTPMethod
 
 from .errors import (
     HTTPErrorBadRequest
@@ -17,10 +18,10 @@ from .errors import (
 class GrowlerHTTPResponder():
     """
     The Growler Responder for HTTP connections. This class responds to client
-    data by parsing the headers using the object created from the parser_factory
-    parameter (defaults to growler.http.parser.Parser). Upon completing headers
-    the request and response objects are created and passed to the 'app' object
-    found in protocol.
+    data by parsing the headers using the object created from the
+    parser_factory parameter (defaults to growler.http.parser.Parser). Upon
+    completing headers the request and response objects are created and passed
+    to the 'app' object found in protocol.
     """
 
     body_buffer = None
@@ -50,15 +51,15 @@ class GrowlerHTTPResponder():
             headers.
 
         :param request_factory: Factory function (or classname) of the request
-            object which gets passed to the applications middleware as the first
-            parameter. The default value is the class
+            object which gets passed to the applications middleware as the
+            first parameter. The default value is the class
             growler.http.request.HTTPRequest. This function accepts two
             arguments: the protocol handling the connection and the headers
             returned from the parser.
 
-        :param response_factory: Factory function (or classname) of the response
-            object which gets passed to the applications middleware as the
-            second parameter. The default value is the class
+        :param response_factory: Factory function (or classname) of the
+            response object which gets passed to the applications middleware as
+            the second parameter. The default value is the class
             growler.http.response.HTTPResponse. This function accepts one
             argument: the protocol handling the connection.
         """
@@ -100,13 +101,14 @@ class GrowlerHTTPResponder():
         """
         Sets the request line on the responder.
         """
+        self.method = method
         self.parsed_request = (method, url, version)
         self._proto.request = {
             'method': method,
             'url': url,
             'version': version
         }
-        if method in ('POST', 'PUT'):
+        if method in (HTTPMethod.POST, HTTPMethod.PUT):
             self.content_length = 0
 
     @property
