@@ -28,6 +28,11 @@ import sys
 import types
 import asyncio
 import logging
+
+from growler.utils.event_manager import (
+    event_emitter,
+    emits
+)
 from growler.http import (
     HTTPRequest,
     HTTPResponse,
@@ -53,6 +58,10 @@ class GrowlerStopIteration(StopIteration):
     pass
 
 
+@event_emitter(events=('startup',
+                       'shutdown',
+                       'connection',
+                       'error'))
 class Application:
     """
     A Growler application object. You can use a 'raw' app and modify it by
@@ -136,7 +145,7 @@ class Application:
 
         self.config = kw
 
-        self.loop = asyncio.get_event_loop() if loop is None else loop
+        self.loop = asyncio.get_event_loop() if (loop is None) else loop
         self.loop.set_debug(debug)
 
         self.middleware = middleware_chain_factory()
