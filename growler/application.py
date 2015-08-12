@@ -130,9 +130,6 @@ class Application(object):
 
         self.middleware = []  # [{'path': None, 'cb' : self._middleware_boot}]
 
-        # set the default router
-        self.router = Router()
-
         self.enable('x-powered-by')
         self['env'] = os.getenv('GROWLER_ENV', 'development')
 
@@ -265,7 +262,7 @@ class Application(object):
         """
         debug = "[App::add_router] Adding router {} on path {}"
         print(debug.format(router, path))
-        self.router.add_router(path, router)
+        # self.router.add_router(path, router)
 
     def middleware_chain(self, req):
         """
@@ -273,7 +270,7 @@ class Application(object):
         the provided request object 'req'
         """
         yield from self.middleware
-        yield from self.router.middleware_chain(req)
+        # yield from self.router.middleware_chain(req)
 
     def next_error_handler(self, req=None):
         """
