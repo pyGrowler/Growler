@@ -170,6 +170,7 @@ def test_empty_middleware_chain(app, req):
 
 
 def test_middleware_chain_order(app, req):
+    req.path = '/'
     middleware = [mock.Mock(), mock.Mock(), mock.Mock(), mock.Mock()]
     app.use(middleware)
 

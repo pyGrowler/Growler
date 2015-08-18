@@ -79,11 +79,16 @@ def test_on_data_no_headers(responder, mock_parser, data):
     # b'GET / HTTP/1.1\n',
     # b'GET / HTTP/1.1\n\nblahh',
 ])
-def test_on_data_post_headers(responder, mock_parser, mock_req, mock_res, data):
+def test_on_data_post_headers(responder,
+                              mock_parser,
+                              mock_req,
+                              mock_res,
+                              data,
+                              ):
 
     mock_req.body = mock.Mock(spec=asyncio.Future)
 
-    begin_middleware = responder._proto.process_middleware
+    # begin_middleware = responder._proto.process_middleware
 
     def on_consume(d):
         responder.headers = mock.MagicMock()
@@ -98,7 +103,7 @@ def test_on_data_post_headers(responder, mock_parser, mock_req, mock_res, data):
 
     assert responder.req is mock_req
     assert responder.res is mock_res
-    responder.loop.call_soon.assert_called_with(begin_middleware,
+    responder.loop.call_soon.assert_called_with(responder.process_middleware,
                                                 mock_req,
                                                 mock_res)
 

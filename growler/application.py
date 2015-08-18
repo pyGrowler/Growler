@@ -28,6 +28,7 @@ import asyncio
 import os
 import types
 import logging
+import re
 
 from .http import (
     HTTPRequest,
@@ -224,7 +225,7 @@ class Application(object):
         """
         return self.router.post(path, middleware)
 
-    def use(self, middleware, path=None):
+    def use(self, middleware, path='/'):
         """
         Use the middleware (a callable with parameters res, req, next) upon
         requests match the provided path. A None path matches every request.
@@ -241,13 +242,11 @@ class Application(object):
             router = getattr(middleware, '__growler_router')
             if isinstance(router, types.MethodType):
                 router = router()
+            middleware = router
             self.add_router(path, router)
-        elif hasattr(middleware, '__iter__'):
-            for mw in middleware:
-                self.use(mw, path)
         else:
             logging.info(debug.format(middleware, path))
-            self.middleware.append(middleware)
+            self.middleware.append((re.compile(path), middleware, None))
         return self
 
     def add_router(self, path, router):
@@ -262,14 +261,37 @@ class Application(object):
         """
         debug = "[App::add_router] Adding router {} on path {}"
         print(debug.format(router, path))
-        # self.router.add_router(path, router)
+        self.use(router, path)
 
     def middleware_chain(self, req):
         """
         A generator which yields all the middleware in the chain which match
         the provided request object 'req'
         """
-        yield from self.middleware
+        # loop over the list
+        for path, mw, err in self.middleware:
+            print(">>", req.path)
+            # check that the path matches
+            if path.match(req.path):
+                # if router - loop through to get next functions
+                if isinstance(mw, Router):
+                    # loop through the router
+                    for route in mw.match_routes(req):
+                        err = yield route
+                        if err:
+                            pass
+
+                # if iterator
+                elif hasattr(mw, '__iter__'):
+                    print("ITERATOR")
+                    for next_mw in mw:
+                        err = yield next_mw
+                        if err:
+                            pass
+
+                elif callable(mw):
+                    err = yield mw
+
         # yield from self.router.middleware_chain(req)
 
     def next_error_handler(self, req=None):
@@ -282,9 +304,8 @@ class Application(object):
         specific  handling (i.e. by path or session) is neccessary. This is
         currently unimplemented and should be ignored.
         """
-        if len(self.error_handlers) == 0:
-            yield self.default_error_handler
         yield from self.error_handlers
+        yield self.default_error_handler
 
     @classmethod
     def default_error_handler(cls, req, res, error):
