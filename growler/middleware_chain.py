@@ -4,11 +4,15 @@
 """
 """
 
+from collections import namedtuple
+
 
 class MiddlewareChain:
     """
     Class handling the storage and retreival of growler middleware functions.
     """
+
+    middleware_tuple = namedtuple('middleware', ['func', 'path'])
 
     def __init__(self):
         self.mw_list = []
@@ -25,10 +29,11 @@ class MiddlewareChain:
         """
         Add a function to the middleware chain, listening on func
         """
-        self.mw_list.append((func,))
+        self.mw_list.append(self.middleware_tuple(func=func,
+                                                  path=path,))
 
     def __contains__(self, func):
         for mw in self.mw_list:
-            if func == mw[0]:
+            if func is mw.func:
                 return True
         return False
