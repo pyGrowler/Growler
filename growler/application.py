@@ -272,7 +272,7 @@ class Application(object):
 
     @property
     def router(self):
-        return self.middleware_chain.last_router()
+        return self.middleware_chain.last_router
 
     def middleware_chain(self, req):
         """
