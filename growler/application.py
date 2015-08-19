@@ -276,13 +276,47 @@ class Application(object):
     def router(self):
         return self.middleware_chain.last_router
 
+    def handle_client_request(self, req, res):
+        """
+        Entry point for the request+response middleware chain
+        """
+        # create a middleware generator
+        mw_generator = self.middleware(req.method, req.path)
+
+        # loop through middleware
+        for mw in mw_generator:
+            # try calling the function
+            try:
+                mw(req, res)
+            # on an unhandled exception - notify the generator of the error
+            except Exception as error:
+                mw_generator.send(error)
+                self.handle_server_error(req, res, mw_generator, error)
+                break
+
+        if not res.has_ended:
+            res.send_text("500 - Server Error", 500)
+
+    def handle_server_error(self, req, res, generator, error):
+        """
+        Entry point for handling an unhandled error that occured during
+        execution of some middleware chain.
+        """
+        for mw in generator:
+            try:
+                mw(req, res, error)
+            except Exception as new_error:
+                generator.send(new_error)
+                self.handle_server_error(req, res, generator, new_error)
+                break
+
     def middleware_chain(self, req):
         """
         A generator which yields all the middleware in the chain which match
         the provided request object 'req'
         """
         # loop over the list
-        for mw in self.middleware(req.path, req.method):
+        for mw in self.middleware(req.method, req.path):
             print(">>", req.path)
             # check that the path matches
             if mw.path.match(req.path):

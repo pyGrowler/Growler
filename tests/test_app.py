@@ -195,3 +195,7 @@ def test_default_error_handler(app, req, res):
     ex = Exception("boom")
     app.default_error_handler(req, res, ex)
     assert res.send_html.called
+
+
+def test_handle_client_request(app, req, res):
+    app.handle_client_request(req, res)

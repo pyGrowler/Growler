@@ -99,38 +99,10 @@ class GrowlerHTTPResponder():
         Sends the given req/res objects to the application. To be called after
         parsing the request headers.
         """
-        # Add the middleware processing to the event loop
-        self.loop.call_soon(self.process_middleware,
-                            req,
-                            res)
-
-    def process_middleware(self, req, res):
-        """
-        Entry method for the sequential calling of server middleware. This is
-        called by the responder upon the successful parsing of HTTP headers.
-        """
-        mw_chain = self._proto.http_application.middleware_chain(req)
-        for mw in mw_chain:
-            try:
-                if asyncio.iscoroutine(mw):
-                    print("Running middleware coroutine:", mw)
-                    self.loop.run_until_complete(mw(req, res))
-                else:
-                    print("Running middleware:", mw)
-                    mw(req, res)
-                print(" -> DONE")
-            except Exception as error:
-                print(" -> EXCEPTION OCCURED", error)
-                mw_chain.send(error)
-                # exc_type, exc_value, exc_traceback = sys.exc_info()
-                # traceback.print_tb(exc_traceback, limit=5, file=sys.stdout)
-                # print(inspect.stack())
-                # for handler in self.http_application.next_error_handler(req):
-                #     handler(req, res, error)
-                # return
-
-        if not res.has_ended:
-            raise HTTPErrorInternalServerError
+        # Add the middleware processing to the event loop - this *should*
+        # change the call stack so any server errors do not link back to this
+        # function
+        self.loop.call_soon(self.app.handle_client_request, req, res)
 
     def set_request_line(self, method, url, version):
         """
@@ -206,3 +178,7 @@ class GrowlerHTTPResponder():
     @property
     def loop(self):
         return self._proto.loop
+
+    @property
+    def app(self):
+        return self._proto.http_application
