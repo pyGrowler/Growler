@@ -16,6 +16,11 @@ from test_app import (
 def chain():
     return growler.MiddlewareChain()
 
+@pytest.fixture
+def mock_chain():
+    return mock.MagicMock(spec=growler.MiddlewareChain,
+                          __class__=growler.MiddlewareChain,)
+
 
 def test_constructor(chain):
     assert isinstance(chain, growler.MiddlewareChain)
@@ -36,6 +41,14 @@ def test_add_router(chain):
 def test_contains(chain):
     func = mock.Mock()
     chain.add(0x0, '', func)
+    assert func in chain
+
+
+def test_deep_contains(chain):
+    inner_chain = growler.MiddlewareChain()
+    func = mock.Mock()
+    inner_chain.add(0x0, '', func)
+    chain.add(0x0, '', inner_chain)
     assert func in chain
 
 

@@ -84,7 +84,9 @@ class MiddlewareChain:
         self.mw_list.append(tup)
 
     def __contains__(self, func):
-        return any(mw.func is func for mw in self.mw_list)
+        return any((func is mw.func) or
+                   (isinstance(mw.func, MiddlewareChain) and func in mw.func)
+                   for mw in self.mw_list)
 
     def last_router(self):
         from router import Router
