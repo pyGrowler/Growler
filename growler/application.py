@@ -38,9 +38,6 @@ from .http import (
     HTTPResponse,
     GrowlerHTTPProtocol,
 )
-from .http.errors import (
-    HTTPError
-)
 from .router import Router
 from .middleware_chain import MiddlewareChain
 from .http.methods import HTTPMethod
@@ -192,7 +189,7 @@ class Application(object):
         """
         return self.router.post(path, middleware)
 
-    def use(self, middleware, path='/'):
+    def use(self, middleware, path='/', method_mask=HTTPMethod.ALL):
         """
         Use the middleware (a callable with parameters res, req, next) upon
         requests match the provided path. A None path matches every request.
@@ -212,12 +209,13 @@ class Application(object):
             middleware = router
             self.add_router(path, router)
         elif hasattr(middleware, '__iter__'):
-            map(lambda mw: self.use(mw, path), middleware)
+            for mw in middleware:
+                self.use(mw, path, method_mask)
         else:
             logging.info(debug.format(middleware, path))
             self.middleware.add(path=re.compile(path),
                                 func=middleware,
-                                method_mask=HTTPMethod.ALL,)
+                                method_mask=method_mask)
         return self
 
     def add_router(self, path, router):
@@ -232,7 +230,7 @@ class Application(object):
         """
         debug = "[App::add_router] Adding router {} on path {}"
         logging.info(debug.format(router, path))
-        self.use(func=router,
+        self.use(middleware=router,
                  path=path,
                  method_mask=HTTPMethod.ALL,)
 
@@ -301,7 +299,6 @@ class Application(object):
         yield from self.error_handlers
         yield self.default_error_handler
 
-
     def print_middleware_tree(self, *, file=sys.stdout, EOL='\n'):
         """
         """
@@ -322,10 +319,11 @@ class Application(object):
         def decend_into_tree(chain, level):
             lines_ = []
             for mw in chain.mw_list:
+                info = (mask_to_method_name(mw.mask),
+                        path_to_str(mw.path),
+                        mw.func)
                 prefix = "│   " * level
-                lines_ += [prefix + "├── %s %s %s" % (mask_to_method_name(mw.mask),
-                                                        path_to_str(mw.path),
-                                                        mw.func)]
+                lines_ += [prefix + "├── %s %s %s" % info]
                 if mw.is_subchain:
                     lines_ += decend_into_tree(mw.func, level+1)
             lines_[-1] = lines_[-1].replace('├', '└')
