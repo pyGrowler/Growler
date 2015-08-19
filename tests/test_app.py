@@ -128,14 +128,18 @@ def test_create_server_and_run_forever_args(app):
 #     assert len(app.middleware) is 2
 
 
+@pytest.fixture
+def mock_route_generator():
+    return lambda: mock.create_autospec(lambda rq, rs: None)
+
 
 def test_router_property(app):
     x = app.router
     assert len(app.middleware.mw_list) is 1
 
 
-def test_calling_use_list(app):
-    mw_list = (mock.Mock(), mock.Mock(), mock.Mock())
+def test_calling_use_list(app, mock_route_generator):
+    mw_list = [mock_route_generator() for i in range(3)]
     app.use(mw_list)
 
 
