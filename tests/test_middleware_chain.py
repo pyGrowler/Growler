@@ -11,6 +11,7 @@ from test_app import (
     req,
 )
 
+
 @pytest.fixture
 def chain():
     return growler.MiddlewareChain()

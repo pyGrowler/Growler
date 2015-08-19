@@ -33,14 +33,23 @@ class MiddlewareChain:
         error_handler_stack = []
         err = None
         for mw in self.mw_list:
+            if not callable(mw.func):
+                continue
+
             method_matches = method & mw.mask
-            path_matches = path.startswith(mw.path)
+            path_matches = path.startswith(mw.path)    \
+                           if isinstance(mw.path, str) \
+                           else mw.path.match(path)
 
             if not (method_matches and path_matches):
                 continue
 
             if mw.is_subchain:
-                subchain = mw.func(method, path[len(mw.path):])
+                post_match_idx = len(mw.path)                 \
+                                 if isinstance(mw.path, str)  \
+                                 else len(path_matches.string)
+                subchain = mw.func(method, path[post_match_idx:])
+
                 for sub_mw in subchain:
                     err = yield sub_mw.func
                     if err:
