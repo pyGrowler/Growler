@@ -4,12 +4,19 @@
 
 import re
 from collections import OrderedDict
-from growler.http.errors import HTTPErrorNotFound
-from growler.http.methods import HTTPMethod
+from growler.http.methods import (
+    HTTPMethod,
+    string_to_method as StringToHTTPMethod,
+)
+from growler.middleware_chain import (
+    MiddlewareChain,
+    MiddlewareTuple,
+)
 
 ROUTABLE_NAME_REGEX = re.compile("(all|get|post|delete)_.*", re.IGNORECASE)
 
-class Router():
+
+class Router(MiddlewareChain):
     """
     The router class holds all the 'routes': callbacks connected assigned to
     HTTP method and regular expression pairs. If a regex matches with the
@@ -39,15 +46,7 @@ class Router():
 
     def __init__(self):
         """Create a router"""
-        self.subrouters = []
-        self.routes = []
-
-    def __call__(self, req, res):
-        """
-        To call a router is to treat it as middleware...
-        ...this is not implemented yet.
-        """
-        raise NotImplemented
+        super().__init__()
 
     def add_router(self, path, router):
         """
@@ -55,12 +54,23 @@ class Router():
         matches the regex will pass the request/response objects to that
         router.
         """
-        self.subrouters.append((re.compile(path), router))
+        tup = MiddlewareTuple(func=router,
+                              mask=HTTPMethod.ALL,
+                              path=path,
+                              is_errorhandler=False,
+                              is_subchain=True,)
+        self.mw_list.append(tup)
+        return self
 
     def add_route(self, method, path, endpoint):
         """
         """
-        self.routes.append((method, re.compile(path), endpoint))
+        tup = MiddlewareTuple(func=endpoint,
+                              mask=method,
+                              path=re.compile(path),
+                              is_errorhandler=False,
+                              is_subchain=False,)
+        self.mw_list.append(tup)
         return self
 
     def _apply_decorator(self, method, path):
@@ -125,47 +135,23 @@ class Router():
         Yields a sequence of 'route' functions which match the path in the
         request.
         """
-        print("matching routes to path '{}'".format(req.path))
-        print(" (# routes: %d)" % len(self.routes))
-        for method, path, func in self.routes:
-            print("Checking",  method, path, func)
-            # bitwise-and method matching
-            if method & req.method:
-                print("MATCHED method", method)
-                print("path", req.path, path, req.path == path)
-                if self.match_path(req.path, path):
-                    print("MATCHED path", req.path, path, ' yielding', func)
-                    yield func
-
-        for mount_point, sub_router in self.subrouters:
-            print("trying subrouter", sub_router, 'at', mount_point)
-            print(mount_point, '??', req.path)
-            matches = mount_point.match(req.path)
-            print("matches>", matches)
-            if matches:
-                print('matches', matches)
-                req.path = req.path[matches.span()[1]:]
-                for submatch in sub_router.match_routes(req):
-                    print("==", submatch)
-                    yield submatch
-        print("End of match_routes")
-        return None
+        return self(req.method, req.path)
 
     def match_path(self, request, path):
         # return request == path
         return path.fullmatch(request)
 
-    def middleware_chain(self, req):
-        """
-        A generator that yields a series of middleware which are appropriate
-        for the request 'req', provided.
-        """
-        matches = 0
-        for route in self.match_routes(req):
-            matches += 1
-            yield route
-        if matches == 0:
-            raise HTTPErrorNotFound()
+    def iter_routes(self):
+        for mw in self.mw_list:
+            yield (mw.mask, mw.path, mw.func)
+
+    @property
+    def routes(self):
+        return tuple(route for route in self.iter_routes())
+
+    @property
+    def subrouters(self):
+        return tuple(mw for mw in self.mw_list if isinstance(mw.func, Router))
 
     @classmethod
     def sinatra_path_to_regex(cls, path):
@@ -252,7 +238,7 @@ def get_routing_attributes(obj, modify_doc=False, keys=None):
             continue
         if path == '':
             continue
-        method = matches.group(1).lower()
+        method = StringToHTTPMethod[matches.group(1).upper()]
         yield method, path, val
 
 
@@ -284,9 +270,7 @@ def routerify(obj):
     @return router: The router created.
     """
     router = Router()
-
-    for method, path, func in get_routing_attributes(obj):
-        getattr(router, method)(path=path, middleware=func)
-
+    for info in get_routing_attributes(obj):
+        router.add_route(*info)
     obj.__growler_router = router
     return router

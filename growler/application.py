@@ -26,8 +26,11 @@ a class to modify the behavior of the app. (decorators explained elsewhere)
 
 import asyncio
 import os
-import types
 import logging
+import re
+from types import (
+    MethodType,
+)
 
 from .http import (
     HTTPRequest,
@@ -35,10 +38,11 @@ from .http import (
     GrowlerHTTPProtocol,
 )
 from .http.errors import (
-    HTTPError,
-    HTTPErrorNotFound,
+    HTTPError
 )
 from .router import Router
+from .middleware_chain import MiddlewareChain
+from .http.methods import HTTPMethod
 
 
 class Application(object):
@@ -128,10 +132,7 @@ class Application(object):
         self.loop = asyncio.get_event_loop() if loop is None else loop
         self.loop.set_debug(debug)
 
-        self.middleware = []  # [{'path': None, 'cb' : self._middleware_boot}]
-
-        # set the default router
-        self.router = Router()
+        self.middleware = MiddlewareChain()
 
         self.enable('x-powered-by')
         self['env'] = os.getenv('GROWLER_ENV', 'development')
@@ -163,7 +164,7 @@ class Application(object):
     # router.
     # These could be assigned on construction using the form:
     #
-    #    self.all = self.router.all
+    #    2self.all = self.router.all
     #
     # , but that would not allow the user to switch the root router (easily)
     #
@@ -190,7 +191,7 @@ class Application(object):
         """
         return self.router.post(path, middleware)
 
-    def use(self, middleware, path=None):
+    def use(self, middleware, path='/'):
         """
         Use the middleware (a callable with parameters res, req, next) upon
         requests match the provided path. A None path matches every request.
@@ -205,15 +206,17 @@ class Application(object):
         debug = "[App::use] Adding middleware <{}> listening on path {}"
         if hasattr(middleware, '__growler_router'):
             router = getattr(middleware, '__growler_router')
-            if isinstance(router, types.MethodType):
+            if isinstance(router, (MethodType,)):
                 router = router()
+            middleware = router
             self.add_router(path, router)
         elif hasattr(middleware, '__iter__'):
-            for mw in middleware:
-                self.use(mw, path)
+            map(lambda mw: self.use(mw, path), middleware)
         else:
             logging.info(debug.format(middleware, path))
-            self.middleware.append(middleware)
+            self.middleware.add(path=re.compile(path),
+                                func=middleware,
+                                method_mask=HTTPMethod.ALL,)
         return self
 
     def add_router(self, path, router):
@@ -228,15 +231,65 @@ class Application(object):
         """
         debug = "[App::add_router] Adding router {} on path {}"
         print(debug.format(router, path))
-        self.router.add_router(path, router)
+        self.use(func=router,
+                 path=path,
+                 method_mask=HTTPMethod.ALL,)
+
+    @property
+    def router(self):
+        return self.middleware_chain.last_router
+
+    def handle_client_request(self, req, res):
+        """
+        Entry point for the request+response middleware chain
+        """
+        # create a middleware generator
+        mw_generator = self.middleware(req.method, req.path)
+
+        # loop through middleware
+        for mw in mw_generator:
+            # try calling the function
+            try:
+                mw(req, res)
+            # on an unhandled exception - notify the generator of the error
+            except Exception as error:
+                mw_generator.send(error)
+                self.handle_server_error(req, res, mw_generator, error)
+                break
+
+        if not res.has_ended:
+            res.send_text("500 - Server Error", 500)
+
+    def handle_server_error(self, req, res, generator, error):
+        """
+        Entry point for handling an unhandled error that occured during
+        execution of some middleware chain.
+        """
+        for mw in generator:
+            try:
+                mw(req, res, error)
+            except Exception as new_error:
+                generator.send(new_error)
+                self.handle_server_error(req, res, generator, new_error)
+                break
 
     def middleware_chain(self, req):
         """
         A generator which yields all the middleware in the chain which match
         the provided request object 'req'
         """
-        yield from self.middleware
-        yield from self.router.middleware_chain(req)
+        # loop over the list
+        for mw in self.middleware(req.method, req.path):
+            print(">>", req.path)
+            # check that the path matches
+            if mw.path.match(req.path):
+                # if router - loop through to get next functions
+                if isinstance(mw.func, Router):
+                    # loop through the router
+                    for route in mw.func.match_routes(req):
+                        err = yield route
+                        if err:
+                            pass
 
     def next_error_handler(self, req=None):
         """
@@ -248,9 +301,8 @@ class Application(object):
         specific  handling (i.e. by path or session) is neccessary. This is
         currently unimplemented and should be ignored.
         """
-        if len(self.error_handlers) == 0:
-            yield self.default_error_handler
         yield from self.error_handlers
+        yield self.default_error_handler
 
     @classmethod
     def default_error_handler(cls, req, res, error):

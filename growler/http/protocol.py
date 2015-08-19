@@ -9,13 +9,8 @@ from growler.protocol import GrowlerProtocol
 from growler.http.responder import GrowlerHTTPResponder
 from growler.http.response import HTTPResponse
 from growler.http.errors import (
-    HTTPError,
-    HTTPErrorInternalServerError
+    HTTPError
 )
-
-import asyncio
-import traceback
-import sys
 
 
 # Or should this be called HTTPGrowlerProtocol?
@@ -52,32 +47,6 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
 
         super().__init__(loop=app.loop, responder_factory=responder_factory)
         self.http_application = app
-
-    def process_middleware(self, req, res):
-        """
-        Entry method for the sequential calling of server middleware. This is
-        called by the responder upon the successful parsing of HTTP headers.
-        """
-        for mw in self.http_application.middleware_chain(req):
-            try:
-                if asyncio.iscoroutine(mw):
-                    print("Running middleware coroutine:", mw)
-                    self.loop.run_until_complete(mw(req, res))
-                else:
-                    print("Running middleware:", mw)
-                    mw(req, res)
-                print(" -> DONE")
-            except Exception as error:
-                print(" -> EXCEPTION OCCURED", error)
-                exc_type, exc_value, exc_traceback = sys.exc_info()
-                traceback.print_tb(exc_traceback, limit=5, file=sys.stdout)
-                # print(inspect.stack())
-                for handler in self.http_application.next_error_handler(req):
-                    handler(req, res, error)
-                return
-
-        if not res.has_ended:
-            raise HTTPErrorInternalServerError
 
     def handle_error(self, error):
         """

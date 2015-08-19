@@ -3,8 +3,10 @@
 #
 
 import growler
-from growler.router import Router
-from growler.http.methods import HTTPMethod
+from growler.router import (
+    Router,
+    HTTPMethod,
+)
 from unittest import mock
 import pytest
 import re
@@ -18,10 +20,20 @@ DELETE = HTTPMethod.DELETE
 
 
 @pytest.fixture
-def mock_req(req_path):
+def req_path():
+    return "/"
+
+
+@pytest.fixture
+def req_method():
+    return GET
+
+
+@pytest.fixture
+def mock_req(req_path, req_method):
     return mock.MagicMock(spec=growler.http.request.HTTPRequest,
                           path=req_path,
-                          method=GET)
+                          method=req_method)
 
 
 @pytest.fixture
@@ -32,22 +44,28 @@ def router():
 
 @pytest.fixture
 def mock_router():
-    router = mock.MagicMock(spec=growler.router.Router)
-    return router
+    return mock.Mock(spec=growler.router.Router,
+                     __class__=growler.router.Router,
+                     return_value=[])
 
-@pytest.mark.parametrize("method, mount_point, endpoint, req_path", [
-    (GET, "/", mock.Mock(), "/"),
-    (GET, "/", None, "/x"),
-    (POST, "/", None, "/x"),
+
+@pytest.mark.parametrize("test_route, req_path, req_method, should_call", [
+    ((GET, "/", mock.Mock()), "/", GET, True),
+    ((GET, "/", mock.Mock()), "/x", GET, True),
+    ((GET, "/x", mock.Mock()), "/", GET, False),
+    ((POST, "/", mock.Mock()), "/x", GET, False),
+    ((POST, "/", mock.Mock()), "/x", POST, True),
 ])
-def test_add_route(router, mock_req, method, mount_point, endpoint, req_path):
-    router.add_route(method, mount_point, endpoint)
+def test_add_route(router, mock_req, test_route, should_call):
+    func = test_route[2]
+    router.add_route(*test_route)
     m = [x for x in router.match_routes(mock_req)]
-    if endpoint is None:
+    if not should_call:
         assert len(m) is 0
     else:
         assert len(m) is 1
-        assert m[0] is endpoint
+        assert m[0] is func
+
 
 @pytest.mark.parametrize("mount, req_path, matches", [
     ("/", "/aa", True),
@@ -56,17 +74,16 @@ def test_add_route(router, mock_req, method, mount_point, endpoint, req_path):
     ("/x", "/aa", False),
     ("/y/", "/x/y", False),
 ])
-def test_add_router(router, mock_router, mock_req, mount, req_path, matches):
-    mock_router.match_routes.return_value = []
+def test_add_router(router, mock_router, mock_req, mount, matches):
     subrouter_count = len(router.subrouters)
     router.add_router(mount, mock_router)
     assert len(router.subrouters) == subrouter_count + 1
     for route in router.match_routes(mock_req):
         pass
     if matches:
-        mock_router.match_routes.assert_called_with(mock_req)
+        assert mock_router.called
     else:
-        assert mock_router.match_routes.called is False
+        assert not mock_router.called
 
 
 @pytest.mark.parametrize("path, req_path, matches", [

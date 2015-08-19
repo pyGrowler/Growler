@@ -5,13 +5,16 @@
 The Growler class responsible for responding to HTTP requests.
 """
 
+import asyncio
+
 from .parser import Parser
 from .request import HTTPRequest
 from .response import HTTPResponse
 from .methods import HTTPMethod
 
 from .errors import (
-    HTTPErrorBadRequest
+    HTTPErrorBadRequest,
+    HTTPErrorInternalServerError
 )
 
 
@@ -82,12 +85,7 @@ class GrowlerHTTPResponder():
             if data is not None:
                 # builds request and response out of self.headers and protocol
                 self.req, self.res = self.build_req_and_res()
-                # Add the middleware processing to the event loop
-                self.loop.call_soon(self._proto.process_middleware,
-                                    self.req,
-                                    self.res,
-                                    )
-                # self._proto.middleware_chain(self.req, self.res)
+                self.begin_application(self.req, self.res)
 
         # if truthy, 'data' now holds body data
         if data:
@@ -96,6 +94,16 @@ class GrowlerHTTPResponder():
             # if we have reached end of content - put in the request's body
             if self.content_length == self.headers['CONTENT-LENGTH']:
                 self.req.body.set_result(b''.join(self.body_buffer))
+
+    def begin_application(self, req, res):
+        """
+        Sends the given req/res objects to the application. To be called after
+        parsing the request headers.
+        """
+        # Add the middleware processing to the event loop - this *should*
+        # change the call stack so any server errors do not link back to this
+        # function
+        self.loop.call_soon(self.app.handle_client_request, req, res)
 
     def set_request_line(self, method, url, version):
         """
@@ -172,3 +180,7 @@ class GrowlerHTTPResponder():
     @property
     def loop(self):
         return self._proto.loop
+
+    @property
+    def app(self):
+        return self._proto.http_application

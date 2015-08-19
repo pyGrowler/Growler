@@ -41,11 +41,12 @@ declare_namespace('growler')
 import growler.application
 import growler.router
 import growler.protocol
-
+import growler.middleware_chain
 
 App = growler.application.Application
 Router = growler.router.Router
 GrowlerProtocol = growler.protocol.GrowlerProtocol
+MiddlewareChain = growler.middleware_chain.MiddlewareChain
 
 __all__ = [
     "App",
