@@ -85,5 +85,5 @@ class MiddlewareChain:
 
     def __contains__(self, func):
         return any((func is mw.func) or
-                   (isinstance(mw.func, MiddlewareChain) and func in mw.func)
+                   (mw.is_subchain and func in mw.func)
                    for mw in self.mw_list)
