@@ -38,12 +38,12 @@ from .http import (
     GrowlerHTTPProtocol,
 )
 from .http.errors import (
-    HTTPError,
-    HTTPErrorNotFound,
+    HTTPError
 )
 from .router import Router
 from .middleware_chain import MiddlewareChain
 from .http.methods import HTTPMethod
+
 
 class Application(object):
     """
@@ -247,6 +247,8 @@ class Application(object):
                 router = router()
             middleware = router
             self.add_router(path, router)
+        elif hasattr(middleware, '__iter__'):
+            map(lambda mw: self.use(mw, path), middleware)
         else:
             logging.info(debug.format(middleware, path))
             self.middleware.add(path=re.compile(path),
