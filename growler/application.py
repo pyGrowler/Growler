@@ -26,6 +26,7 @@ a class to modify the behavior of the app. (decorators explained elsewhere)
 
 import asyncio
 import os
+import sys
 import logging
 import re
 from types import (
@@ -299,6 +300,40 @@ class Application(object):
         """
         yield from self.error_handlers
         yield self.default_error_handler
+
+
+    def print_middleware_tree(self, *, file=sys.stdout, EOL='\n'):
+        """
+        """
+
+        def mask_to_method_name(mask):
+            if mask == HTTPMethod.ALL:
+                return 'ALL'
+            names = [name for name, key in (('GET', HTTPMethod.GET),
+                                            ('POST', HTTPMethod.POST))
+                     if (key & mask)]
+            return '+'.join(names)
+
+        def path_to_str(path):
+            if isinstance(path, str):
+                return path
+            return path.pattern
+
+        def decend_into_tree(chain, level):
+            lines_ = []
+            for mw in chain.mw_list:
+                prefix = "│   " * level
+                lines_ += [prefix + "├── %s %s %s" % (mask_to_method_name(mw.mask),
+                                                        path_to_str(mw.path),
+                                                        mw.func)]
+                if mw.is_subchain:
+                    lines_ += decend_into_tree(mw.func, level+1)
+            lines_[-1] = lines_[-1].replace('├', '└')
+            return lines_
+
+        lines = [self.name]
+        lines += decend_into_tree(self.middleware, 0)
+        print(EOL.join(lines), file=file)
 
     @classmethod
     def default_error_handler(cls, req, res, error):

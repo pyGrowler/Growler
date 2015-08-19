@@ -28,6 +28,9 @@ def hello_world(req, res):
 def error_handler(req, res, err):
     res.send_text("404 : Hello World!!")
 
+
+app.print_middleware_tree()
+
 loop = asyncio.get_event_loop()
 
 loop.run_until_complete(loop.create_server(app._protocol_factory(app),
