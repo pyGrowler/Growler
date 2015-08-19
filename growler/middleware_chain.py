@@ -7,18 +7,18 @@
 from inspect import signature
 from collections import namedtuple
 
+MiddlewareTuple = namedtuple('MiddlewareTuple', ['func',
+                                                 'path',
+                                                 'mask',
+                                                 'is_errorhandler',
+                                                 'is_subchain',
+                                                 ])
+
 
 class MiddlewareChain:
     """
     Class handling the storage and retreival of growler middleware functions.
     """
-
-    MiddlewareTuple = namedtuple('MiddlewareTuple', ['func',
-                                                     'path',
-                                                     'mask',
-                                                     'is_errorhandler',
-                                                     'is_subchain',
-                                                     ])
 
     def __init__(self):
         self.mw_list = []
@@ -67,11 +67,11 @@ class MiddlewareChain:
         """
         is_err = len(signature(func).parameters) == 3
         is_subchain = isinstance(func, MiddlewareChain)
-        tup = self.MiddlewareTuple(func=func,
-                                   mask=method_mask,
-                                   path=path,
-                                   is_errorhandler=is_err,
-                                   is_subchain=is_subchain,)
+        tup = MiddlewareTuple(func=func,
+                              mask=method_mask,
+                              path=path,
+                              is_errorhandler=is_err,
+                              is_subchain=is_subchain,)
         self.mw_list.append(tup)
 
     def __contains__(self, func):
