@@ -17,7 +17,6 @@ from mock_classes import (
 )
 
 from test_http_protocol import (
-    mock_req as req,
     mock_res as res,
 )
 
@@ -46,6 +45,19 @@ def MockProtocol(proto):
 def proto():
     proto = mock.create_autospec(growler.http.GrowlerHTTPProtocol)
     return proto
+
+
+@pytest.fixture
+def req_uri():
+    return '/'
+
+
+@pytest.fixture
+def req(req_uri):
+    return mock.Mock(spec=growler.http.HTTPRequest,
+                     path=req_uri,
+                     method=0x01)
+
 
 @pytest.fixture
 def app(app_name, router, mock_event_loop, MockProtocol):
@@ -196,6 +208,8 @@ def test_default_error_handler(app, req, res):
     app.default_error_handler(req, res, ex)
     assert res.send_html.called
 
-
-def test_handle_client_request(app, req, res):
+@pytest.mark.parametrize('req_uri, middlewares, called', [
+    ('/', [mock.Mock(path='/')], [True]),
+])
+def test_handle_client_request_get(app, req, res, middlewares, called):
     app.handle_client_request(req, res)

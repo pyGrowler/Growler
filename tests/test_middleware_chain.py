@@ -6,6 +6,10 @@ import growler
 import pytest
 from unittest import mock
 
+from test_app import (
+    req_uri,
+    req,
+)
 
 @pytest.fixture
 def chain():
@@ -22,6 +26,12 @@ def test_add(chain):
     assert func in chain
 
 
+def test_add_router(chain):
+    router = mock.Mock(spec=growler.router.Router)
+    chain.add(0x1, '/', router)
+    assert router in chain
+
+
 def test_contains(chain):
     func = mock.Mock()
     chain.add(0x0, '', func)
@@ -35,7 +45,7 @@ def test_matches_routes(chain, mask, path, reqtuple):
     func = mock.Mock()
     chain.add(mask, path, func)
     for mw in chain(*reqtuple):
-        assert mw.func is func
+        assert mw is func
 
 
 @pytest.mark.parametrize('mask, path, reqtuple', [
@@ -46,3 +56,25 @@ def test_not_matches_routes(chain, mask, path, reqtuple):
     func = mock.Mock()
     chain.add(mask, path, func)
     assert len([mw for mw in chain(*reqtuple)]) is 0
+
+
+@pytest.mark.parametrize('req_uri, middlewares, called', [
+    ('/', [mock.Mock(path='/')], [True]),
+    ('/a', [mock.Mock(path='/'),
+            mock.Mock(path='/a'),
+            mock.Mock(path='/b')], [True, True, False]),
+    ('/x', [mock.Mock(path='/y'),
+            mock.Mock(path='/x/a'),
+            mock.Mock(path='/x/a/b/c')], [False, False, False]),
+])
+def test_handle_client_request_get(chain, req_uri, middlewares, called):
+    [chain.add(0x1, mw.path, mw) for mw in middlewares]
+    # map(lambda mw: chain.add(0x1, mw.path, mw), middlewares)
+    for x in chain(0x1, req_uri):
+        x()
+
+    for mw, should_call in zip(middlewares, called):
+        if should_call:
+            assert mw.called
+        else:
+            assert mw.not_called

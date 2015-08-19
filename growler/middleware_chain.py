@@ -4,8 +4,6 @@
 """
 """
 
-from .router import Router
-
 from inspect import signature
 from collections import namedtuple
 
@@ -32,8 +30,8 @@ class MiddlewareChain:
         :type path: str
         """
         for mw in self.mw_list:
-            if (method & mw.mask) and mw.path == path:
-                yield mw
+            if (method & mw.mask) and (path.startswith(mw.path)):
+                yield mw.func
 
     def add(self, method_mask, path, func):
         """
@@ -50,6 +48,7 @@ class MiddlewareChain:
         return any(mw.func is func for mw in self.mw_list)
 
     def last_router(self):
+        from router import Router
         if not isinstance(self.mw_list[-1].func, Router):
             self.add(0xFFF, '/', Router())
         return self.mw_list[-1].func
