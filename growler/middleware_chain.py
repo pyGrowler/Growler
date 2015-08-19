@@ -87,9 +87,3 @@ class MiddlewareChain:
         return any((func is mw.func) or
                    (isinstance(mw.func, MiddlewareChain) and func in mw.func)
                    for mw in self.mw_list)
-
-    def last_router(self):
-        from router import Router
-        if not isinstance(self.mw_list[-1].func, Router):
-            self.add(0xFFF, '/', Router())
-        return self.mw_list[-1].func

@@ -230,14 +230,28 @@ class Application(object):
         :type router: growler.Router
         """
         debug = "[App::add_router] Adding router {} on path {}"
-        print(debug.format(router, path))
+        logging.info(debug.format(router, path))
         self.use(func=router,
                  path=path,
                  method_mask=HTTPMethod.ALL,)
 
     @property
     def router(self):
-        return self.middleware_chain.last_router
+        """
+        Property returning the router at the top of the middleware chain's
+        stack (the last item in the list). If the list is empty OR the item is
+        not an instance of growler.Router, one is created and added to the
+        middleware chain, matching all requests.
+        """
+        if len(self.middleware.mw_list) is 0 or                        \
+           not isinstance(self.middleware.mw_list[-1].func, Router) or \
+           self.middleware.mw_list[-1].mask != HTTPMethod.ALL or       \
+           self.middleware.mw_list[-1].path != '/':
+
+            self.middleware.add(HTTPMethod.ALL,
+                                '/',
+                                Router())
+        return self.middleware.mw_list[-1].func
 
     def handle_client_request(self, req, res):
         """
@@ -272,24 +286,6 @@ class Application(object):
                 generator.send(new_error)
                 self.handle_server_error(req, res, generator, new_error)
                 break
-
-    def middleware_chain(self, req):
-        """
-        A generator which yields all the middleware in the chain which match
-        the provided request object 'req'
-        """
-        # loop over the list
-        for mw in self.middleware(req.method, req.path):
-            print(">>", req.path)
-            # check that the path matches
-            if mw.path.match(req.path):
-                # if router - loop through to get next functions
-                if isinstance(mw.func, Router):
-                    # loop through the router
-                    for route in mw.func.match_routes(req):
-                        err = yield route
-                        if err:
-                            pass
 
     def next_error_handler(self, req=None):
         """

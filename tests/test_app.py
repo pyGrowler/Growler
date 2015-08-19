@@ -128,6 +128,12 @@ def test_create_server_and_run_forever_args(app):
 #     assert len(app.middleware) is 2
 
 
+
+def test_router_property(app):
+    x = app.router
+    assert len(app.middleware.mw_list) is 1
+
+
 def test_calling_use_list(app):
     mw_list = (mock.Mock(), mock.Mock(), mock.Mock())
     app.use(mw_list)
@@ -174,28 +180,6 @@ def test_require(app):
     me = asyncio.Future()
     app.require(me)
     assert me in app._wait_for
-
-
-def test_empty_middleware_chain(app, req):
-    default_middleware = [mw for mw in app.middleware_chain(req)]
-    assert len(default_middleware) is 0
-
-
-def test_middleware_chain_order(app, req):
-    req.path = '/'
-    middleware = [mock.Mock(), mock.Mock(), mock.Mock(), mock.Mock()]
-    app.use(middleware)
-
-    for mw, next_mw in zip(middleware, app.middleware_chain(req)):
-        assert mw is next_mw
-
-
-def test_middleware_chain_router_order(app, router, req):
-    middleware = [mock.Mock(), mock.Mock(), mock.Mock(), mock.Mock()]
-    # for app.get(None, app.use(middleware)
-
-    for mw, next_mw in zip(middleware, app.middleware_chain(req)):
-        assert mw is next_mw
 
 
 def test_next_error_handler(app):
