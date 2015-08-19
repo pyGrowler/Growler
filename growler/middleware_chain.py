@@ -15,19 +15,25 @@ class MiddlewareChain:
     Class handling the storage and retreival of growler middleware functions.
     """
 
-    MiddlewareTuple = namedtuple('MiddlewareTuple', ['func', 'path', 'err'])
+    MiddlewareTuple = namedtuple('MiddlewareTuple', ['func',
+                                                     'path',
+                                                     'err',
+                                                     'mask',
+                                                     ])
 
     def __init__(self):
         self.mw_list = []
 
-    def __call__(self, path, method):
+    def __call__(self, method, path):
         """
         Generator yielding the middleware which matches the provided path.
 
         :param path: url path of the request.
         :type path: str
         """
-        yield from self.mw_list
+        for mw in self.mw_list:
+            if (method & mw.mask) and mw.path == path:
+                yield mw
 
     def add(self, method_mask, path, func):
         """
@@ -35,6 +41,7 @@ class MiddlewareChain:
         """
         is_err = len(signature(func).parameters) == 3
         tup = self.MiddlewareTuple(func=func,
+                                   mask=method_mask,
                                    path=path,
                                    err=is_err,)
         self.mw_list.append(tup)
