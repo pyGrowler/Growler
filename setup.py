@@ -14,7 +14,6 @@ metafile = path.join(".", "growler", "metadata.py")
 metadata = SourceFileLoader("metadata", metafile).load_module()
 
 REQUIRES = [
-    'termcolor',
     'mako'
 ]
 
