@@ -28,7 +28,7 @@ from importlib.machinery import SourceFileLoader
 from os import path
 from pkg_resources import declare_namespace
 
-from .metadata import (
+from .__meta__ import (
     version as __version__,
     author as __author__,
     date as __date__,

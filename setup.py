@@ -10,7 +10,7 @@ from glob import glob
 from importlib.machinery import SourceFileLoader
 from setuptools import setup, find_packages
 
-metafile = path.join(".", "growler", "metadata.py")
+metafile = path.join(".", "growler", "__meta__.py")
 metadata = SourceFileLoader("metadata", metafile).load_module()
 
 REQUIRES = [
