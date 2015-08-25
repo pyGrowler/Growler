@@ -84,6 +84,7 @@ def app():
 def request_uri():
     return '/'
 
+
 @pytest.fixture
 def mock_protocol(request_uri):
     from urllib.parse import (unquote, urlparse, parse_qs)

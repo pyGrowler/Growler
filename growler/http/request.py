@@ -15,7 +15,6 @@ class HTTPRequest(object):
     _protocol = None
     headers = None
     body = None
-    protocol = 'http'
 
     def __init__(self, protocol, headers):
         """
@@ -23,15 +22,15 @@ class HTTPRequest(object):
         incoming http connection. It gets passed along with the HTTPResponse
         object to all the middleware of the app.
 
-        @param protocol growler.HTTPProtocol: A reference to the protocol which
-            was responsible for handling the client's request and creating this
-            HTTPRequest object.
+        :param protocol growler.HTTPProtocol: A reference to the protocol which
+            was responsible for handling th e client's request and creating
+            this HTTPRequest object.
 
-        @param headers dict: The headers gathered from the incoming stream
+        :param headers dict: The headers gathered from the incoming stream
         """
         self._protocol = protocol
         self.headers = headers
-        self.protocol = 'https' if protocol.cipher else 'http'
+
         if 'CONTENT-LENGTH' in headers:
             self.body = asyncio.Future()
 
@@ -40,12 +39,12 @@ class HTTPRequest(object):
         Return value of HTTP parameter 'name' if found, else return provided
         'default'
 
-        @param name: Key to search the query dict for
-        @type name: str
+        :param name: Key to search the query dict for
+        :type name: str
 
-        @param default: Returned if 'name' is not found in the query dict
+        :param default: Returned if 'name' is not found in the query dict
         """
-        return self.query[name] # .get(name, default)
+        return self.query.get(name, default)
 
     def get_body(self, timeout=0):
         """
@@ -101,3 +100,10 @@ class HTTPRequest(object):
     @property
     def method(self):
         return self._protocol.client_method
+
+    @property
+    def protocol(self):
+        """
+        The name of the protocol being used
+        """
+        return 'https' if (self.protocol.cipher) else 'http'

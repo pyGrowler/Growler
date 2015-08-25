@@ -51,10 +51,10 @@ class GrowlerProtocol(asyncio.Protocol):
         """
         Construct a GrowlerProtocol object.
 
-        @param loop asyncio.BaseEventLoop: The event loop managing all
+        :param loop asyncio.BaseEventLoop: The event loop managing all
             asynchronous activity of this protocol.
 
-        @param responder_factory runnable: A callable which returns the first
+        :param responder_factory runnable: A callable which returns the first
             responder for this protocol. This could simply be a constructor for
             the type (i.e. the type's name). This function will only be passed
             the protocol object. The event loop should be aquired from the
@@ -74,7 +74,7 @@ class GrowlerProtocol(asyncio.Protocol):
         connection will always call
         on_data to the last element of this list.
 
-        @param transport asyncio.Transport: The Transport handling the socket
+        :param transport asyncio.Transport: The Transport handling the socket
             communication
         """
         self.transport = transport
@@ -96,7 +96,7 @@ class GrowlerProtocol(asyncio.Protocol):
         """
         asyncio.Protocol member - called upon when a socket closes.
 
-        @param exc Exception: Error if unexpected closing. None if clean close
+        :param exc Exception: Error if unexpected closing. None if clean close
         """
         if exc:
             print("[connection_lost]", exc, file=sys.stderr)
@@ -106,7 +106,7 @@ class GrowlerProtocol(asyncio.Protocol):
         """
         asyncio.Protocol member - called upon when there is data to be read
 
-        @param transport bytes: bytes in the latest data transmission
+        :param transport bytes: bytes in the latest data transmission
         """
         try:
             self.responders[-1].on_data(data)
@@ -127,7 +127,7 @@ class GrowlerProtocol(asyncio.Protocol):
         during a responder's on_data() function. There is no default
         functionality and the subclasses must overload this.
 
-        @param error: Exception thrown in code
+        :param error: Exception thrown in code
         """
         raise NotImplementedError()
 

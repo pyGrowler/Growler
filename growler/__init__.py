@@ -28,7 +28,7 @@ from importlib.machinery import SourceFileLoader
 from os import path
 from pkg_resources import declare_namespace
 
-from .metadata import (
+from .__meta__ import (
     version as __version__,
     author as __author__,
     date as __date__,
@@ -41,13 +41,13 @@ declare_namespace('growler')
 import growler.application
 import growler.router
 import growler.protocol
-
-from growler.http.server import create_server as create_http_server
-
+import growler.middleware_chain
+import growler.middleware
 
 App = growler.application.Application
 Router = growler.router.Router
 GrowlerProtocol = growler.protocol.GrowlerProtocol
+MiddlewareChain = growler.middleware_chain.MiddlewareChain
 
 __all__ = [
     "App",

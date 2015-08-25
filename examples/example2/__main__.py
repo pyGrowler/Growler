@@ -13,8 +13,9 @@ app = growler.App("Example2")
 @app.get("/")
 @asyncio.coroutine
 def handle_request(req, res):
-    print("connection made by:", req)
-    yield from asyncio.sleep(2)
-    res.send_text('')
+    sleep_for = 2
+    print("Sleeping for %d seconds" % (sleep_for))
+    yield from asyncio.sleep(sleep_for)
+    res.send_text('It Works!')
 
 app.create_server_and_run_forever(host='127.0.0.1', port=8000)

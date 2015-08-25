@@ -4,8 +4,7 @@
 # flake8: noqa
 #
 
-from termcolor import colored
-
+import logging
 import asyncio
 
 
@@ -21,24 +20,27 @@ class Logger():
     CYAN    = '/033[36m'
     WHITE   = '/033[37m'
 
+    @classmethod
+    def c(cls, color, msg):
+        return "%s%s%s" % (color, msg, cls.DEFAULT)
+
     def __init__(self):
         pass
 
     def info(self, message):
-        return colored("  info  ", 'cyan') + message
+        logging.info(c(self.CYAN, "  info  ", message))
 
     def warn(self, message):
-        return colored("  warning  ", 'yellow') + message
+        logging.warn(c(self.YELLOW, "  WARNING  ", message))
 
     def error(self, message):
-        return colored("  error  ", 'red') + message
+        logging.error("  ERROR  ", message)
 
     def critical_error(self, message):
-        return colored("  ERROR  ", 'red') + message
+        logging.error("  ERROR  ", message)
 
-    @asyncio.coroutine
     def __call__(self, req, res):
-        print(self.info("Connection from {}".format(req.ip)))
+        logging.info("Connection from {}".format(req.ip))
 
     def mw(self, req, res):
         print("[Logger] % %" % (req, res))

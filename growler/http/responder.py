@@ -5,22 +5,26 @@
 The Growler class responsible for responding to HTTP requests.
 """
 
+import asyncio
+
 from .parser import Parser
 from .request import HTTPRequest
 from .response import HTTPResponse
+from .methods import HTTPMethod
 
 from .errors import (
-    HTTPErrorBadRequest
+    HTTPErrorBadRequest,
+    HTTPErrorInternalServerError
 )
 
 
 class GrowlerHTTPResponder():
     """
     The Growler Responder for HTTP connections. This class responds to client
-    data by parsing the headers using the object created from the parser_factory
-    parameter (defaults to growler.http.parser.Parser). Upon completing headers
-    the request and response objects are created and passed to the 'app' object
-    found in protocol.
+    data by parsing the headers using the object created from the
+    parser_factory parameter (defaults to growler.http.parser.Parser). Upon
+    completing headers the request and response objects are created and passed
+    to the 'app' object found in protocol.
     """
 
     body_buffer = None
@@ -38,9 +42,9 @@ class GrowlerHTTPResponder():
 
         This should only be called from a growler protocol instance.
 
-        @param protocol: The GrowlerHTTPProtocol which created the responder.
+        :param protocol: The GrowlerHTTPProtocol which created the responder.
 
-        @param parser_factor: Factory function (or classname) of the object
+        :param parser_factor: Factory function (or classname) of the object
             responsible for parsing the client's request line and headers.
             Default value is the growler.http.parser.Parser class. The object
             must have a 'consume' method which accepts the incoming data. If
@@ -49,16 +53,16 @@ class GrowlerHTTPResponder():
             have finished, the consume function returns any body data past the
             headers.
 
-        @param request_factory: Factory function (or classname) of the request
-            object which gets passed to the applications middleware as the first
-            parameter. The default value is the class
+        :param request_factory: Factory function (or classname) of the request
+            object which gets passed to the applications middleware as the
+            first parameter. The default value is the class
             growler.http.request.HTTPRequest. This function accepts two
             arguments: the protocol handling the connection and the headers
             returned from the parser.
 
-        @param response_factory: Factory function (or classname) of the response
-            object which gets passed to the applications middleware as the
-            second parameter. The default value is the class
+        :param response_factory: Factory function (or classname) of the
+            response object which gets passed to the applications middleware as
+            the second parameter. The default value is the class
             growler.http.response.HTTPResponse. This function accepts one
             argument: the protocol handling the connection.
         """
@@ -81,12 +85,7 @@ class GrowlerHTTPResponder():
             if data is not None:
                 # builds request and response out of self.headers and protocol
                 self.req, self.res = self.build_req_and_res()
-                # Add the middleware processing to the event loop
-                self.loop.call_soon(self._proto.process_middleware,
-                                    self.req,
-                                    self.res,
-                                    )
-                # self._proto.middleware_chain(self.req, self.res)
+                self.begin_application(self.req, self.res)
 
         # if truthy, 'data' now holds body data
         if data:
@@ -96,17 +95,28 @@ class GrowlerHTTPResponder():
             if self.content_length == self.headers['CONTENT-LENGTH']:
                 self.req.body.set_result(b''.join(self.body_buffer))
 
+    def begin_application(self, req, res):
+        """
+        Sends the given req/res objects to the application. To be called after
+        parsing the request headers.
+        """
+        # Add the middleware processing to the event loop - this *should*
+        # change the call stack so any server errors do not link back to this
+        # function
+        self.loop.create_task(self.app.handle_client_request(req, res))
+
     def set_request_line(self, method, url, version):
         """
         Sets the request line on the responder.
         """
+        self.method = method
         self.parsed_request = (method, url, version)
         self._proto.request = {
             'method': method,
             'url': url,
             'version': version
         }
-        if method in ('POST', 'PUT'):
+        if method in (HTTPMethod.POST, HTTPMethod.PUT):
             self.content_length = 0
 
     @property
@@ -170,3 +180,7 @@ class GrowlerHTTPResponder():
     @property
     def loop(self):
         return self._proto.loop
+
+    @property
+    def app(self):
+        return self._proto.http_application

@@ -6,6 +6,11 @@ import growler
 from growler.http.request import HTTPRequest
 import pytest
 from unittest import mock
+from urllib.parse import (
+    unquote,
+    urlparse,
+    parse_qs
+)
 
 from mock_classes import (
     request_uri,
@@ -56,7 +61,17 @@ def notest_missing_host_request(mock_protocol, headers):
 
 @pytest.mark.parametrize('request_uri, headers, param', [
     ('/', {'x': 'Y'}, ''),
-    ('/', {'x':'x'}, ''),
+    ('/', {'x': 'x'}, ''),
 ])
 def test_request_headers(get_req, request_uri, headers, param):
     assert get_req.headers['x'] == headers['x']
+
+
+@pytest.mark.parametrize('request_uri, headers, query', [
+    ('/', {}, {}),
+    ('/?x=0;p', {}, {'x': ['0']}),
+])
+def test_query_params(get_req, mock_protocol, request_uri, query):
+    mock_protocol.client_query = parse_qs(urlparse(request_uri).query)
+    for k, v in query.items():
+        assert get_req.param(k) == v

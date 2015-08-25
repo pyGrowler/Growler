@@ -4,6 +4,7 @@
 
 import growler
 from growler.http.responder import GrowlerHTTPResponder
+from growler.http.methods import HTTPMethod
 
 import asyncio
 import pytest
@@ -25,6 +26,11 @@ from mock_classes import (
     responder,
     request_uri,
 )
+
+GET = HTTPMethod.GET
+POST = HTTPMethod.POST
+PUT = HTTPMethod.PUT
+DELETE = HTTPMethod.DELETE
 
 @pytest.fixture
 def app(mock_event_loop):
@@ -79,11 +85,14 @@ def test_on_data_no_headers(responder, mock_parser, data):
     # b'GET / HTTP/1.1\n',
     # b'GET / HTTP/1.1\n\nblahh',
 ])
-def test_on_data_post_headers(responder, mock_parser, mock_req, mock_res, data):
-
+def test_on_data_post_headers(responder,
+                              mock_parser,
+                              mock_req,
+                              mock_res,
+                              app,
+                              data,
+                              ):
     mock_req.body = mock.Mock(spec=asyncio.Future)
-
-    begin_middleware = responder._proto.process_middleware
 
     def on_consume(d):
         responder.headers = mock.MagicMock()
@@ -98,9 +107,8 @@ def test_on_data_post_headers(responder, mock_parser, mock_req, mock_res, data):
 
     assert responder.req is mock_req
     assert responder.res is mock_res
-    responder.loop.call_soon.assert_called_with(begin_middleware,
-                                                mock_req,
-                                                mock_res)
+    assert responder.loop.create_task.called
+    responder.app.handle_client_request.assert_called_with(mock_req, mock_res)
 
 
 @pytest.mark.parametrize("data, length", [
@@ -119,10 +127,10 @@ def notest_bad_content_length(responder, mock_parser, data, length):
 
 
 @pytest.mark.parametrize("method, request_uri, clength", [
-    ('GET', '/', None),
-    ('POST', '/', 0),
-    ('PUT', '/', 0),
-    ('DELETE', '/', None)
+    (GET, '/', None),
+    (POST, '/', 0),
+    (PUT, '/', 0),
+    (DELETE, '/', None)
 ])
 def test_set_request_line_content_length(responder, method, request_uri, clength):
     responder.set_request_line(method, request_uri, "HTTP/1.1")
@@ -141,7 +149,6 @@ def notest_on_parsing_queue(mock_protocol):
 
     r.parsing_queue.put_nowait('spam')
     loop.run_until_complete(_())
-
 
 
 def test_build_req_and_res(responder, mock_req, mock_res):
