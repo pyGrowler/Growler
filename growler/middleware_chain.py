@@ -4,6 +4,7 @@
 """
 """
 
+import asyncio
 from inspect import signature
 from collections import namedtuple
 
@@ -63,6 +64,7 @@ class MiddlewareChain:
                 break
 
         if err:
+            print(self, "encountered error:", err)
             for errhandler in reversed(error_handler_stack):
                 new_error = yield errhandler
                 if new_error:

@@ -202,7 +202,11 @@ class Application(object):
                      paths.
         """
         debug = "[App::use] Adding middleware <{}> listening on path {}"
-        if hasattr(middleware, '__growler_router'):
+        if asyncio.iscoroutine(middleware):
+            print("using coroutine")
+            middleware = lambda req, res: \
+                            self.loop.run_until_complete(middlware, req, res)
+        elif hasattr(middleware, '__growler_router'):
             router = getattr(middleware, '__growler_router')
             if isinstance(router, (MethodType,)):
                 router = router()
@@ -252,6 +256,7 @@ class Application(object):
                                 Router())
         return self.middleware.mw_list[-1].func
 
+    @asyncio.coroutine
     def handle_client_request(self, req, res):
         """
         Entry point for the request+response middleware chain
@@ -261,9 +266,13 @@ class Application(object):
 
         # loop through middleware
         for mw in mw_generator:
+
             # try calling the function
             try:
-                mw(req, res)
+                if asyncio.iscoroutinefunction(mw):
+                    yield from mw(req, res)
+                else:
+                    mw(req, res)
             # on an unhandled exception - notify the generator of the error
             except Exception as error:
                 mw_generator.send(error)
