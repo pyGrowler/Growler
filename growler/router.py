@@ -41,7 +41,7 @@ class Router(MiddlewareChain):
     convience aliases to automatically add routes:
         app.get(..) == app.router.get(...)
     """
-    sinatra_param_regex = re.compile(":(\w+)")
+    sinatra_param_regex = re.compile(r":(\w+)")
     regex_type = type(sinatra_param_regex)
 
     def __init__(self):
