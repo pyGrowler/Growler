@@ -42,6 +42,7 @@ import growler.application
 import growler.router
 import growler.protocol
 import growler.middleware_chain
+import growler.middleware
 
 App = growler.application.Application
 Router = growler.router.Router
