@@ -202,11 +202,7 @@ class Application(object):
                      paths.
         """
         debug = "[App::use] Adding middleware <{}> listening on path {}"
-        if asyncio.iscoroutine(middleware):
-            print("using coroutine")
-            middleware = lambda req, res: \
-                            self.loop.run_until_complete(middlware, req, res)
-        elif hasattr(middleware, '__growler_router'):
+        if hasattr(middleware, '__growler_router'):
             router = getattr(middleware, '__growler_router')
             if isinstance(router, (MethodType,)):
                 router = router()
