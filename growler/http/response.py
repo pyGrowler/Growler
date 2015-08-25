@@ -73,7 +73,7 @@ class HTTPResponse(object):
 
         self._set_default_headers()
 
-        self.headerstrings += ["%s: %s".format(k, v)
+        self.headerstrings += ["%s: %s" % (k, v)
                                for k, v in self.headers.items()]
 
         for func in self._events['headerstrings']:
