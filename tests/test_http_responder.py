@@ -107,9 +107,8 @@ def test_on_data_post_headers(responder,
 
     assert responder.req is mock_req
     assert responder.res is mock_res
-    responder.loop.call_soon.assert_called_with(app.handle_client_request,
-                                                mock_req,
-                                                mock_res)
+    assert responder.loop.create_task.called
+    responder.app.handle_client_request.assert_called_with(mock_req, mock_res)
 
 
 @pytest.mark.parametrize("data, length", [

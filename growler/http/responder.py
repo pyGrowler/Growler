@@ -103,7 +103,6 @@ class GrowlerHTTPResponder():
         # Add the middleware processing to the event loop - this *should*
         # change the call stack so any server errors do not link back to this
         # function
-        # self.loop.call_soon(self.app.handle_client_request, req, res)
         self.loop.create_task(self.app.handle_client_request(req, res))
 
     def set_request_line(self, method, url, version):
