@@ -32,7 +32,6 @@ import re
 from types import (
     MethodType,
 )
-
 from .http import (
     HTTPRequest,
     HTTPResponse,
@@ -206,7 +205,6 @@ class Application(object):
             router = getattr(middleware, '__growler_router')
             if isinstance(router, (MethodType,)):
                 router = router()
-            middleware = router
             self.add_router(path, router)
         elif hasattr(middleware, '__iter__'):
             for mw in middleware:
@@ -306,14 +304,24 @@ class Application(object):
 
     def print_middleware_tree(self, *, file=sys.stdout, EOL='\n'):
         """
+        Prints a unix-tree-like output of the structure of the web application
+        to the file specified (stdout by default).
+
+        :param file: file to print to
+        :type file: stream that the standard 'print' function writes to
+
+        :param EOL: character/string that ends the line
+        :type EOL: str
         """
 
         def mask_to_method_name(mask):
             if mask == HTTPMethod.ALL:
                 return 'ALL'
-            names = [name for name, key in (('GET', HTTPMethod.GET),
-                                            ('POST', HTTPMethod.POST))
-                     if (key & mask)]
+            names = [name
+                     for name, key
+                     in (('GET', HTTPMethod.GET), ('POST', HTTPMethod.POST))
+                     if (key & mask)
+                     ]
             return '+'.join(names)
 
         def path_to_str(path):
