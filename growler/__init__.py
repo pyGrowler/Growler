@@ -26,7 +26,6 @@ of complex websites using a middleware-based configuration.
 
 from importlib.machinery import SourceFileLoader
 from os import path
-from pkg_resources import declare_namespace
 
 from .__meta__ import (
     version as __version__,
@@ -35,8 +34,6 @@ from .__meta__ import (
     copyright as __copyright__,
     license as __license__,
 )
-
-declare_namespace('growler')
 
 import growler.application
 import growler.router
@@ -47,13 +44,12 @@ import growler.middleware
 App = growler.application.Application
 Router = growler.router.Router
 GrowlerProtocol = growler.protocol.GrowlerProtocol
-MiddlewareChain = growler.middleware_chain.MiddlewareChain
 
 __all__ = [
     "App",
     "Router",
     "GrowlerProtocol",
-    "run_forever",
-    "create_http_server",
-    "create_https_server",
 ]
+
+# remove growler as a child
+del growler

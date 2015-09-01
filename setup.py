@@ -32,10 +32,7 @@ PACKAGES = find_packages(
 )
 
 NAMESPACES = [
-    'growler',
-    'growler.ext',
-    'growler.middleware',
-    'growler.mw',
+    'growler_ext',
 ]
 
 tar_url = 'https://github.com/pygrowler/growler/archive/v%s.tar.gz' % (metadata.version)  # noqa

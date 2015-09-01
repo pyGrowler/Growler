@@ -7,6 +7,7 @@ virtual namespace that others may extend by adding 'growler.md' to the
 namespace_packages keyword in their setup.py's setup() function.
 """
 
-from pkg_resources import declare_namespace
+import sys
+from growler.ext import GrowlerExtensionImporter
 
-declare_namespace('growler.mw')
+sys.modules[__name__] = GrowlerExtensionImporter(__name__)
