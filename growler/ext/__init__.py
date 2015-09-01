@@ -5,6 +5,12 @@
 Virtual namespace for other pacakges to extend the growler server
 """
 
-from pkg_resources import declare_namespace
+import sys
 
-declare_namespace('growler.ext')
+
+class GrowlerExtensionImporter:
+
+    def __getattr__(cls):
+        pass
+
+sys.modules[__name__] = GrowlerExtensionImporter(__name__)

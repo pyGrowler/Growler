@@ -103,16 +103,20 @@ the event loop if you prefer.
 Extensions
 ----------
 
-Growler now defines itself as a 'namespace package', allowing anybody to
-write extensions for it that can be imported via
-growler.my\_cool\_extension. It is best to place extensions in the
-extension path, middleware path, or abbreviated middleware path :
-``growler.ext.my_ext``, ``growler.middleware``, ``growler.mw``. This not
-mandatory (for now).
+Growler implements its own virtual namespaces to which you can add your own
+packages under the 'growler' package name. The implementation has changed such
+that it no-longer uses growler as a python virtual namespace (which lead to
+verbose import statements) but an explicit virtual package: *growler\_ext*.
 
-There is one 'official' extension,
+The best practice for developers to add their middleware to growler is now to
+put their code in the growler_ext/my_extesion. This will allow your code to be
+imported by web developers by ``import growler.ext.my_extesion``. This will
+search through the growler_ext namespace and find your package.
+
+There is currently one 'official' extension,
 `indexer <https://github.com/pyGrowler/growler-indexer>`__ which hosts
-an automatically generated index of a filesystem directory.
+an automatically generated index of a filesystem directory. Look to it as an
+example of how to write extensions.
 
 More
 ----
