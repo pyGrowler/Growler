@@ -24,9 +24,6 @@ the successful Nodejs express framework, which allowing easy creation
 of complex websites using a middleware-based configuration.
 """
 
-from importlib.machinery import SourceFileLoader
-from os import path
-
 from .__meta__ import (
     version as __version__,
     author as __author__,
@@ -44,6 +41,7 @@ import growler.middleware
 App = growler.application.Application
 Router = growler.router.Router
 GrowlerProtocol = growler.protocol.GrowlerProtocol
+MiddlewareChain = growler.middleware_chain.MiddlewareChain
 
 __all__ = [
     "App",
