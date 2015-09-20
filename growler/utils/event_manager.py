@@ -27,9 +27,23 @@ def event_emitter(cls_=None, *, events=('*',), loop=None):
 
         def on(self, name, callback):
             """
-            Add a callback to the event named 'name'
+            Add a callback to the event named 'name'. Returns the object for
+            chained 'on' calls.
             """
-            pass
+            if not callable(callback):
+                msg = "Callback not callable: {0!r}".format(callback)
+                raise ValueError(msg)
+
+            try:
+                event_dict[name].append(callback)
+            except KeyError:
+                if allow_any_eventname:
+                    event_dict[name] = [callback]
+                else:
+                    msg = "Event Emitter has no event {0!r}".format(name)
+                    raise KeyError(msg)
+
+            return self
 
         @asyncio.coroutine
         def emit(self, name):
