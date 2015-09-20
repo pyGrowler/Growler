@@ -51,7 +51,11 @@ def event_emitter(cls_=None, *, events=('*',), loop=None):
             Coroutine which executes each of the callbacks added to the event
             identified by 'name'
             """
-            pass
+            for cb in event_dict[name]:
+                if asyncio.iscoroutinefunction(cb):
+                    yield from cb()
+                else:
+                    cb()
 
         cls.on = on
         cls.emit = emit

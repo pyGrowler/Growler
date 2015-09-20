@@ -5,6 +5,18 @@
 from growler.utils.event_manager import event_emitter
 from unittest import mock
 import pytest
+import asyncio
+
+
+@pytest.fixture
+def loop():
+    return asyncio.get_event_loop()
+
+
+@pytest.fixture
+def mock_func():
+    return mock.MagicMock(asyncio.get_event_loop)
+
 
 @event_emitter
 class EE:
@@ -39,3 +51,11 @@ def test_on_bad_name():
     e = EEE()
     with pytest.raises(KeyError):
         e.on('bad', mock.Mock())
+
+
+def test_on_good_name(loop, mock_func):
+    e = EEE()
+    e.on('good', mock_func)
+    emit_coro = e.emit('good')
+    loop.run_until_complete(emit_coro)
+    assert mock_func.called
