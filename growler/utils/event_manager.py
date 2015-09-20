@@ -2,24 +2,52 @@
 # growler/utils/event_emitter.py
 #
 
+import asyncio
 
-def event_emitter(_cls=None, events=None):
+
+def event_emitter(cls_=None, *, events=('*',), loop=None):
+    """
+    A class-decorator which will add the specified events and the methods 'on'
+    and 'emit' to the class.
+    """
+
+    if loop is None:
+        loop = asyncio.get_event_loop()
+
+    # create a dictionary from items in the 'events' parameter and with empty
+    # lists as values
+    event_dict = dict.fromkeys(events, [])
+
+    # if '*' was in the events tuple - then pop it out of the event_dict
+    # and store the fact that we may allow any event name to be added to the
+    # event emitter.
+    allow_any_eventname = event_dict.pop('*', False) == []
 
     def _event_emitter(cls):
 
-        def on_event(self, ):
+        def on(self, name, callback):
+            """
+            Add a callback to the event named 'name'
+            """
             pass
 
-        if (events is not None) or ('*' in events):
+        @asyncio.coroutine
+        def emit(self, name):
+            """
+            Coroutine which executes each of the callbacks added to the event
+            identified by 'name'
+            """
+            pass
 
-            cls.on = lambda event_name: print(self_)
+        cls.on = on
+        cls.emit = emit
 
         return cls
 
-    if _cls is None:
+    if cls_ is None:
         return _event_emitter
     else:
-        return _event_emitter(_cls)
+        return _event_emitter(cls_)
 
 
 def emits(pre=None, *, post=None):
