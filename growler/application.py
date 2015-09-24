@@ -41,6 +41,8 @@ from .router import Router
 from .middleware_chain import MiddlewareChain
 from .http.methods import HTTPMethod
 
+log = logging.getLogger(__name__)
+
 
 class Application(object):
     """
@@ -150,7 +152,7 @@ class Application(object):
         self._protocol_factory = protocol_factory
 
     def on_start(self, cb):
-        print("Callback : ", cb)
+        log.info("Callback : ", cb)
         self._events['startup'].append(cb)
 
     #
@@ -200,7 +202,6 @@ class Application(object):
         :param path: A string or regex wich will be used to match request
                      paths.
         """
-        debug = "[App::use] Adding middleware <{}> listening on path {}"
         if hasattr(middleware, '__growler_router'):
             router = getattr(middleware, '__growler_router')
             if isinstance(router, (MethodType,)):
@@ -210,7 +211,7 @@ class Application(object):
             for mw in middleware:
                 self.use(mw, path, method_mask)
         else:
-            logging.info(debug.format(middleware, path))
+            log.info("%d Using %s on path %s" % (id(self), middleware, path))
             self.middleware.add(path=re.compile(path),
                                 func=middleware,
                                 method_mask=method_mask)
@@ -226,8 +227,7 @@ class Application(object):
         :param router: The router which will respond to objects
         :type router: growler.Router
         """
-        debug = "[App::add_router] Adding router {} on path {}"
-        logging.info(debug.format(router, path))
+        log.info("%d Adding router %s on path %s" % (id(self), router, path))
         self.use(middleware=router,
                  path=path,
                  method_mask=HTTPMethod.ALL,)
@@ -271,6 +271,9 @@ class Application(object):
             except Exception as error:
                 mw_generator.send(error)
                 self.handle_server_error(req, res, mw_generator, error)
+                break
+
+            if res.has_ended:
                 break
 
         if not res.has_ended:
