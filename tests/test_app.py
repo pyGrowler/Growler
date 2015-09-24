@@ -89,12 +89,12 @@ def test_application_enables_x_powered_by(app):
 def test_create_server(app):
     """ Test if the application creates a server coroutine """
     app._protocol_factory = mock.Mock()
-    srv = app.create_server()
+    app.create_server()
     assert app.loop.create_server.called
     assert app._protocol_factory.called
 
+
 def test_create_server_and_run_forever(app):
-    print(app.loop)
     app.create_server_and_run_forever()
     assert app.loop.create_server.called
     assert app.loop.run_forever.called
@@ -133,8 +133,12 @@ def mock_route_generator():
     return lambda: mock.create_autospec(lambda rq, rs: None)
 
 
+def test_empty_app(app):
+    assert len(app.middleware.mw_list) is 0
+
+
 def test_router_property(app):
-    x = app.router
+    app.router
     assert len(app.middleware.mw_list) is 1
 
 
@@ -196,8 +200,35 @@ def test_default_error_handler(app, req, res):
     app.default_error_handler(req, res, ex)
     assert res.send_html.called
 
+
 @pytest.mark.parametrize('req_uri, middlewares, called', [
     ('/', [mock.Mock(path='/')], [True]),
 ])
 def test_handle_client_request_get(app, req, res, middlewares, called):
     app.handle_client_request(req, res)
+
+
+def test_middleware_stops_with_res(app, req, res):
+    res.has_ended = False
+
+    def set_has_ended(Q, S):
+        res.has_ended = True
+
+    m1 = mock.MagicMock(spec=set_has_ended,
+                        __code__=set_has_ended.__code__)
+    m2 = mock.MagicMock(spec=set_has_ended,
+                        __code__=set_has_ended.__code__,
+                        side_effect=set_has_ended)
+    m3 = mock.MagicMock(spec=set_has_ended,
+                        __code__=set_has_ended.__code__)
+
+    app.use(m1)
+    app.use(m2)
+    app.use(m3)
+    loop = asyncio.new_event_loop()
+    app.loop = loop
+    loop.run_until_complete(app.handle_client_request(req, res))
+
+    assert m1.called
+    assert m2.called
+    assert not m3.called
