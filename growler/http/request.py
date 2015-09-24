@@ -3,6 +3,9 @@
 #
 
 import asyncio
+import logging
+
+log = logging.getLogger(__name__)
 
 
 class HTTPRequest(object):
@@ -33,6 +36,8 @@ class HTTPRequest(object):
 
         if 'CONTENT-LENGTH' in headers:
             self.body = asyncio.Future()
+
+        log.info("%d %s %s" % (id(self), self.method, self.path))
 
     def param(self, name, default=None):
         """

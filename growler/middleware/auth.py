@@ -1,6 +1,9 @@
 #
 # growler/middleware/auth.py
 #
+import logging
+
+log = logging.getLogger(__name__)
 
 
 class Auth():
@@ -9,7 +12,7 @@ class Auth():
     """
 
     def __init__(self):
-        print("[Auth]")
+        log.info("%d built" % (id(self)))
 
     def __call__(self):
         """

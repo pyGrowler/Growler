@@ -4,7 +4,7 @@
 """
 """
 
-import asyncio
+import logging
 from inspect import signature
 from collections import namedtuple
 
@@ -23,6 +23,7 @@ class MiddlewareChain:
 
     def __init__(self):
         self.mw_list = []
+        self.log = logging.getLogger("%s:%d" % (__name__, id(self)))
 
     def __call__(self, method, path):
         """
@@ -64,7 +65,7 @@ class MiddlewareChain:
                 break
 
         if err:
-            print(self, "encountered error:", err)
+            self.log.error(err)
             for errhandler in reversed(error_handler_stack):
                 new_error = yield errhandler
                 if new_error:

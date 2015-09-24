@@ -3,6 +3,9 @@
 #
 
 import os
+import logging
+
+log = logging.getLogger(__name__)
 
 
 class Renderer():
@@ -36,10 +39,10 @@ class Renderer():
         self.path = os.path.abspath(path)
 
         if not os.path.exists(self.path):
-            print("[Renderer] Error: No path exists at {}".format(self.path))
+            log.error("%d No path at %s" % (id(self), self.path))
             raise Exception("Path '{}' does not exist.".format(self.path))
 
-        print("[Renderer] Template files located in {}".format(self.path))
+        log.info("%d files located in %s" % (id(self), self.path))
 
         if isinstance(engine, str):
             engine = render_engine_map.get(engine, None)
@@ -102,10 +105,12 @@ class MakoRenderer():
         """
         from mako.template import Template
         self._render = Template
-        print("[MakoRenderer]")
+
+        self.log = logging.getLogger(__name__)
+        self.log.info("%d Constructed MakoRenderer" % (id(self)))
 
     def __call__(self, filename, res):
-        print("[MakoRenderer] CALL", filename)
+        self.log.info("%d -> %s" % (id(self), filename))
         tmpl = self._render(filename=filename)
         html = tmpl.render()
         return html
@@ -126,13 +131,16 @@ class JadeRenderer():
         from pyjade.ext import mako
         from pyjade.ext.mako import preprocessor as mako_preprocessor
         from mako.template import Template
-        print("[JadeRenderer]")
 
         self._render = Template
         self._engine = mako
         self._preprocessor = mako_preprocessor
 
+        self.log = logging.getLogger(__name__)
+        self.log.info("%d Constructed JadeRenderer" % (id(self)))
+
     def __call__(self, filename, res):
+        self.log.info("%d -> %s" % (id(self), filename))
         tmpl = self._render(filename=filename, preprocessor=self._preprocessor)
         html = tmpl.render(**res.locals)
         return html

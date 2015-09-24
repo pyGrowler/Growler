@@ -3,6 +3,8 @@
 #
 
 import re
+import logging
+
 from collections import OrderedDict
 from growler.http.methods import (
     HTTPMethod,
@@ -47,6 +49,7 @@ class Router(MiddlewareChain):
     def __init__(self):
         """Create a router"""
         super().__init__()
+        self.log = logging.getLogger("%s:%d" % (__name__, id(self)))
 
     def add_router(self, path, router):
         """
@@ -122,7 +125,7 @@ class Router(MiddlewareChain):
         Use the middleware (a callable with parameters res, req, next) upon
         requests match the provided path. A None path matches every request.
         """
-        print("[Router::use] Adding middleware", middleware)
+        self.log.info(" Using middleware %s" % middleware)
         self.middleware.append(middleware)
         return self
 
@@ -255,7 +258,7 @@ def routerclass(cls):
     The order wich the methods are defined are the order the requests will
     attempt to match.
     """
-    print("DEBUG: Creating a routerclass with the class", cls)
+    logging.debug("Creating a routerclass with the class %s" % cls)
     cls.__growler_router = lambda self: routerify(self)
     return cls
 
