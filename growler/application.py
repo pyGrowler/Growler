@@ -73,6 +73,8 @@ class Application(object):
     the middleware is as responsive as the dev expects.
     """
 
+    error_recursion_max_depth = 10
+
     def __init__(self,
                  name=__name__,
                  loop=None,
@@ -262,6 +264,7 @@ class Application(object):
                     yield from mw(req, res)
                 else:
                     mw(req, res)
+
             # on an unhandled exception - notify the generator of the error
             except Exception as error:
                 mw_generator.send(error)
@@ -274,17 +277,28 @@ class Application(object):
         if not res.has_ended:
             res.send_text("500 - Server Error", 500)
 
-    def handle_server_error(self, req, res, generator, error):
+    def handle_server_error(self, req, res, generator, error, err_count=0):
         """
         Entry point for handling an unhandled error that occured during
         execution of some middleware chain.
         """
+        if err_count >= self.error_recursion_max_depth:
+            raise Exception("Too many exceptions:" + error)
+
         for mw in generator:
+
             try:
                 mw(req, res, error)
             except Exception as new_error:
                 generator.send(new_error)
-                self.handle_server_error(req, res, generator, new_error)
+                self.handle_server_error(req,
+                                         res,
+                                         generator,
+                                         new_error,
+                                         err_count+1)
+                break
+
+            if res.has_ended:
                 break
 
     def next_error_handler(self, req=None):
@@ -300,7 +314,7 @@ class Application(object):
         yield from self.error_handlers
         yield self.default_error_handler
 
-    def print_middleware_tree(self, *, file=sys.stdout, EOL='\n'):
+    def print_middleware_tree(self, *, file=sys.stdout, EOL='\n'):  # pragma: no cover
         """
         Prints a unix-tree-like output of the structure of the web application
         to the file specified (stdout by default).
