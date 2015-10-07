@@ -21,6 +21,9 @@ class MiddlewareChain:
     Class handling the storage and retreival of growler middleware functions.
     """
 
+    mw_list = None
+    log = None
+
     def __init__(self):
         self.mw_list = []
         self.log = logging.getLogger("%s:%d" % (__name__, id(self)))

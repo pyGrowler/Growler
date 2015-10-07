@@ -21,7 +21,6 @@ a class to modify the behavior of the app. (decorators explained elsewhere)
     @app.use
     def myfunc(req, res):
         print("myfunc")
-
 """
 
 import asyncio
@@ -150,10 +149,6 @@ class Application(object):
         self._request_class = request_class
         self._response_class = response_class
         self._protocol_factory = protocol_factory
-
-    def on_start(self, cb):
-        log.info("Callback : ", cb)
-        self._events['startup'].append(cb)
 
     #
     # Middleware adding functions

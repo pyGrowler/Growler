@@ -4,8 +4,11 @@
 
 import asyncio
 import pytest
+import types
 import growler
+import growler.application
 from unittest import mock
+from growler.application import Application
 
 from mocks import *                                                      # noqa
 
@@ -27,18 +30,18 @@ def app_name():
 
 @pytest.fixture
 def router():
-    router = mock.Mock(spec=growler.router.Router)
-    route_list = []
-
-    router.middleware_chain = lambda req: (yield from route_list)
-    router.get = mock.Mock(lambda *args: route_list.append(args))
-    return router
+    return mock.Mock(spec=growler.router.Router,
+                     middleware_chain=lambda req: (yield from ()),
+                     get=mock.Mock(lambda *args: route_list.append(args)))
 
 
 @pytest.fixture
 def MockProtocol(proto):
     return mock.Mock(return_value=proto)
 
+@pytest.fixture
+def mock_MiddlewareChain():
+    return mock.create_autospec(growler.application.MiddlewareChain)
 
 @pytest.fixture
 def proto():
@@ -59,7 +62,7 @@ def req(req_uri):
 
 
 @pytest.fixture
-def app(app_name, router, mock_event_loop, MockProtocol):
+def app(app_name, mock_MiddlewareChain, mock_event_loop, MockProtocol):
     result = growler.application.Application(app_name,
                                              loop=mock_event_loop,
                                              request_class=MockRequest,
@@ -68,6 +71,10 @@ def app(app_name, router, mock_event_loop, MockProtocol):
                                              )
     return result
 
+@pytest.fixture
+def app_with_router(app, router):
+    app.middleware.add(growler.http.methods.HTTPMethod.ALL, '/', router)
+    return app
 
 def test_application_constructor():
     app = growler.application.Application('Test')
@@ -83,6 +90,56 @@ def test_application_saves_config():
 def test_application_enables_x_powered_by(app):
     """ Test application enables x-powered-by by default """
     assert app.enabled('x-powered-by')
+
+
+def test_all(app_with_router, router):
+    m = mock.Mock()
+    app_with_router.all('/', m)
+    router.all.assert_called_with('/', m)
+
+
+def test_get(app_with_router, router):
+    m = mock.Mock()
+    app_with_router.get('/', m)
+    router.get.assert_called_with('/', m)
+
+
+def test_post(app_with_router, router):
+    m = mock.Mock()
+    app_with_router.post('/', m)
+    router.post.assert_called_with('/', m)
+
+
+def test_use_function(app, mock_route_generator):
+    app.use(mock_route_generator)
+    assert app.middleware.mw_list[-1].func is mock_route_generator
+
+
+def test_use_growler_router(app, mock_route_generator):
+    print(">", router, types.MethodType)
+    m = mock.Mock()
+    m.__growler_router = mock_route_generator
+    app.use(m)
+    assert app.middleware.mw_list[-1].func is mock_route_generator
+
+
+def test_use_growler_router_factory(app, mock_route_generator):
+    m = mock.Mock()
+    print("mock_route_generator:", mock_route_generator)
+    m.__growler_router = mock.Mock(spec=types.MethodType,
+                                   return_value=mock_route_generator)
+    print(">", isinstance(m.__growler_router, types.MethodType))
+    app.use(m)
+    assert m.__growler_router.called
+    assert app.middleware.mw_list[-1].func is mock_route_generator
+
+
+def test_use_iterator(app, router):
+    m1 = mock.Mock(spec=types.MethodType)
+    m2 = mock.Mock(spec=types.MethodType)
+    m3 = mock.Mock(spec=types.MethodType)
+    app.use([m1, m2, m3])
+    assert len(app.middleware.mw_list) is 3
 
 
 def test_create_server(app):
