@@ -67,7 +67,7 @@ def test_responder_constructor(mock_protocol):
 
 
 @pytest.mark.parametrize("data", [
-    b'',
+    # b'',
     b'GET /',
     b'GET / HTTP/1.1\n',
     b'GET / HTTP/1.1\n\nblahh',
