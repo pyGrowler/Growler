@@ -2,8 +2,6 @@
 # growler/middleware/static.py
 #
 
-
-import asyncio
 import os
 import mimetypes
 import logging

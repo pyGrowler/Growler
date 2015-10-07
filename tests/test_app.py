@@ -5,10 +5,9 @@
 import asyncio
 import pytest
 import growler
-import types
 from unittest import mock
 
-from mocks import *
+from mocks import *                                                      # noqa
 
 from mock_classes import (
     MockRequest,
