@@ -7,7 +7,6 @@ Code containing Growler's asyncio.Protocol code for handling all streaming
 """
 
 import asyncio
-import sys
 import logging
 
 log = logging.getLogger(__name__)

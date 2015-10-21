@@ -51,6 +51,7 @@ class MiddlewareChain:
                 post_match_idx = len(mw.path)                 \
                                  if isinstance(mw.path, str)  \
                                  else len(path_matches.string)
+
                 subchain = mw.func(method, '/' + path[post_match_idx:])
 
                 for sub_mw in subchain:

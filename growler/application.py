@@ -314,7 +314,7 @@ class Application(object):
         yield from self.error_handlers
         yield self.default_error_handler
 
-    def print_middleware_tree(self, *, file=sys.stdout, EOL='\n'):  # pragma: no cover
+    def print_middleware_tree(self, *, file=sys.stdout, EOL='\n'):  # noqa pragma: no cover
         """
         Prints a unix-tree-like output of the structure of the web application
         to the file specified (stdout by default).
