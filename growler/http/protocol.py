@@ -56,22 +56,30 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
 
         :param error: Exception thrown in code
         """
+
+        err_code = error.code if isinstance(error, HTTPError) else 500
+        err_msg = error.msg if isinstance(error, HTTPError) else "Server Error"
+
         # for error_handler in self.http_application.next_error_handler(req):
-        if isinstance(error, HTTPError):
-            err_str = ("<html>"
-                       "<head></head>"
-                       "<body><h1>HTTP Error : %d %s </h1></body>"
-                       "</html>") % (error.code, error.msg)
-            header_info = {
-                'code': error.code,
-                'msg': error.msg,
-                'date': HTTPResponse.get_current_time(),
-                'length': len(err_str.encode()),
-                'contents': err_str
-            }
-            response = ("HTTP/1.1 {code} {msg}\n"
-                        "Content-Type: text/html; charset=UTF-8"
-                        "Content-Length: {length}"
-                        "Date: {date}\n\n"
-                        "{contents}").format(**header_info)
-            self.transport.write(response.encode())
+        err_str = ("<html>"
+                   "<head></head>"
+                   "<body><h1>HTTP Error : %d %s </h1></body>"
+                   "</html>") % (err_code, err_msg)
+
+        header_info = {
+            'code': err_code,
+            'msg': err_msg,
+            'date': HTTPResponse.get_current_time(),
+            'length': len(err_str.encode()),
+            'contents': err_str
+        }
+
+        response = '\r\n'.join((
+            "HTTP/1.1 {code} {msg}",
+            "Content-Type: text/html; charset=UTF-8",
+            "Content-Length: {length}",
+            "Date: {date}",
+            "",
+            "{contents}")).format(**header_info)
+
+        self.transport.write(response.encode())

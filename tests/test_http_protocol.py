@@ -143,7 +143,7 @@ def test_on_data_error(proto, mock_responder, mock_transport):
     ex = Exception()
     mock_responder.on_data.side_effect = ex
     proto.data_received(data)
-    mock_transport.write.assert_called()
+    assert mock_transport.write.called
 
 def test_factory(mock_app):
     proto = growler.http.GrowlerHTTPProtocol.factory(mock_app)
