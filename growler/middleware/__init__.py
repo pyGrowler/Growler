@@ -19,8 +19,4 @@ from .cookieparser import CookieParser
 from .responsetime import ResponseTime
 from .timer import Timer
 
-from pkg_resources import declare_namespace
-
-declare_namespace('growler.middleware')
-
 __all__ = ['Logger']
