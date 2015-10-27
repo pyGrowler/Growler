@@ -7,6 +7,7 @@ import pytest
 import types
 import growler
 import growler.application
+from growler.application import GrowlerStopIteration
 from unittest import mock
 from growler.application import Application
 
@@ -320,6 +321,24 @@ def test_handle_client_request_get(app, req, res, middlewares, called, mock_rout
     app.use(m1)
     yield from app.handle_client_request(req, res)
     assert m1.called is called
+
+
+@pytest.mark.asyncio
+def test_middleware_stops_with_stop_iteration(app, req, res):
+    def do_something(req, res):
+        pass
+
+    m1 = mock.create_autospec(do_something)
+    m2 = mock.create_autospec(do_something)
+
+    m1.side_effect = GrowlerStopIteration
+
+    app.use(m1)
+    app.use(m2)
+
+    yield from app.handle_client_request(req, res)
+    assert not m2.called
+
 
 def test_middleware_stops_with_res(app, req, res):
     res.has_ended = False

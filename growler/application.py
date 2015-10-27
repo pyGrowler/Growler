@@ -43,6 +43,15 @@ from .http.methods import HTTPMethod
 log = logging.getLogger(__name__)
 
 
+class GrowlerStopIteration(StopIteration):
+    """
+    Exception to raise when it is desireable to stop the growler application
+    from continuing to loop over middleware. This is necessary to run over a
+
+    """
+    pass
+
+
 class Application(object):
     """
     A Growler application object. You can use a 'raw' app and modify it by
@@ -264,6 +273,11 @@ class Application(object):
                     yield from mw(req, res)
                 else:
                     mw(req, res)
+
+            # special exception - immediately stop the loop
+            #  - do not check if res has sent
+            except GrowlerStopIteration:
+                return None
 
             # on an unhandled exception - notify the generator of the error
             except Exception as error:
