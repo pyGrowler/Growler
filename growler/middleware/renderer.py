@@ -90,32 +90,6 @@ class Renderer():
         raise Exception("No file found provided name '{}'.".format(fname))
 
 
-class MakoRenderer():
-    """
-    The default 'Mako' renderer for the growler project. This class provides a
-    reference on how template engines may work for rendering webpages with a
-    growler app.
-    """
-
-    default_file_extension = '.mako'
-
-    def __init__(self, renderer):
-        """
-        Construct the renderer, provided the parent renderer.
-        """
-        from mako.template import Template
-        self._render = Template
-
-        self.log = logging.getLogger(__name__)
-        self.log.info("%d Constructed MakoRenderer" % (id(self)))
-
-    def __call__(self, filename, res):
-        self.log.info("%d -> %s" % (id(self), filename))
-        tmpl = self._render(filename=filename)
-        html = tmpl.render()
-        return html
-
-
 class JadeRenderer():
     """
     A render engine using the pyjade package to render jade files into mako
@@ -146,6 +120,5 @@ class JadeRenderer():
         return html
 
 render_engine_map = {
-    'mako': MakoRenderer,
     'jade': JadeRenderer
 }

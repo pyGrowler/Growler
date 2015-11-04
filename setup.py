@@ -14,11 +14,11 @@ metafile = path.join(".", "growler", "__meta__.py")
 metadata = SourceFileLoader("metadata", metafile).load_module()
 
 REQUIRES = [
-    'mako'
 ]
 
 OPTIONAL_REQUIRES = {
     'jade': ['pyjade'],
+    'mako': ['growler-mako'],
     ':python_version=="3.3"': ['asyncio>=0.2.1']
 }
 
