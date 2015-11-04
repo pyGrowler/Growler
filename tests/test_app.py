@@ -286,8 +286,10 @@ def test_handle_client_request_ex(app, req, res, mock_route_generator):
     app.handle_server_error = handler
 
     ex = Exception()
-    m1 = mock_route_generator()
-    m1.side_effect = ex
+    # Commented out to fix testing bug on linux. (remove and try again)
+    # m1 = mock_route_generator()
+    # m1.side_effect = ex
+    m1 = mock.Mock(side_effect=ex)
 
     generator.__iter__.return_value = [m1]
 
