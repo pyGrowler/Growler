@@ -38,7 +38,7 @@ class CookieParser():
         """
         # Do not clobber cookies
         try:
-            log.info("%d built with %s" % (id(self), json.dumps(opts)))
+            log.info("%d built with %s" % (id(self), json.dumps(self.opts)))
             req.cookies
             return None
         except AttributeError:

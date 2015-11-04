@@ -14,7 +14,6 @@ from .methods import HTTPMethod
 
 from .errors import (
     HTTPErrorBadRequest,
-    HTTPErrorInternalServerError
 )
 
 

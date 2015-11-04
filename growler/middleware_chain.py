@@ -89,6 +89,9 @@ class MiddlewareChain:
         self.mw_list.append(tup)
 
     def __contains__(self, func):
+        """
+        Returns whether the function is stored anywhere in the middleware chain
+        """
         return any((func is mw.func) or
                    (mw.is_subchain and func in mw.func)
                    for mw in self.mw_list)
