@@ -4,6 +4,7 @@
 
 import os
 import logging
+from copy import copy
 
 log = logging.getLogger(__name__)
 
@@ -94,8 +95,8 @@ class StringRenderer(Renderer):
 
     def __init__(self, view_directory, extensions=None):
         self.extensions = (['.html.tmpl']
-                            if extensions is None
-                            else extensions)
+                           if extensions is None
+                           else extensions)
         self.path = view_directory
 
     def render_file(self, filename, render_obj, **kwargs):
