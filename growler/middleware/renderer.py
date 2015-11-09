@@ -45,7 +45,7 @@ class Renderer():
         log.info("%d files located in %s" % (id(self), self.path))
 
         if isinstance(engine, str):
-            engine = render_engine_map.get(engine, None)
+            engine = self.render_engine_map.get(engine, None)
 
         if engine is None:
             raise Exception("[Renderer] No valid rendering engine provided.")
@@ -90,35 +90,24 @@ class Renderer():
         raise Exception("No file found provided name '{}'.".format(fname))
 
 
-class JadeRenderer():
-    """
-    A render engine using the pyjade package to render jade files into mako
-    files, which are then turned into html by the make.template package.
-    """
+class StringRenderer(Renderer):
 
-    default_file_extension = '.jade'
+    def __init__(self, view_directory, extensions=None):
+        self.extensions = (['.html.tmpl']
+                            if extensions is None
+                            else extensions)
+        self.path = view_directory
 
-    def __init__(self, renderer):
-        """
-        Construct the renderer, provided the parent renderer.
-        """
-        from pyjade.ext import mako
-        from pyjade.ext.mako import preprocessor as mako_preprocessor
-        from mako.template import Template
+    def render_file(self, filename, render_obj, **kwargs):
+        txt = self.file_text(filename)
+        obj = copy(render_obj)
+        obj.update(kwargs)
+        return txt.format(**obj)
 
-        self._render = Template
-        self._engine = mako
-        self._preprocessor = mako_preprocessor
+    def file_text(self, filename):
+        with open(filename, 'r') as file:
+            return file.read()
 
-        self.log = logging.getLogger(__name__)
-        self.log.info("%d Constructed JadeRenderer" % (id(self)))
 
-    def __call__(self, filename, res):
-        self.log.info("%d -> %s" % (id(self), filename))
-        tmpl = self._render(filename=filename, preprocessor=self._preprocessor)
-        html = tmpl.render(**res.locals)
-        return html
-
-render_engine_map = {
-    'jade': JadeRenderer
-}
+# register the renderer
+Renderer.render_engine_map['string'] = StringRenderer

@@ -1,17 +1,28 @@
+#
+# examples/example0/__main__.py
+#
+"""
+Example script to demonstrate route decorating, string-template rendering and
+low-level server.
+"""
+
 
 from os import path
 
 import asyncio
 
 from growler import (App)
-from growler.middleware import (Logger, Renderer)
+from growler.middleware import (
+    Logger,
+    StringRenderer,
+)
 
 app = App('GrowlerServer')
 
-this_dir = path.dirname(__file__)
+view_dir = path.join(path.dirname(__file__), "views")
 
 app.use(Logger())
-app.use(Renderer(path.join(this_dir, "views"), "jade"))
+app.use(StringRenderer(view_dir, extensions=['.html.tmpl']))
 
 
 @app.get('/')
