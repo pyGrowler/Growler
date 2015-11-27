@@ -328,10 +328,15 @@ def test_handle_client_request_get(app, req, res, middlewares, called, mock_rout
 @pytest.mark.asyncio
 def test_middleware_stops_with_stop_iteration(app, req, res):
     def do_something(req, res):
-        pass
+        return None
 
-    m1 = mock.create_autospec(do_something)
-    m2 = mock.create_autospec(do_something)
+    def mock_function():
+        # this coroutine required to let test pass - unknown why
+        return asyncio.coroutine(mock.create_autospec(do_something))
+        # return mock.create_autospec(do_something)
+
+    m1 = mock_function()
+    m2 = mock_function()
 
     m1.side_effect = GrowlerStopIteration
 
@@ -339,9 +344,11 @@ def test_middleware_stops_with_stop_iteration(app, req, res):
     app.use(m2)
 
     yield from app.handle_client_request(req, res)
+
     assert not m2.called
 
 
+@pytest.mark.asyncio
 def test_middleware_stops_with_res(app, req, res):
     res.has_ended = False
 
@@ -349,19 +356,27 @@ def test_middleware_stops_with_res(app, req, res):
         res.has_ended = True
 
     m1 = mock.MagicMock(spec=set_has_ended,
+                        __name__='set_has_ended',
+                        __qualname__='set_has_ended',
+                        __annotations__={},
                         __code__=set_has_ended.__code__)
     m2 = mock.MagicMock(spec=set_has_ended,
+                        __name__='set_has_ended',
+                        __qualname__='set_has_ended',
+                        __annotations__={},
                         __code__=set_has_ended.__code__,
                         side_effect=set_has_ended)
     m3 = mock.MagicMock(spec=set_has_ended,
+                        __name__='set_has_ended',
+                        __qualname__='set_has_ended',
+                        __annotations__={},
                         __code__=set_has_ended.__code__)
 
     app.use(m1)
     app.use(m2)
     app.use(m3)
-    loop = asyncio.new_event_loop()
-    app.loop = loop
-    loop.run_until_complete(app.handle_client_request(req, res))
+
+    yield from app.handle_client_request(req, res)
 
     assert m1.called
     assert m2.called

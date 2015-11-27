@@ -267,12 +267,14 @@ class Application(object):
         # loop through middleware
         for mw in mw_generator:
 
-            # try calling the function
+            # try calling the function (coroutine)
             try:
-                if asyncio.iscoroutinefunction(mw):
-                    yield from mw(req, res)
-                else:
-                    mw(req, res)
+
+                # morph middleware into a coroutine
+                if not asyncio.iscoroutinefunction(mw):
+                    mw = asyncio.coroutine(mw)
+
+                yield from mw(req, res)
 
             # special exception - immediately stop the loop
             #  - do not check if res has sent
