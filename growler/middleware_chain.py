@@ -88,14 +88,8 @@ class MiddlewareChain:
             # If a subchain - loop through middleware
             if mw.is_subchain:
 
-                # # We need to call sub middleware with only the URL past the
-                # # matching string
-                # top_path = ''
-                # if isinstance(mw.path, str):
-                #     post_match_idx = len(mw.path)
-                # else:
-                #     post_match_idx = len(path_matches.string)
-                #
+                # We need to call sub middleware with only the URL past the
+                # matching string
                 subpath = '/' + rest_url
 
                 # middleware func is the generator of sub-middleware
