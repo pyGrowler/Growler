@@ -13,6 +13,7 @@ class HTTPMethod(enum.IntEnum):
     POST   = 0b000010
     DELETE = 0b000100
     PUT    = 0b001000
+    HEAD   = 0b010000
 
 
 string_to_method = {
@@ -20,4 +21,8 @@ string_to_method = {
     "POST": HTTPMethod.POST,
     "DELETE": HTTPMethod.DELETE,
     "PUT": HTTPMethod.PUT,
+    "HEAD": HTTPMethod.HEAD,
 }
+
+
+method_to_string = dict((v,k) for k, v in string_to_method.items())
