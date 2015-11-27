@@ -12,7 +12,7 @@ from growler.http.methods import (
 )
 from growler.middleware_chain import (
     MiddlewareChain,
-    MiddlewareTuple,
+    Middleware,
 )
 
 ROUTABLE_NAME_REGEX = re.compile("(all|get|post|delete)_.*", re.IGNORECASE)
@@ -57,7 +57,7 @@ class Router(MiddlewareChain):
         matches the regex will pass the request/response objects to that
         router.
         """
-        tup = MiddlewareTuple(func=router,
+        tup = Middleware(func=router,
                               mask=HTTPMethod.ALL,
                               path=path,
                               is_errorhandler=False,
@@ -68,7 +68,7 @@ class Router(MiddlewareChain):
     def add_route(self, method, path, endpoint):
         """
         """
-        tup = MiddlewareTuple(func=endpoint,
+        tup = Middleware(func=endpoint,
                               mask=method,
                               path=re.compile(path),
                               is_errorhandler=False,
