@@ -126,17 +126,6 @@ class MiddlewareChain:
                 if new_error:
                     pass
 
-    @staticmethod
-    def mw_matches_method(mw, method):
-        return method & mw.mask
-
-    @staticmethod
-    def mw_matches_path(mw, path):
-        if isinstance(mw.path, str):
-            return path.startswith(mw.path)
-        else:
-            return mw.path.match(path)
-
     def add(self, method_mask, path, func):
         """
         Add a function to the middleware chain, listening on func
