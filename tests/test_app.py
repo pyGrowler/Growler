@@ -132,7 +132,6 @@ def test_use_list(app, mock_route_generator):
 
 
 def test_use_growler_router(app, mock_route_generator):
-    print(">", router, types.MethodType)
     m = mock.Mock()
     route = mock_route_generator()
     m.__growler_router = route

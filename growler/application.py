@@ -267,14 +267,12 @@ class Application(object):
         # loop through middleware
         for mw in mw_generator:
 
-            # try calling the function (coroutine)
+            # try calling the function
             try:
-
-                # morph middleware into a coroutine
-                if not asyncio.iscoroutinefunction(mw):
-                    mw = asyncio.coroutine(mw)
-
-                yield from mw(req, res)
+                if asyncio.iscoroutinefunction(mw):
+                    yield from mw(req, res)
+                else:
+                    mw(req, res)
 
             # special exception - immediately stop the loop
             #  - do not check if res has sent
@@ -345,11 +343,8 @@ class Application(object):
         def mask_to_method_name(mask):
             if mask == HTTPMethod.ALL:
                 return 'ALL'
-            names = [name
-                     for name, key
-                     in (('GET', HTTPMethod.GET), ('POST', HTTPMethod.POST))
-                     if (key & mask)
-                     ]
+            methods_names = HTTPMethod.string_to_method.items()
+            names = [name for name, key in methods_names if (key & mask)]
             return '+'.join(names)
 
         def path_to_str(path):
