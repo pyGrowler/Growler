@@ -27,6 +27,13 @@ of complex websites using a middleware-based configuration.
 from importlib.machinery import SourceFileLoader
 from os import path
 
+# This ensures 'types' has the coroutine decorator, added in python3.5
+# with same functionality as asyncio.coroutine in python3.4
+import types
+if not hasattr(types, 'coroutine'):
+    import asyncio
+    types.coroutine = asyncio.coroutine
+
 from .__meta__ import (
     version as __version__,
     author as __author__,
