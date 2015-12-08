@@ -28,9 +28,7 @@ import os
 import sys
 import logging
 import re
-from types import (
-    MethodType,
-)
+import types
 from .http import (
     HTTPRequest,
     HTTPResponse,
@@ -210,7 +208,7 @@ class Application(object):
         """
         if hasattr(middleware, '__growler_router'):
             router = getattr(middleware, '__growler_router')
-            if isinstance(router, (MethodType,)):
+            if isinstance(router, (types.MethodType,)):
                 router = router()
             self.add_router(path, router)
         elif hasattr(middleware, '__iter__'):
@@ -246,17 +244,15 @@ class Application(object):
         not an instance of growler.Router, one is created and added to the
         middleware chain, matching all requests.
         """
-        if len(self.middleware.mw_list) is 0 or                        \
-           not isinstance(self.middleware.mw_list[-1].func, Router) or \
-           self.middleware.mw_list[-1].mask != HTTPMethod.ALL or       \
-           self.middleware.mw_list[-1].path != '/':
+        if (len(self.middleware.mw_list) is 0
+            or not isinstance(self.middleware.mw_list[-1].func, Router)
+            or self.middleware.mw_list[-1].mask != HTTPMethod.ALL
+            or self.middleware.mw_list[-1].path != '/'):
 
-            self.middleware.add(HTTPMethod.ALL,
-                                '/',
-                                Router())
+            self.middleware.add(HTTPMethod.ALL, '/', Router())
         return self.middleware.mw_list[-1].func
 
-    @asyncio.coroutine
+    @types.coroutine
     def handle_client_request(self, req, res):
         """
         Entry point for the request+response middleware chain
@@ -328,7 +324,7 @@ class Application(object):
         yield from self.error_handlers
         yield self.default_error_handler
 
-    def print_middleware_tree(self, *, file=sys.stdout, EOL='\n'):  # noqa pragma: no cover
+    def print_middleware_tree(self, *, file=sys.stdout, EOL=os.linesep):  # noqa pragma: no cover
         """
         Prints a unix-tree-like output of the structure of the web application
         to the file specified (stdout by default).
