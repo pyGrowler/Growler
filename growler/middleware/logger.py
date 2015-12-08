@@ -41,6 +41,4 @@ class Logger():
 
     def __call__(self, req, res):
         logging.info("Connection from {}".format(req.ip))
-
-    def mw(self, req, res):
-        print("[Logger] % %" % (req, res))
+        req.log = self
