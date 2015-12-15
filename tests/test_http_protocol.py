@@ -8,8 +8,12 @@ import asyncio
 import pytest
 from unittest import mock
 
-from mocks import *
-from mocks import mock_event_loop as event_loop
+from mocks import (
+    mock_event_loop as event_loop,
+    mock_transport,
+    client_host,
+    client_port,
+)
 
 from test_protocol import (
     MockGrowlerProtocol,
@@ -24,11 +28,10 @@ def MockGrowlerHTTPProtocol(request):
 
 @pytest.fixture
 def mock_app(event_loop, mock_req_factory, mock_res_factory):
-    app = mock.Mock(spec=growler.application.Application)
-    app.loop = event_loop
-    app._request_class = mock_req_factory
-    app._response_class = mock_res_factory
-    return app
+    return mock.Mock(spec=growler.application.Application,
+                     loop=event_loop,
+                     _request_class=mock_req_factory,
+                     _response_class=mock_res_factory)
 
 
 @pytest.fixture
