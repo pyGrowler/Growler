@@ -3,6 +3,7 @@
 #
 
 import growler
+import growler.http.parser
 from growler.http.parser import Parser
 from growler.http.methods import HTTPMethod
 from growler.http.errors import (
@@ -42,6 +43,7 @@ def parser(mock_responder):
 @pytest.mark.parametrize("line, location, value", [
     (b"a line\n", 6, b'\n'),
     (b"a line\r\n", 6, b'\r\n'),
+    ("a line\r\n", 6, b'\r\n'),
     (b"no newline", -1, None),
 ])
 def test_find_newline(line, location, value, parser):
@@ -79,6 +81,11 @@ def test_consume_buffer(parser):
     assert parser._buffer == [b"GET"]
 
 
+def test_consume_request_length_too_long(parser):
+    with pytest.raises(HTTPErrorBadRequest):
+        parser.consume([0] * (growler.http.parser.MAX_REQUEST_LENGTH + 4))
+
+
 @pytest.mark.parametrize("data, method, parsed, version", [
   (b"GET /path HTTP/1.1\n", GET, ('', '', '/path', '', '', ''), 'HTTP/1.1'),
   (b"GET /a#q HTTP/1.1\n", GET, ('', '', '/a', '', '', 'q'), 'HTTP/1.1'),
@@ -90,6 +97,28 @@ def test_consume_request_line(parser, data, method, parsed, version):
                                                       ParseResult(*parsed),
                                                       version)
 
+
+@pytest.mark.parametrize("lines", [
+    [b'bad unicode\xc3', ],
+])
+def test_bad_unicode_lines(parser, lines):
+    with pytest.raises(HTTPErrorBadRequest):
+        parser.store_headers_from_lines(lines)
+
+
+@pytest.mark.parametrize("header_lines, expected", [
+    ([b'the-key: one', b' two', b''],
+     {'THE-KEY': ['one', 'two']}),
+
+    ([ b'host: a', b'm: a', b' b', b'   c', b''],
+     {'HOST': 'a', 'M': ['a', 'b', 'c']}
+    ),
+])
+def test_store_headers_from_lines(parser, header_lines, expected):
+    parser._header_buffer = {}
+    parser.store_headers_from_lines(header_lines)
+
+    assert parser.headers == expected
 
 @pytest.mark.parametrize("header", [
     b"OOPS\r\nhost: nowhere.com\r\n",
@@ -160,6 +189,24 @@ def test_consume_byte_by_byte(parser, header, parsed, header_dict):
     parser.parent.set_request_line.assert_called_with(HTTPMethod.GET,
                                                       ParseResult(*parsed),
                                                       'HTTP/1.1')
+
+
+def test_join_and_clear_buffer(parser):
+    parser.join_and_clear_buffer()
+
+
+@pytest.mark.parametrize("data", [
+    '',
+])
+def test_process_get_headers(parser, data):
+    parser.process_get_headers(data)
+
+
+@pytest.mark.parametrize("data", [
+    '',
+])
+def test_process_post_headers(parser, data):
+    parser.process_post_headers(data)
 
 
 @pytest.mark.parametrize("header", [

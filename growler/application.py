@@ -21,7 +21,6 @@ a class to modify the behavior of the app. (decorators explained elsewhere)
     @app.use
     def myfunc(req, res):
         print("myfunc")
-
 """
 
 import asyncio
@@ -29,9 +28,7 @@ import os
 import sys
 import logging
 import re
-from types import (
-    MethodType,
-)
+import types
 from .http import (
     HTTPRequest,
     HTTPResponse,
@@ -40,6 +37,18 @@ from .http import (
 from .router import Router
 from .middleware_chain import MiddlewareChain
 from .http.methods import HTTPMethod
+import growler.http.methods
+
+log = logging.getLogger(__name__)
+
+
+class GrowlerStopIteration(StopIteration):
+    """
+    Exception to raise when it is desireable to stop the growler application
+    from continuing to loop over middleware. This is necessary to run over a
+
+    """
+    pass
 
 
 class Application(object):
@@ -71,6 +80,8 @@ class Application(object):
     timeout variable yet, but I think I will put one in later, to ensure that
     the middleware is as responsive as the dev expects.
     """
+
+    error_recursion_max_depth = 10
 
     def __init__(self,
                  name=__name__,
@@ -149,10 +160,6 @@ class Application(object):
         self._response_class = response_class
         self._protocol_factory = protocol_factory
 
-    def on_start(self, cb):
-        print("Callback : ", cb)
-        self._events['startup'].append(cb)
-
     #
     # Middleware adding functions
     #
@@ -200,17 +207,16 @@ class Application(object):
         :param path: A string or regex wich will be used to match request
                      paths.
         """
-        debug = "[App::use] Adding middleware <{}> listening on path {}"
         if hasattr(middleware, '__growler_router'):
             router = getattr(middleware, '__growler_router')
-            if isinstance(router, (MethodType,)):
+            if isinstance(router, (types.MethodType,)):
                 router = router()
             self.add_router(path, router)
         elif hasattr(middleware, '__iter__'):
             for mw in middleware:
                 self.use(mw, path, method_mask)
         else:
-            logging.info(debug.format(middleware, path))
+            log.info("%d Using %s on path %s" % (id(self), middleware, path))
             self.middleware.add(path=re.compile(path),
                                 func=middleware,
                                 method_mask=method_mask)
@@ -226,8 +232,7 @@ class Application(object):
         :param router: The router which will respond to objects
         :type router: growler.Router
         """
-        debug = "[App::add_router] Adding router {} on path {}"
-        logging.info(debug.format(router, path))
+        log.info("%d Adding router %s on path %s" % (id(self), router, path))
         self.use(middleware=router,
                  path=path,
                  method_mask=HTTPMethod.ALL,)
@@ -240,17 +245,15 @@ class Application(object):
         not an instance of growler.Router, one is created and added to the
         middleware chain, matching all requests.
         """
-        if len(self.middleware.mw_list) is 0 or                        \
-           not isinstance(self.middleware.mw_list[-1].func, Router) or \
-           self.middleware.mw_list[-1].mask != HTTPMethod.ALL or       \
-           self.middleware.mw_list[-1].path != '/':
+        if (len(self.middleware.mw_list) is 0
+            or not isinstance(self.middleware.mw_list[-1].func, Router)
+            or self.middleware.mw_list[-1].mask != HTTPMethod.ALL
+            or self.middleware.mw_list[-1].path != '/'):
 
-            self.middleware.add(HTTPMethod.ALL,
-                                '/',
-                                Router())
+            self.middleware.add(HTTPMethod.ALL, '/', Router())
         return self.middleware.mw_list[-1].func
 
-    @asyncio.coroutine
+    @types.coroutine
     def handle_client_request(self, req, res):
         """
         Entry point for the request+response middleware chain
@@ -267,26 +270,46 @@ class Application(object):
                     yield from mw(req, res)
                 else:
                     mw(req, res)
+
+            # special exception - immediately stop the loop
+            #  - do not check if res has sent
+            except GrowlerStopIteration:
+                return None
+
             # on an unhandled exception - notify the generator of the error
             except Exception as error:
                 mw_generator.send(error)
                 self.handle_server_error(req, res, mw_generator, error)
                 break
 
+            if res.has_ended:
+                break
+
         if not res.has_ended:
             res.send_text("500 - Server Error", 500)
 
-    def handle_server_error(self, req, res, generator, error):
+    def handle_server_error(self, req, res, generator, error, err_count=0):
         """
         Entry point for handling an unhandled error that occured during
         execution of some middleware chain.
         """
+        if err_count >= self.error_recursion_max_depth:
+            raise Exception("Too many exceptions:" + error)
+
         for mw in generator:
+
             try:
                 mw(req, res, error)
             except Exception as new_error:
                 generator.send(new_error)
-                self.handle_server_error(req, res, generator, new_error)
+                self.handle_server_error(req,
+                                         res,
+                                         generator,
+                                         new_error,
+                                         err_count+1)
+                break
+
+            if res.has_ended:
                 break
 
     def next_error_handler(self, req=None):
@@ -302,7 +325,7 @@ class Application(object):
         yield from self.error_handlers
         yield self.default_error_handler
 
-    def print_middleware_tree(self, *, file=sys.stdout, EOL='\n'):
+    def print_middleware_tree(self, *, file=sys.stdout, EOL=os.linesep):  # noqa pragma: no cover
         """
         Prints a unix-tree-like output of the structure of the web application
         to the file specified (stdout by default).
@@ -317,11 +340,8 @@ class Application(object):
         def mask_to_method_name(mask):
             if mask == HTTPMethod.ALL:
                 return 'ALL'
-            names = [name
-                     for name, key
-                     in (('GET', HTTPMethod.GET), ('POST', HTTPMethod.POST))
-                     if (key & mask)
-                     ]
+            methods_names = growler.http.methods.string_to_method.items()
+            names = [name for name, key in methods_names if (key & mask)]
             return '+'.join(names)
 
         def path_to_str(path):

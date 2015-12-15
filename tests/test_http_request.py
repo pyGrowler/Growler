@@ -5,6 +5,7 @@
 import growler
 from growler.http.request import HTTPRequest
 import pytest
+from collections import namedtuple
 from unittest import mock
 from urllib.parse import (
     unquote,
@@ -33,7 +34,7 @@ def get_req(mock_protocol, default_headers, request_uri, headers):
     headers.update(default_headers)
     mock_protocol.request = {
         'method': "GET",
-        'url': request_uri,
+        'url': mock.Mock(path=request_uri),
         'version': "HTTP/1.1"
     }
     return growler.http.request.HTTPRequest(mock_protocol, headers)

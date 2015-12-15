@@ -3,9 +3,13 @@
 #
 
 import os
+import logging
+from copy import copy
+
+log = logging.getLogger(__name__)
 
 
-class Renderer():
+class Renderer:
     """
     A growler-middleware class for changing template files into html (or any
     file format) to send back to the client.
@@ -36,13 +40,13 @@ class Renderer():
         self.path = os.path.abspath(path)
 
         if not os.path.exists(self.path):
-            print("[Renderer] Error: No path exists at {}".format(self.path))
+            log.error("%d No path at %s" % (id(self), self.path))
             raise Exception("Path '{}' does not exist.".format(self.path))
 
-        print("[Renderer] Template files located in {}".format(self.path))
+        log.info("%d files located in %s" % (id(self), self.path))
 
         if isinstance(engine, str):
-            engine = render_engine_map.get(engine, None)
+            engine = self.render_engine_map.get(engine, None)
 
         if engine is None:
             raise Exception("[Renderer] No valid rendering engine provided.")
@@ -87,57 +91,43 @@ class Renderer():
         raise Exception("No file found provided name '{}'.".format(fname))
 
 
-class MakoRenderer():
+class StringRenderer(Renderer):
     """
-    The default 'Mako' renderer for the growler project. This class provides a
-    reference on how template engines may work for rendering webpages with a
-    growler app.
-    """
+    A renderer that uses the basic str.format method to generate html pages.
 
-    default_file_extension = '.mako'
-
-    def __init__(self, renderer):
-        """
-        Construct the renderer, provided the parent renderer.
-        """
-        from mako.template import Template
-        self._render = Template
-        print("[MakoRenderer]")
-
-    def __call__(self, filename, res):
-        print("[MakoRenderer] CALL", filename)
-        tmpl = self._render(filename=filename)
-        html = tmpl.render()
-        return html
-
-
-class JadeRenderer():
-    """
-    A render engine using the pyjade package to render jade files into mako
-    files, which are then turned into html by the make.template package.
+    Given a view directory that contains *.html.tmpl template files, this will
+    add the 'render' method to the middleware response object. When this
+    method is called with a filename and dictionary, the file is read in as a
+    string then .format is called with the contents of the dictionary.
     """
 
-    default_file_extension = '.jade'
+    def __init__(self, view_directory, extensions=None):
+        super().__init__(view_directory, StringRenderer.Engine)
+        self.extensions = [] if extensions is None else extensions
+        self.path = view_directory
 
-    def __init__(self, renderer):
-        """
-        Construct the renderer, provided the parent renderer.
-        """
-        from pyjade.ext import mako
-        from pyjade.ext.mako import preprocessor as mako_preprocessor
-        from mako.template import Template
-        print("[JadeRenderer]")
+    def render_file(self, filename, render_obj, **kwargs):
+        txt = self.file_text(filename)
+        obj = copy(render_obj)
+        obj.update(kwargs)
+        return txt.format(**obj)
 
-        self._render = Template
-        self._engine = mako
-        self._preprocessor = mako_preprocessor
+    def file_text(self, filename):
+        with open(filename, 'r') as file:
+            return file.read()
 
-    def __call__(self, filename, res):
-        tmpl = self._render(filename=filename, preprocessor=self._preprocessor)
-        html = tmpl.render(**res.locals)
-        return html
 
-render_engine_map = {
-    'mako': MakoRenderer,
-    'jade': JadeRenderer
-}
+    class Engine:
+
+        default_file_extension = '.html.tmpl'
+
+        def __init__(self, parent):
+            self.parent = parent
+
+        def __call__(self, filename, res):
+            with open(filename, 'r') as file:
+                s = file.read()
+            return s.format(**res.locals)
+
+# register the renderer
+Renderer.render_engine_map['string'] = StringRenderer

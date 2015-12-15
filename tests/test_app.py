@@ -4,11 +4,14 @@
 
 import asyncio
 import pytest
-import growler
 import types
+import growler
+import growler.application
+from growler.application import GrowlerStopIteration
 from unittest import mock
+from growler.application import Application
 
-from mocks import *
+from mocks import *                                                      # noqa
 
 from mock_classes import (
     MockRequest,
@@ -28,18 +31,18 @@ def app_name():
 
 @pytest.fixture
 def router():
-    router = mock.Mock(spec=growler.router.Router)
-    route_list = []
-
-    router.middleware_chain = lambda req: (yield from route_list)
-    router.get = mock.Mock(lambda *args: route_list.append(args))
-    return router
+    return mock.Mock(spec=growler.router.Router,
+                     middleware_chain=lambda req: (yield from ()),
+                     get=mock.Mock(lambda *args: route_list.append(args)))
 
 
 @pytest.fixture
 def MockProtocol(proto):
     return mock.Mock(return_value=proto)
 
+@pytest.fixture
+def mock_MiddlewareChain():
+    return mock.create_autospec(growler.application.MiddlewareChain)
 
 @pytest.fixture
 def proto():
@@ -60,7 +63,7 @@ def req(req_uri):
 
 
 @pytest.fixture
-def app(app_name, router, mock_event_loop, MockProtocol):
+def app(app_name, mock_MiddlewareChain, mock_event_loop, MockProtocol):
     result = growler.application.Application(app_name,
                                              loop=mock_event_loop,
                                              request_class=MockRequest,
@@ -69,6 +72,10 @@ def app(app_name, router, mock_event_loop, MockProtocol):
                                              )
     return result
 
+@pytest.fixture
+def app_with_router(app, router):
+    app.middleware.add(growler.http.methods.HTTPMethod.ALL, '/', router)
+    return app
 
 def test_application_constructor():
     app = growler.application.Application('Test')
@@ -86,15 +93,79 @@ def test_application_enables_x_powered_by(app):
     assert app.enabled('x-powered-by')
 
 
+def test_all(app_with_router, router):
+    m = mock.Mock()
+    app_with_router.all('/', m)
+    router.all.assert_called_with('/', m)
+
+
+def test_get(app_with_router, router):
+    m = mock.Mock()
+    app_with_router.get('/', m)
+    router.get.assert_called_with('/', m)
+
+
+def test_post(app_with_router, router):
+    m = mock.Mock()
+    app_with_router.post('/', m)
+    router.post.assert_called_with('/', m)
+
+
+def test_use_function(app, mock_route_generator):
+    m = mock_route_generator()
+    app.use(m)
+    assert app.middleware.mw_list[-1].func is m
+
+
+def test_use_tuple(app, mock_route_generator):
+    mws = tuple(mock_route_generator() for i in range(3))
+    app.use(mws)
+    assert len(mws) is len(app.middleware.mw_list)
+    assert all((a.func is b for a, b in zip(app.middleware.mw_list, mws)))
+
+
+def test_use_list(app, mock_route_generator):
+    mw_list = [mock_route_generator() for i in range(3)]
+    app.use(mw_list)
+    assert len(mw_list) is len(app.middleware.mw_list)
+    assert all((a.func is b for a, b in zip(app.middleware.mw_list, mw_list)))
+
+
+def test_use_growler_router(app, mock_route_generator):
+    m = mock.Mock()
+    route = mock_route_generator()
+    m.__growler_router = route
+    app.use(m)
+    assert app.middleware.mw_list[-1].func is route
+
+
+def test_use_growler_router_factory(app, mock_route_generator):
+    router = mock_route_generator()
+    m = mock.Mock()
+    m.__growler_router = mock.Mock(spec=types.MethodType,
+                                   return_value=router)
+    app.use(m)
+    assert m.__growler_router.called
+    assert app.middleware.mw_list[-1].func is router
+
+
 def test_create_server(app):
     """ Test if the application creates a server coroutine """
     app._protocol_factory = mock.Mock()
-    srv = app.create_server()
+    app.create_server()
     assert app.loop.create_server.called
     assert app._protocol_factory.called
 
+
+def test_create_server_as_coroutine(app):
+    """ Test if the application creates a server coroutine """
+    app._protocol_factory = mock.Mock()
+    app.create_server(gen_coroutine=True)
+    assert app.loop.create_server.called
+    assert app._protocol_factory.called
+
+
 def test_create_server_and_run_forever(app):
-    print(app.loop)
     app.create_server_and_run_forever()
     assert app.loop.create_server.called
     assert app.loop.run_forever.called
@@ -133,14 +204,13 @@ def mock_route_generator():
     return lambda: mock.create_autospec(lambda rq, rs: None)
 
 
+def test_empty_app(app):
+    assert len(app.middleware.mw_list) is 0
+
+
 def test_router_property(app):
-    x = app.router
+    app.router
     assert len(app.middleware.mw_list) is 1
-
-
-def test_calling_use_list(app, mock_route_generator):
-    mw_list = [mock_route_generator() for i in range(3)]
-    app.use(mw_list)
 
 
 # def test_use_with_routified_obj(app, router):
@@ -191,13 +261,178 @@ def test_next_error_handler(app):
         assert handler
 
 
-def test_default_error_handler(app, req, res):
+def test_default_error_handler_sends_res(app, req, res):
     ex = Exception("boom")
     app.default_error_handler(req, res, ex)
     assert res.send_html.called
 
+
+@pytest.mark.asyncio
+def test_handle_client_request_coro(app, req, res):
+    m = mock.Mock()
+    coro = asyncio.coroutine(lambda req, res: m())
+    app.use(coro)
+    yield from app.handle_client_request(req, res)
+    assert m.called
+
+
+@pytest.mark.asyncio
+def test_handle_client_request_ex(app, req, res, mock_route_generator):
+    generator = mock.MagicMock()
+    handler = mock.Mock()
+    middleware = mock.Mock(return_value=generator)
+    app.middleware = middleware
+    app.handle_server_error = handler
+
+    ex = Exception()
+    # Commented out to fix testing bug on linux. (remove and try again)
+    # m1 = mock_route_generator()
+    # m1.side_effect = ex
+    m1 = mock.Mock(side_effect=ex)
+
+    generator.__iter__.return_value = [m1]
+
+    yield from app.handle_client_request(req, res)
+
+    assert generator.send.called
+    assert len(handler.mock_calls) is 1
+    handler.assert_called_with(req, res, generator, ex)
+
+
+@pytest.mark.asyncio
+def test_handle_client_request_nosend(app, req, res, mock_route_generator):
+    res.has_ended = False
+
+    generator = mock.MagicMock()
+    generator.__iter__.return_value = []
+    middleware = mock.Mock(return_value=generator)
+    app.middleware = middleware
+
+    yield from app.handle_client_request(req, res)
+    assert res.send_text.called
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize('req_uri, middlewares, called', [
-    ('/', [mock.Mock(path='/')], [True]),
+    ('/', [], True),
+    # ('/aaa', [], False),
 ])
-def test_handle_client_request_get(app, req, res, middlewares, called):
-    app.handle_client_request(req, res)
+def test_handle_client_request_get(app, req, res, middlewares, called, mock_route_generator):
+    m1 = mock_route_generator()
+    app.use(m1)
+    yield from app.handle_client_request(req, res)
+    assert m1.called is called
+
+
+@pytest.mark.asyncio
+def test_middleware_stops_with_stop_iteration(app, req, res):
+    def do_something(req, res):
+        return None
+
+    def mock_function():
+        # this coroutine required to let test pass - unknown why
+        return asyncio.coroutine(mock.create_autospec(do_something))
+        # return mock.create_autospec(do_something)
+
+    m1 = mock_function()
+    m2 = mock_function()
+
+    m1.side_effect = GrowlerStopIteration
+
+    app.use(m1)
+    app.use(m2)
+
+    yield from app.handle_client_request(req, res)
+
+    assert not m2.called
+
+
+@pytest.mark.asyncio
+def test_middleware_stops_with_res(app, req, res):
+    res.has_ended = False
+
+    def set_has_ended(Q, S):
+        res.has_ended = True
+
+    m1 = mock.MagicMock(spec=set_has_ended,
+                        __name__='set_has_ended',
+                        __qualname__='set_has_ended',
+                        __annotations__={},
+                        __code__=set_has_ended.__code__)
+    m2 = mock.MagicMock(spec=set_has_ended,
+                        __name__='set_has_ended',
+                        __qualname__='set_has_ended',
+                        __annotations__={},
+                        __code__=set_has_ended.__code__,
+                        side_effect=set_has_ended)
+    m3 = mock.MagicMock(spec=set_has_ended,
+                        __name__='set_has_ended',
+                        __qualname__='set_has_ended',
+                        __annotations__={},
+                        __code__=set_has_ended.__code__)
+
+    app.use(m1)
+    app.use(m2)
+    app.use(m3)
+
+    yield from app.handle_client_request(req, res)
+
+    assert m1.called
+    assert m2.called
+    assert not m3.called
+
+
+def test_handle_server_error(app, req, res):
+    m1 = mock.create_autospec(lambda rq, rs, er: None)
+    m2 = mock.create_autospec(lambda rq, rs, er: None)
+    def set_has_ended(Q, S, E):
+        res.has_ended = True
+
+    m1.side_effect = set_has_ended
+    generator = mock.MagicMock()
+    generator.__iter__.return_value = [m1, m2]
+    err = mock.MagicMock()
+
+    app.handle_server_error(req, res, generator, err)
+    assert m1.called
+    assert not m2.called
+
+
+@pytest.mark.parametrize('count, passes', [
+    (0, True),
+    (Application.error_recursion_max_depth-1, True),
+    (Application.error_recursion_max_depth, False),
+    (Application.error_recursion_max_depth+2, False),
+])
+def test_handle_server_error_max_depth(app, req, res, count, passes):
+    generator = mock.MagicMock()
+    generator.__iter__.return_value = []
+    err = mock.MagicMock()
+
+    if passes:
+        app.handle_server_error(req, res, generator, err, count)
+    else:
+        with pytest.raises(Exception):
+            app.handle_server_error(req, res, generator, err, count)
+
+
+def test_handle_server_error_in_error(app, req, res):
+    generator = mock.MagicMock()
+    m1 = mock.create_autospec(lambda rq, rs, er: None)
+    m2 = mock.create_autospec(lambda rq, rs, er: None)
+
+    def reset_iteration(Q, S, E):
+        generator.__iter__.return_value = []
+        raise ex
+
+    ex = Exception("boom")
+    m1.side_effect = reset_iteration
+
+    generator.__iter__.return_value = [m1, m2]
+    err = mock.MagicMock()
+
+    app.handle_server_error(req, res, generator, err)
+
+    assert generator.send.called
+    assert m1.called
+    assert not m2.called

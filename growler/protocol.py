@@ -7,7 +7,9 @@ Code containing Growler's asyncio.Protocol code for handling all streaming
 """
 
 import asyncio
-import sys
+import logging
+
+log = logging.getLogger(__name__)
 
 
 class GrowlerProtocol(asyncio.Protocol):
@@ -89,8 +91,8 @@ class GrowlerProtocol(asyncio.Protocol):
             err_str = "Provided responder MUST implement an 'on_data' method"
             raise TypeError(err_str)
 
-        print("Growler Connection from {}:{}".format(self.remote_hostname,
-                                                     self.remote_port))
+        log_info = (id(self), self.remote_hostname, self.remote_port)
+        log.info("%d connection from %s:%s" % log_info)
 
     def connection_lost(self, exc):
         """
@@ -99,8 +101,9 @@ class GrowlerProtocol(asyncio.Protocol):
         :param exc Exception: Error if unexpected closing. None if clean close
         """
         if exc:
-            print("[connection_lost]", exc, file=sys.stderr)
-        print("[connection_lost]")
+            log.error("%d connection_lost %s" % (id(self), exc))
+        else:
+            log.info("%d connection_lost" % id(self))
 
     def data_received(self, data):
         """
@@ -119,7 +122,7 @@ class GrowlerProtocol(asyncio.Protocol):
         not be sending any more data to the server.
         """
         self.is_done_transmitting = True
-        print("[GrowlerProtocol::eof_received]")
+        log.info("%d eof_received" % id(self))
 
     def handle_error(self, error):
         """

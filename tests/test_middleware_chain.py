@@ -3,27 +3,29 @@
 #
 
 import growler
+from growler.middleware_chain import MiddlewareChain
 import pytest
 from unittest import mock
 
 from test_app import (
     req_uri,
-    req,
 )
 
 
 @pytest.fixture
 def chain():
-    return growler.MiddlewareChain()
+    return MiddlewareChain()
+
 
 @pytest.fixture
 def mock_chain():
-    return mock.MagicMock(spec=growler.MiddlewareChain,
-                          __class__=growler.MiddlewareChain,)
+    return mock.create_autospec(MiddlewareChain)
+    return mock.MagicMock(spec=MiddlewareChain,
+                          __class__=MiddlewareChain,)
 
 
 def test_constructor(chain):
-    assert isinstance(chain, growler.MiddlewareChain)
+    assert isinstance(chain, MiddlewareChain)
 
 
 def test_add(chain):
@@ -45,7 +47,7 @@ def test_contains(chain):
 
 
 def test_deep_contains(chain):
-    inner_chain = growler.MiddlewareChain()
+    inner_chain = MiddlewareChain()
     func = mock.Mock()
     inner_chain.add(0x0, '', func)
     chain.add(0x0, '', inner_chain)

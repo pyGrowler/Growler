@@ -4,6 +4,10 @@
 #
 
 from http.cookies import SimpleCookie
+import logging
+import json
+
+log = logging.getLogger(__name__)
 
 
 class CookieParser():
@@ -24,7 +28,7 @@ class CookieParser():
         do nothing currently except get stored in the CookieParser.opts
         attribute.
         """
-        print("[CookieParser]", opts)
+        log.info("%d built with %s" % (id(self), json.dumps(opts)))
         self.opts = opts
 
     def __call__(self, req, res):
@@ -34,6 +38,7 @@ class CookieParser():
         """
         # Do not clobber cookies
         try:
+            log.info("%d built with %s" % (id(self), json.dumps(self.opts)))
             req.cookies
             return None
         except AttributeError:

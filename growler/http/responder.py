@@ -5,8 +5,6 @@
 The Growler class responsible for responding to HTTP requests.
 """
 
-import asyncio
-
 from .parser import Parser
 from .request import HTTPRequest
 from .response import HTTPResponse
@@ -14,7 +12,6 @@ from .methods import HTTPMethod
 
 from .errors import (
     HTTPErrorBadRequest,
-    HTTPErrorInternalServerError
 )
 
 

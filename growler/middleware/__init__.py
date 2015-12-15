@@ -13,14 +13,17 @@ import growler
 from .auth import Auth
 from .static import Static
 from .logger import Logger
-from .renderer import Renderer
-from .session import (Session, SessionStorage, DefaultSessionStorage)
+from .renderer import (
+    Renderer,
+    StringRenderer,
+)
+from .session import (
+    Session,
+    SessionStorage,
+    DefaultSessionStorage,
+)
 from .cookieparser import CookieParser
 from .responsetime import ResponseTime
 from .timer import Timer
-
-from pkg_resources import declare_namespace
-
-declare_namespace('growler.middleware')
 
 __all__ = ['Logger']
