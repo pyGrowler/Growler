@@ -27,7 +27,8 @@ app.use(StringRenderer(view_dir, extensions=['.html.tmpl']))
 
 @app.get('/')
 def index(req, res):
-    res.render("home")
+    obj = {'title': "FooBar"}
+    res.render("home", obj)
 
 
 @app.get('/hello')
@@ -44,7 +45,12 @@ app.print_middleware_tree()
 
 loop = asyncio.get_event_loop()
 
-loop.run_until_complete(loop.create_server(app._protocol_factory(app),
-                                           host='127.0.0.1',
-                                           port=8000))
+server_params = {
+    'host': '127.0.0.1',
+    'port': 8000,
+}
+
+make_server = loop.create_server(app._protocol_factory(app), **server_params)
+loop.run_until_complete(make_server)
+
 loop.run_forever()

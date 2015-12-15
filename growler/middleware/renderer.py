@@ -9,7 +9,7 @@ from copy import copy
 log = logging.getLogger(__name__)
 
 
-class Renderer():
+class Renderer:
     """
     A growler-middleware class for changing template files into html (or any
     file format) to send back to the client.
@@ -92,11 +92,18 @@ class Renderer():
 
 
 class StringRenderer(Renderer):
+    """
+    A renderer that uses the basic str.format method to generate html pages.
+
+    Given a view directory that contains *.html.tmpl template files, this will
+    add the 'render' method to the middleware response object. When this
+    method is called with a filename and dictionary, the file is read in as a
+    string then .format is called with the contents of the dictionary.
+    """
 
     def __init__(self, view_directory, extensions=None):
-        self.extensions = (['.html.tmpl']
-                           if extensions is None
-                           else extensions)
+        super().__init__(view_directory, StringRenderer.Engine)
+        self.extensions = [] if extensions is None else extensions
         self.path = view_directory
 
     def render_file(self, filename, render_obj, **kwargs):
@@ -109,6 +116,18 @@ class StringRenderer(Renderer):
         with open(filename, 'r') as file:
             return file.read()
 
+
+    class Engine:
+
+        default_file_extension = '.html.tmpl'
+
+        def __init__(self, parent):
+            self.parent = parent
+
+        def __call__(self, filename, res):
+            with open(filename, 'r') as file:
+                s = file.read()
+            return s.format(**res.locals)
 
 # register the renderer
 Renderer.render_engine_map['string'] = StringRenderer
