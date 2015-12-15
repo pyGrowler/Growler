@@ -57,22 +57,26 @@ class Router(MiddlewareChain):
         matches the regex will pass the request/response objects to that
         router.
         """
-        tup = Middleware(func=router,
-                              mask=HTTPMethod.ALL,
-                              path=path,
-                              is_errorhandler=False,
-                              is_subchain=True,)
+        tup = Middleware(
+            func=router,
+            mask=HTTPMethod.ALL,
+            path=path,
+            is_errorhandler=False,
+            is_subchain=True,
+        )
         self.mw_list.append(tup)
         return self
 
     def add_route(self, method, path, endpoint):
         """
         """
-        tup = Middleware(func=endpoint,
-                              mask=method,
-                              path=re.compile(path),
-                              is_errorhandler=False,
-                              is_subchain=False,)
+        tup = Middleware(
+            func=endpoint,
+            mask=method,
+            path=re.compile(path),
+            is_errorhandler=False,
+            is_subchain=False,
+        )
         self.mw_list.append(tup)
         return self
 

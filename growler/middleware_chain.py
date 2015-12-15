@@ -6,7 +6,6 @@
 
 import logging
 from inspect import signature
-from collections import namedtuple
 
 
 class Middleware:
