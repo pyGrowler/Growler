@@ -37,6 +37,7 @@ from .http import (
 from .router import Router
 from .middleware_chain import MiddlewareChain
 from .http.methods import HTTPMethod
+import growler.http.methods
 
 log = logging.getLogger(__name__)
 
@@ -339,7 +340,7 @@ class Application(object):
         def mask_to_method_name(mask):
             if mask == HTTPMethod.ALL:
                 return 'ALL'
-            methods_names = HTTPMethod.string_to_method.items()
+            methods_names = growler.http.methods.string_to_method.items()
             names = [name for name, key in methods_names if (key & mask)]
             return '+'.join(names)
 
