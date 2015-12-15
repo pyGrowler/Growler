@@ -103,20 +103,56 @@ the event loop if you prefer.
 Extensions
 ----------
 
-Growler implements its own virtual namespaces to which you can add your own
-packages under the 'growler' package name. The implementation has changed such
-that it no-longer uses growler as a python virtual namespace (which lead to
-verbose import statements) but an explicit virtual package: *growler\_ext*.
+Growler introduces the virtual namespace ``growler_ext`` to which other
+projects may add their own growler-specific code.
+Of course, these packages may be imported in the standard way, but Growler
+provides an autoloading feature via the growler.ext module (note the '.' in
+place of '_') which will automatically import any packages found in the
+growler_ext namespace.
+This not only provides a standard interface for extensions, but allows for
+different implementations of an interface to be chosen by the environment,
+rather than hard-coded in.
+It also can reduce number of import statements at the beginning of the file.
+This specialized importer may be imported as a standalone module:
+
+.. code: python
+
+  from growler import (App, ext)
+
+  app = App()
+  app.use(ext.MyGrowlerExtension())
+  ...
+
+
+or a module from which to import from:
+
+.. code: python
+
+  from growler import App
+  from growler.ext import MyGrowlerExtension
+
+  app = App()
+  app.use(ext.MyGrowlerExtension())
+  ...
+
+This works by replacing the 'real' ext module with an object that will import
+submodules in the growler_ext namespace automatically.
+Perhaps unfortunately, because of this there is no way I know of to allow the
+``import growler.ext.my_extension`` syntax, as this skips the importer object
+and raises an import error.
+Users *must* use the ``from growler.ext import ...`` syntax instead.
 
 The best practice for developers to add their middleware to growler is now to
-put their code in the growler_ext/my_extesion. This will allow your code to be
-imported by web developers by ``import growler.ext.my_extesion``. This will
-search through the growler_ext namespace and find your package.
+put their code in the python module growler_ext/my_extesion.
+This will allow your code to be imported by others via
+``from growler.ext import my_extension`` or the combination of
+``from growler import ext`` and ``ext.my_extesion``.
 
-There is currently one 'official' extension,
+
+An example of an extension is the
 `indexer <https://github.com/pyGrowler/growler-indexer>`__ which hosts
-an automatically generated index of a filesystem directory. Look to it as an
-example of how to write extensions.
+an automatically generated index of a filesystem directory.
+It should implement the best practices of how to write extensions.
 
 More
 ----
