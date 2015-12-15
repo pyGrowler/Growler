@@ -19,7 +19,7 @@ REQUIRES = [
 OPTIONAL_REQUIRES = {
     'jade': ['pyjade'],
     'mako': ['growler-mako'],
-    ':python_version=="3.3"': ['asyncio>=0.2.1']
+    ':python_version=="3.3"': ['asyncio>=3.4.3'],
 }
 
 TESTS_REQUIRE = [
