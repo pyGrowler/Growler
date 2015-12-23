@@ -246,9 +246,9 @@ class Application(object):
         middleware chain, matching all requests.
         """
         if (len(self.middleware.mw_list) is 0
-            or not isinstance(self.middleware.mw_list[-1].func, Router)
-            or self.middleware.mw_list[-1].mask != HTTPMethod.ALL
-            or self.middleware.mw_list[-1].path != '/'):
+           or not isinstance(self.middleware.mw_list[-1].func, Router)
+           or self.middleware.mw_list[-1].mask != HTTPMethod.ALL
+           or self.middleware.mw_list[-1].path != '/'):
 
             self.middleware.add(HTTPMethod.ALL, '/', Router())
         return self.middleware.mw_list[-1].func
@@ -302,11 +302,13 @@ class Application(object):
                 mw(req, res, error)
             except Exception as new_error:
                 generator.send(new_error)
-                self.handle_server_error(req,
-                                         res,
-                                         generator,
-                                         new_error,
-                                         err_count+1)
+                self.handle_server_error(
+                    req,
+                    res,
+                    generator,
+                    new_error,
+                    err_count + 1,
+                )
                 break
 
             if res.has_ended:
