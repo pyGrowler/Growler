@@ -45,8 +45,11 @@ log = logging.getLogger(__name__)
 class GrowlerStopIteration(StopIteration):
     """
     Exception to raise when it is desireable to stop the growler application
-    from continuing to loop over middleware. This is necessary to run over a
+    from continuing to loop over middleware. This is necessary to, for example,
+    add a new HTTPResponder which does not interact with the application.
 
+    No data is sent to the response object; if not careful, the client could
+    time out.
     """
     pass
 
@@ -151,9 +154,6 @@ class Application:
             'error': [],
             'http_error': [],
         }
-        self.error_handlers = []
-
-        self._wait_for = [asyncio.sleep(0.1)]
 
         self._request_class = request_class
         self._response_class = response_class
@@ -167,7 +167,7 @@ class Application:
     # router.
     # These could be assigned on construction using the form:
     #
-    #    2self.all = self.router.all
+    #    self.all = self.router.all
     #
     # , but that would not allow the user to switch the root router (easily)
     #
@@ -392,19 +392,6 @@ class Application:
             if res.has_ended:
                 break
 
-    def next_error_handler(self, req=None):
-        """
-        A generator providing the chain of error handlers for server exception
-        catching. If there are no error handlers set, the app will use the
-        classmethod 'default_error_handler'.
-
-        An optional 'req' parameter is present in the event that request
-        specific  handling (i.e. by path or session) is neccessary. This is
-        currently unimplemented and should be ignored.
-        """
-        yield from self.error_handlers
-        yield self.default_error_handler
-
     def print_middleware_tree(self, *, file=sys.stdout, EOL=os.linesep):  # noqa pragma: no cover
         """
         Prints a unix-tree-like output of the structure of the web application
@@ -494,14 +481,6 @@ class Application:
         """
         return bool(self.config[name])
 
-    def require(self, future):
-        """
-        Will wait for the future before creating the asyncio server. Useful
-        for things like database connections.
-        """
-        # TODO: Is this _actually_ useful?
-        self._wait_for.append(future)
-
     #
     # dict-like access for application configuration options
     #
@@ -563,9 +542,6 @@ class Application:
             **server_config
         )
 
-        if self._wait_for:
-            self.loop.run_until_complete(asyncio.wait(self._wait_for,
-                                                      loop=self.loop))
         if gen_coroutine:
             return create_server
         else:

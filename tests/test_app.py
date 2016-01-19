@@ -250,17 +250,6 @@ def test_set_get_del_in_config_item(app):
     assert 'obj' not in app
 
 
-def test_require(app):
-    me = asyncio.Future()
-    app.require(me)
-    assert me in app._wait_for
-
-
-def test_next_error_handler(app):
-    for handler in app.next_error_handler():
-        assert handler
-
-
 def test_default_error_handler_sends_res(app, req, res):
     ex = Exception("boom")
     app.default_error_handler(req, res, ex)
