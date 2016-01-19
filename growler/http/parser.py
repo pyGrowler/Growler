@@ -33,15 +33,15 @@ class Parser:
     while processing the first line. Each header is read in one at a time.
 
     Upon finding an error the Parser will throw a 'BadHTTPRequest' exception.
+
+    Parameters
+    ----------
+    parent : growler.HTTPResponder
+        The 'parent' responder which will forward client data to the parser,
+        and the parser will send parsed data back.
     """
 
     def __init__(self, parent):
-        """
-        Construct a Parser object.
-
-        :param queue asyncio.queue: The queue in which to put parsed items.
-            This is assumed to be read from the responder which created it.
-        """
         self.parent = parent
         self.EOL_TOKEN = None
         self._buffer = []
@@ -117,7 +117,10 @@ class Parser:
         version and method are valid for this server, and uses the urllib.parse
         function to parse the request URI.
 
-        @return Tuple of (method, parsed_url, version)
+        Returns
+        -------
+        request_tuple : tuple
+            Tuple containing the parsed (method, parsed_url, version)
         """
         try:
             method, request_uri, version = req_line.split()

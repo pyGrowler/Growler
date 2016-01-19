@@ -13,13 +13,35 @@ from wsgiref.handlers import format_date_time as format_RFC_1123
 from .status import Status
 
 
-class HTTPResponse(object):
+class HTTPResponse:
     """
-    Response class which handles writing to the client.
+
+    Response class which handles HTTP formatting and sending a response to the
+    client. If the response has sent a message (the `has_ended` property
+    evaluates to True) the middleware chain will stop.
+
+    There are many convenience functions such as `send_json` and `send_html`
+    which will handle formatting data, setting headers and sending objects and
+    strings for you.
+
+    A typical use is the modification of the response object by the standard
+    Renderer middleware, which adds a `render` method to the response object.
+    Any middleware after this one (i.e. your routes) can then call
+    res.render("template_name", data) to automatically render a web view and
+    send it to.
+
+    Parameters
+    ----------
+    protocol : GrowlerHTTPProtocol
+        Protocol object creating the response
+    EOL : str
+        The string with which to end lines
     """
-    SERVER_INFO = 'Python/{0[0]}.{0[1]} Growler/{1}'.format(sys.version_info,
-                                                            growler.__version__
-                                                            )
+
+    SERVER_INFO = 'Python/{py_version} Growler/{growler_version}'.format(
+        py_version=".".join(map(str, sys.version_info[:2])),
+        growler_version=growler.__version__,
+    )
 
     protocol = None
     has_sent_headers = False
@@ -33,12 +55,6 @@ class HTTPResponse(object):
     _events = None
 
     def __init__(self, protocol, EOL="\r\n"):
-        """
-        Create the http response.
-
-        :param protocol: GrowlerHTTPProtocol object creating the response
-        :param EOL str: The string with which to end lines
-        """
         self.protocol = protocol
         self.EOL = EOL
 
@@ -56,8 +72,6 @@ class HTTPResponse(object):
         response
         """
         time_string = self.get_current_time()
-        # time_string = time.strftime("%a, %d %b %Y %H:%M:%S GMT",
-        #  time.gmtime())
         self.headers.setdefault('Date', time_string)
         self.headers.setdefault('Server', self.SERVER_INFO)
         self.headers.setdefault('Content-Length', len(self.message))
@@ -65,11 +79,13 @@ class HTTPResponse(object):
             self.headers.setdefault('X-Powered-By', 'Growler')
 
     def send_headers(self):
-        """Sends the headers to the client"""
+        """
+        Sends the headers to the client
+        """
         for func in self._events['before_headers']:
             func()
 
-        self.headerstrings = [self.StatusLine()]
+        self.headerstrings = [self.status_line]
 
         self._set_default_headers()
 
@@ -93,9 +109,14 @@ class HTTPResponse(object):
         for f in self._events['after_send']:
             f()
 
-    def StatusLine(self):
-        self.phrase = self.phrase if self.phrase else Status.Phrase(
-            self.status_code)
+    @property
+    def status_line(self):
+        """
+        Returns the first line of response, including http version, status
+        and a phrase (OK).
+        """
+        if not self.phrase:
+            self.phrase = Status.Phrase(self.status_code)
         return "{} {} {}".format("HTTP/1.1", self.status_code, self.phrase)
 
     def end(self):
@@ -171,11 +192,35 @@ class HTTPResponse(object):
         return self.send_json(body, status)
 
     def send_json(self, obj, status=200):
+        """
+        Sends a stringified JSON response to client. Automatically sets the
+        content-type header to application/json.
+
+        Parameters
+        ----------
+        obj : mixed
+            Any object which will be serialized by the json.dumps module
+            function
+        status : int, optional
+            The HTTP status code, defaults to 200 (OK)
+        """
         self.headers['content-type'] = 'application/json'
         self.status_code = status
-        self.send_text(json.dumps(obj))
+        message = json.dumps(obj)
+        self.send_text(message)
 
     def send_html(self, html, status=200):
+        """
+        Sends html response to client. Automatically sets the content-type
+        header to text/html.
+
+        Parameters
+        ----------
+        html : str
+            The raw html string to be sent back to the client
+        status : int, optional
+            The HTTP status code, defaults to 200 (OK)
+        """
         self.headers.setdefault('content-type', 'text/html')
         self.message = html
         self.status_code = status
@@ -189,19 +234,32 @@ class HTTPResponse(object):
         header to text/plain. If txt is not a string, it will be formatted as
         one.
 
-        :param txt str: The plaintext string to be sent back to the client
-        :param status int: The HTTP status code, defaults to 200 (OK)
+        Parameters
+        ----------
+        txt : str
+            The plaintext string to be sent back to the client
+        status : int, optional
+            The HTTP status code, defaults to 200 (OK)
         """
         self.headers.setdefault('content-type', 'text/plain')
-        self.message = str(txt)
+        if isinstance(txt, bytes):
+            self.message = txt
+        else:
+            self.message = str(txt)
         self.status_code = status
         self.end()
 
     def send_file(self, filename, status=200):
-        """Reads in the file 'filename' and sends string."""
-        # f = open(filename, 'r')
-        # f = io.FileIO(filename)
-        # print ("[send_file] sending file :", filename)
+        """
+        Reads in the file 'filename' and sends bytes to client
+
+        Parameters
+        ----------
+        filename : str
+            Filename of the file to read
+        status : int, optional
+            The HTTP status code, defaults to 200 (OK)
+        """
         with io.FileIO(filename) as f:
             self.message = f.read()
         self.status_code = status
@@ -223,7 +281,7 @@ class HTTPResponse(object):
 
     @property
     def info(self):
-        return 'Python/{0[0]}.{0[1]} growler/{1}'
+        return self.SERVER_INFO
 
     @property
     def stream(self):
@@ -235,4 +293,5 @@ class HTTPResponse(object):
 
     @staticmethod
     def get_current_time():
+        # return time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime())
         return format_RFC_1123(time.mktime(datetime.now().timetuple()))

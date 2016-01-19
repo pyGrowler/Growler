@@ -14,9 +14,11 @@ class Static():
     Static middleware catches any uri paths which match a filesystem file and
     serves that file.
 
-    :param path: The directory path to search for files. If this is a list, the
-                 paths will be path-joined automatically.
-    :type path: str/list
+    Paramaters
+    ----------
+    path : str or list
+        The directory path to search for files. If this is a list, the paths
+        will be path-joined automatically.
     """
 
     def __init__(self, path):

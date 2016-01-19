@@ -27,12 +27,15 @@ class Renderer:
         """
         Construct a renderer.
 
-        :param path: The directory containing the templates to render. If this
-            is a list, it is automatically concatenated by os.path.join.
+        Parameters
+        ----------
+        path : str or list of str
+            The directory containing the templates to render. If this is a
+            list, it is automatically concatenated by os.path.join.
 
-        :param engine: The rendering engine or the string key for the type of
-            engine, details should be found in the documentation for that
-            engine.
+        engine : str or callable
+            The rendering engine or the string key for the type of engine,
+            details should be found in the documentation for that engine.
         """
         if isinstance(path, list):
             path = os.path.join(*path)
@@ -115,7 +118,6 @@ class StringRenderer(Renderer):
     def file_text(self, filename):
         with open(filename, 'r') as file:
             return file.read()
-
 
     class Engine:
 

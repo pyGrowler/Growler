@@ -99,7 +99,10 @@ class GrowlerProtocol(asyncio.Protocol):
         """
         asyncio.Protocol member - called upon when a socket closes.
 
-        :param exc Exception: Error if unexpected closing. None if clean close
+        Parameters
+        ----------
+        exc : Exception or None
+            Error if connection closed unexpectedly, None if closed cleanly.
         """
         if exc:
             log.error("%d connection_lost %s" % (id(self), exc))

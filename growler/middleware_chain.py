@@ -62,8 +62,10 @@ class MiddlewareChain:
         """
         Generator yielding the middleware which matches the provided path.
 
-        :param path: url path of the request.
-        :type path: str
+        Parameters
+        ----------
+        path : str
+            url path of the request.
         """
         error_handler_stack = []
         err = None

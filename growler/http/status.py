@@ -3,7 +3,7 @@
 #
 
 
-class Status(object):
+class Status:
     """
     Class encapsulating HTTP status codes and phrases.
     """

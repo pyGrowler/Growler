@@ -47,7 +47,6 @@ class Router(MiddlewareChain):
     regex_type = type(sinatra_param_regex)
 
     def __init__(self):
-        """Create a router"""
         super().__init__()
         self.log = logging.getLogger("%s:%d" % (__name__, id(self)))
 
