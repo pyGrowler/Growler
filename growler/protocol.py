@@ -43,6 +43,20 @@ class GrowlerProtocol(asyncio.Protocol):
     , the later example forwarding arguments to the factory. Note, calling
     GP.factory() will not work as create_server expects the factory and not an
     instance of the protocol.
+
+    Parameters
+    ----------
+    loop : asyncio.BaseEventLoop
+        The event loop managing all asynchronous activity of this protocol.
+    responder_factory : callable
+        Returns the first responder for this protocol. This could simply be a
+        constructor for the type (i.e. the type's name). This function will
+        only be passed the protocol object. The event loop should be aquired
+        from the protocol via the 'loop' member. The responder returned only
+        needs to have a method defined called 'on_data' which gets passed the
+        bytes received. Note: 'on_data' should only me a function and NOT a
+        coroutine.
+
     """
 
     transport = None
@@ -50,21 +64,6 @@ class GrowlerProtocol(asyncio.Protocol):
     is_done_transmitting = False
 
     def __init__(self, loop, responder_factory):
-        """
-        Construct a GrowlerProtocol object.
-
-        :param loop asyncio.BaseEventLoop: The event loop managing all
-            asynchronous activity of this protocol.
-
-        :param responder_factory runnable: A callable which returns the first
-            responder for this protocol. This could simply be a constructor for
-            the type (i.e. the type's name). This function will only be passed
-            the protocol object. The event loop should be aquired from the
-            protocol via the 'loop' member. The responder returned only needs
-            to have a method defined called 'on_data' which gets passed the
-            bytes received. Note: 'on_data' should only me a function and NOT a
-            coroutine.
-        """
         self.make_responder = responder_factory
         self.loop = loop if (loop is not None) else asyncio.get_event_loop()
 
@@ -76,8 +75,10 @@ class GrowlerProtocol(asyncio.Protocol):
         connection will always call
         on_data to the last element of this list.
 
-        :param transport asyncio.Transport: The Transport handling the socket
-            communication
+        Parameters
+        ----------
+        transport : asyncio.Transport
+            The Transport handling the socket communication
         """
         self.transport = transport
         self.responders = [self.make_responder(self)]
@@ -109,7 +110,10 @@ class GrowlerProtocol(asyncio.Protocol):
         """
         asyncio.Protocol member - called upon when there is data to be read
 
-        :param transport bytes: bytes in the latest data transmission
+        Parameters
+        ----------
+        data : bytes
+            Bytes from the latest data transmission
         """
         try:
             self.responders[-1].on_data(data)
@@ -130,7 +134,10 @@ class GrowlerProtocol(asyncio.Protocol):
         during a responder's on_data() function. There is no default
         functionality and the subclasses must overload this.
 
-        :param error: Exception thrown in code
+        Parameters
+        ----------
+        error : Exception
+            The exception raised from the code
         """
         raise NotImplementedError()
 
