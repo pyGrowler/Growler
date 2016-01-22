@@ -4,7 +4,7 @@
 
 import re
 import logging
-
+from functools import partialmethod
 from collections import OrderedDict
 from growler.http.methods import (
     HTTPMethod,
@@ -12,10 +12,14 @@ from growler.http.methods import (
 )
 from growler.middleware_chain import (
     MiddlewareChain,
-    Middleware,
 )
 
-ROUTABLE_NAME_REGEX = re.compile("(all|get|post|delete)_.*", re.IGNORECASE)
+ROUTABLE_NAME_REGEX = re.compile("(%s)_.*" % '|'.join([
+    "all",
+    "get",
+    "post",
+    "delete",
+]), re.IGNORECASE + re.UNICODE)
 
 
 class Router(MiddlewareChain):
@@ -49,79 +53,32 @@ class Router(MiddlewareChain):
     def __init__(self):
         super().__init__()
         self.log = logging.getLogger("%s:%d" % (__name__, id(self)))
+        self.add_route = self.add
 
     def add_router(self, path, router):
         """
-        Add a (regex, router) pair to the list of subrouters. Any req.path that
-        matches the regex will pass the request/response objects to that
-        router.
+        Add a (regex, router) pair to this router. Any req.path that matches
+        the regex will pass the request/response objects to that router.
         """
-        tup = Middleware(
-            func=router,
-            mask=HTTPMethod.ALL,
-            path=path,
-            is_errorhandler=False,
-            is_subchain=True,
-        )
-        self.mw_list.append(tup)
+        self.add(HTTPMethod.ALL, path, router)
         return self
 
-    def add_route(self, method, path, endpoint):
-        """
-        """
-        tup = Middleware(
-            func=endpoint,
-            mask=method,
-            path=re.compile(path),
-            is_errorhandler=False,
-            is_subchain=False,
-        )
-        self.mw_list.append(tup)
-        return self
-
-    def _apply_decorator(self, method, path):
-        """
-        An internal function used when adding a route via a decorator instead
-        of the 'standard' function call. This is needed so we can return the
-        router in the add_route method, but return the original function when
-        decorating (else the decorated function name becomes this router!)
-        """
-        def wrapper(func):
-            self.add_route(method, path, func)
-            return func
-        return wrapper
-
-    def all(self, path='/', middleware=None):
-        """
-        The middleware provided is called upon all HTTP requests matching the
-        path.
-        """
+    def _add_route(self, method, path, middleware=None):
+        """The implementation of adding a route"""
         if middleware is not None:
-            return self.add_route(HTTPMethod.ALL, path, middleware)
+            self.add(method, path, middleware)
+            return self
         else:
-            return self._apply_decorator(HTTPMethod.ALL, path)
+            # return a lambda that will return the 'func' argument
+            return lambda func: (
+                self.add(method, path, func),
+                func
+            )[1]
 
-    def get(self, path='/', middleware=None):
-        """Add a route in response to the GET HTTP method."""
-        # Handle explicit and decorator calls
-        if middleware is not None:
-            return self.add_route(HTTPMethod.GET, path, middleware)
-        else:
-            return self._apply_decorator(HTTPMethod.GET, path)
-
-    def post(self, path='/', middleware=None):
-        """Add a route in response to the POST HTTP method."""
-        if middleware is not None:
-            return self.add_route(HTTPMethod.POST, path, middleware)
-        else:
-            return self._apply_decorator(HTTPMethod.POST, path)
-
-    def delete(self, path='/', middleware=None):
-        """Add a route in response to the DELETE HTTP method."""
-        if middleware is not None:
-            return self.add_route(HTTPMethod.DELETE, path, middleware)
-        else:
-            return self._apply_decorator(HTTPMethod.DELETE, path)
+    all = partialmethod(_add_route, HTTPMethod.ALL)
+    get = partialmethod(_add_route, HTTPMethod.GET)
+    post = partialmethod(_add_route, HTTPMethod.POST)
+    delete = partialmethod(_add_route, HTTPMethod.DELETE)
 
     def use(self, middleware, path=None):
         """
@@ -129,12 +86,10 @@ class Router(MiddlewareChain):
         requests match the provided path. A None path matches every request.
         """
         self.log.info(" Using middleware %s" % middleware)
-        self.middleware.append(middleware)
+        if path is None:
+            path = MiddlewareChain.ROOT_PATTERN
+        self.add(HTTPMethod.ALL, path, middleware)
         return self
-
-    def print_tree(self, prefix=''):
-        for x in self.subrouters:
-            x.print_tree(prefix + "  ")
 
     def match_routes(self, req):
         """
@@ -142,10 +97,6 @@ class Router(MiddlewareChain):
         request.
         """
         return self(req.method, req.path)
-
-    def match_path(self, request, path):
-        # return request == path
-        return path.fullmatch(request)
 
     def iter_routes(self):
         for mw in self.mw_list:
@@ -200,21 +151,22 @@ class RouterMeta(type):
         """
         Creates the class type, adding an additional attributes
         __ordered_attrs__, a snapshot of the dictionary keys, and
-        __growler_router, a method which will generate a growler.Router
+        __growler_router__, a method which will generate a growler.Router
+        object.
         """
         child_class = type.__new__(cls, name, bases, classdict)
 
         def build_router(self):
             router = Router()
             # should keys be instead classdict.keys()
-            nxt = get_routing_attributes(self, keys=self.__ordered_attrs__)
+            nxt = get_routing_attributes(self, keys=list(k for k in classdict.keys() if hasattr(self, k)))
             for method, path, func in nxt:
-                getattr(router, method)(path=path, middleware=func)
-            self.__growler_router = router
+                router.add(method, path, func)
+            self.__growler_router__ = router
             return router
 
+        child_class.__growler_router__ = build_router
         child_class.__ordered_attrs__ = classdict.keys()
-        child_class.__growler_router = build_router
         return child_class
 
 
@@ -230,20 +182,31 @@ def get_routing_attributes(obj, modify_doc=False, keys=None):
     followed by a catch-all 'all'. Until a solution is found, just make a
     router by hand.
     """
-    for attr in dir(obj) if keys is None else keys:
+    if keys is None:
+        keys = dir(obj)
+
+    for attr in keys:
         matches = ROUTABLE_NAME_REGEX.match(attr)
         val = getattr(obj, attr)
         if matches is None or not callable(val):
             continue
+
         try:
-            if modify_doc:
-                path, val.__doc__ = val.__doc__.split(maxsplit=1)
-            else:
-                path = val.__doc__.split(maxsplit=1)[0]
+            split_doc = val.__doc__.split(maxsplit=1) or ('', '')
         except AttributeError:
             continue
-        if path == '':
+
+        path = split_doc[0]
+
+        if not path:
             continue
+
+        if modify_doc:
+            try:
+                val.__doc__ = split_doc[1]
+            except IndexError:
+                val.__doc__ = ''
+
         method = StringToHTTPMethod[matches.group(1).upper()]
         yield method, path, val
 
@@ -262,7 +225,7 @@ def routerclass(cls):
     attempt to match.
     """
     logging.debug("Creating a routerclass with the class %s" % cls)
-    cls.__growler_router = lambda self: routerify(self)
+    cls.__growler_router__ = lambda self: routerify(self)
     return cls
 
 
@@ -278,5 +241,5 @@ def routerify(obj):
     router = Router()
     for info in get_routing_attributes(obj):
         router.add_route(*info)
-    obj.__growler_router = router
+    obj.__growler_router__ = router
     return router

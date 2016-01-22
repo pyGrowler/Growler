@@ -235,8 +235,8 @@ class Application:
             with -, or toggled with '^' (e.g. HTTPMethod.GET + HTTPMethod.POST,
             HTTPMethod.ALL - HTTPMethod.DELETE).
         """
-        if hasattr(middleware, '__growler_router'):
-            router = getattr(middleware, '__growler_router')
+        if hasattr(middleware, '__growler_router__'):
+            router = getattr(middleware, '__growler_router__')
             if isinstance(router, (types.MethodType,)):
                 router = router()
             self.add_router(path, router)

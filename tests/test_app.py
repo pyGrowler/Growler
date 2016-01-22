@@ -134,7 +134,7 @@ def test_use_list(app, mock_route_generator):
 def test_use_growler_router(app, mock_route_generator):
     m = mock.Mock()
     route = mock_route_generator()
-    m.__growler_router = route
+    m.__growler_router__ = route
     app.use(m)
     assert app.middleware.last().func is route
 
@@ -142,10 +142,10 @@ def test_use_growler_router(app, mock_route_generator):
 def test_use_growler_router_factory(app, mock_route_generator):
     router = mock_route_generator()
     m = mock.Mock()
-    m.__growler_router = mock.Mock(spec=types.MethodType,
+    m.__growler_router__ = mock.Mock(spec=types.MethodType,
                                    return_value=router)
     app.use(m)
-    assert m.__growler_router.called
+    assert m.__growler_router__.called
     assert app.middleware.last().func is router
 
 
@@ -215,19 +215,19 @@ def test_router_property(app):
 
 # def test_use_with_routified_obj(app, router):
 #     obj = mock.Mock()
-#     obj.__growler_router = mock.NonCallableMock()
+#     obj.__growler_router__ = mock.NonCallableMock()
 #     app.use(obj)
-#     router.add_router.assert_called_with(None, obj.__growler_router)
+#     router.add_router.assert_called_with(None, obj.__growler_router__)
 
 
 # def test_use_with_routified_class(app, router):
 #     sub_router = mock.Mock()
 #     obj = mock.MagicMock()
-#     obj.__growler_router.return_value = sub_router
-#     obj.__growler_router.__class__ = types.MethodType
+#     obj.__growler_router__.return_value = sub_router
+#     obj.__growler_router__.__class__ = types.MethodType
 #     app.use(obj)
 #     router.add_router.assert_called_with(None, sub_router)
-#     obj.__growler_router.assert_called()
+#     obj.__growler_router__.assert_called()
 
 
 def test_enable(app):
