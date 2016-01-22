@@ -114,7 +114,7 @@ def test_post(app_with_router, router):
 def test_use_function(app, mock_route_generator):
     m = mock_route_generator()
     app.use(m)
-    assert app.middleware.mw_list[-1].func is m
+    assert app.middleware.last().func is m
 
 
 def test_use_tuple(app, mock_route_generator):
@@ -136,7 +136,7 @@ def test_use_growler_router(app, mock_route_generator):
     route = mock_route_generator()
     m.__growler_router = route
     app.use(m)
-    assert app.middleware.mw_list[-1].func is route
+    assert app.middleware.last().func is route
 
 
 def test_use_growler_router_factory(app, mock_route_generator):
@@ -146,7 +146,7 @@ def test_use_growler_router_factory(app, mock_route_generator):
                                    return_value=router)
     app.use(m)
     assert m.__growler_router.called
-    assert app.middleware.mw_list[-1].func is router
+    assert app.middleware.last().func is router
 
 
 def test_create_server(app):

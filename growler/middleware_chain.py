@@ -216,3 +216,63 @@ class MiddlewareChain:
         """
         return any((func is mw.func) or (mw.is_subchain and func in mw.func)
                    for mw in self.mw_list)
+
+    def count_all(self):
+        """
+        Returns the total number of middleware in this chain and subchains.
+        """
+        return sum(x.func.count_all() if x.is_subchain else 1 for x in self)
+
+    def __len__(self):
+        """
+        Returns the number of middleware contained in the root of this chain.
+        To count the number of middleware, included in subchains, use
+        count_all()
+        """
+        return len(self.mw_list)
+
+    def __iter__(self):
+        """
+        Iterates directly through the middleware chain. Does not enter any
+        subchains.
+        """
+        return iter(self.mw_list)
+
+    def __reversed__(self):
+        """
+        Iterates directly through the middleware chain, starting from the
+        bottom. Does not enter any subchains along the way.
+        """
+        return reversed(self.mw_list)
+
+    def first(self):
+        """
+        Returns first element in list.
+
+        Returns
+        -------
+        Middleware
+            The first middleware in the chain.
+
+        Raises
+        ------
+        IndexError
+            If the chain is empty
+        """
+        return self.mw_list[0]
+
+    def last(self):
+        """
+        Returns last element in list.
+
+        Returns
+        -------
+        Middleware
+            The last middleware stored in the chain.
+
+        Raises
+        ------
+        IndexError
+            If the chain is empty
+        """
+        return self.mw_list[-1]

@@ -278,7 +278,7 @@ class Application:
             self.middleware.add(HTTPMethod.ALL,
                                 MiddlewareChain.ROOT_PATTERN,
                                 Router())
-        return self.middleware.mw_list[-1].func
+        return self.middleware.last().func
 
     @property
     def has_root_router(self):
@@ -294,7 +294,7 @@ class Application:
         """
         from .http.methods import HTTPMethod
         try:
-            mw = self.middleware.mw_list[-1]
+            mw = self.middleware.last()
         except IndexError:
             return False
         return (isinstance(mw.func, Router)
@@ -438,7 +438,7 @@ class Application:
 
         def decend_into_tree(chain, level):
             lines_ = []
-            for mw in chain.mw_list:
+            for mw in chain:
                 info = (mask_to_method_name(mw.mask),
                         path_to_str(mw.path),
                         mw.func)
