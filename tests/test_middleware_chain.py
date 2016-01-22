@@ -85,6 +85,8 @@ def test_not_matches_routes(chain, mask, path, reqtuple):
     ('/x-y/a/b', [mock.Mock(path='/y'),
                   mock.MagicMock(path='/x-y/'),
                   mock.Mock(path='/x-y')], [False, True, True]),
+    ('/[x-y]', [mock.Mock(path='/[x-y]'),
+                mock.MagicMock(path='/x')], [True, False]),
 ])
 def test_handle_client_request_get(chain, req_uri, middlewares, called):
     [chain.add(0x1, mw.path, mw) for mw in middlewares]

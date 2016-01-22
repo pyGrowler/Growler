@@ -7,8 +7,9 @@ and provides an easy interface for request matching.
 """
 
 import logging
-from inspect import signature
 import re
+from inspect import signature
+
 
 class Middleware:
     """
@@ -20,10 +21,13 @@ class Middleware:
 
     A 'subchain' middleware node has the subtree stored as the func attribute.
 
-    Parameters
-    ----------
-    inits: dict
-        Keyword arguments are used to set attributes
+    The path attribute should be a regular expression. If it is a string, it is
+    escaped and then compiled.
+
+
+    Keyword Arguments
+    -----------------
+        Simple mappings to attributes
     """
 
     __slots__ = [
@@ -36,6 +40,8 @@ class Middleware:
 
     def __init__(self, **inits):
         for k, v in inits.items():
+            if k == 'path' and isinstance(v, str):
+                v = re.compile(re.escape(v))
             setattr(self, k, v)
 
     def matches_method(self, method):
@@ -64,23 +70,19 @@ class Middleware:
             The 'rest' of the path, following the matching part
 
         """
-        if isinstance(self.path, str):
-            if path.startswith(self.path):
-                return self.path, path[len(self.path):]
-            else:
-                return None, None
+        match = self.path.match(path)
+        if match is not None:
+            return match, path[:match.span()[1]]
         else:
-            match = self.path.match(path)
-            if match is not None:
-                return match, path[:match.span()[1]]
-            else:
-                return None, None
+            return None, None
 
 
 class MiddlewareChain:
     """
     Class handling the storage and retreival of growler middleware functions.
     """
+
+    ROOT_PATTERN = re.compile(re.escape('/'))
 
     mw_list = None
     log = None

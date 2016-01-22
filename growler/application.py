@@ -27,7 +27,6 @@ import asyncio
 import os
 import sys
 import logging
-import re
 import types
 from .http import (
     HTTPRequest,
@@ -246,7 +245,7 @@ class Application:
                 self.use(mw, path, method_mask)
         else:
             log.info("%d Using %s on path %s" % (id(self), middleware, path))
-            self.middleware.add(path=re.compile(path),
+            self.middleware.add(path=path,
                                 func=middleware,
                                 method_mask=method_mask)
         return self
@@ -275,13 +274,33 @@ class Application:
         not an instance of growler.Router, one is created and added to the
         middleware chain, matching all requests.
         """
-        if (len(self.middleware.mw_list) is 0
-           or not isinstance(self.middleware.mw_list[-1].func, Router)
-           or self.middleware.mw_list[-1].mask != HTTPMethod.ALL
-           or self.middleware.mw_list[-1].path != '/'):
-
-            self.middleware.add(HTTPMethod.ALL, '/', Router())
+        if not self.has_root_router:
+            self.middleware.add(HTTPMethod.ALL,
+                                MiddlewareChain.ROOT_PATTERN,
+                                Router())
         return self.middleware.mw_list[-1].func
+
+    @property
+    def has_root_router(self):
+        """
+        Returns true if the bottom middleware of the chain is an
+        instance of growler.Router, the mask matches ALL methods, and
+        the path is the root (/) path.
+
+        Returns
+        -------
+        bool
+            Whether the last element in chain is a "root router"
+        """
+        from .http.methods import HTTPMethod
+        try:
+            mw = self.middleware.mw_list[-1]
+        except IndexError:
+            return False
+        return (isinstance(mw.func, Router)
+                and mw.mask == HTTPMethod.ALL
+                and mw.path is MiddlewareChain.ROOT_PATTERN
+                )
 
     @types.coroutine
     def handle_client_request(self, req, res):
