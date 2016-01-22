@@ -2,13 +2,30 @@
 # growler/middleware_chain.py
 #
 """
+Provides the MiddlewareChain class, which is used to store structured routing,
+and provides an easy interface for request matching.
 """
 
 import logging
 from inspect import signature
-
+import re
 
 class Middleware:
+    """
+    A class representing a node in the MiddlewareChain. It contains the actual
+    middleware function, the path this node is mounted on, and the 'method
+    mask' which requests must match to proceed. There are two boolean slots
+    which indicate whether this node contains a 'subchain' (is this technically
+    a tree?) and if function is an error handler.
+
+    A 'subchain' middleware node has the subtree stored as the func attribute.
+
+    Parameters
+    ----------
+    inits: dict
+        Keyword arguments are used to set attributes
+    """
+
     __slots__ = [
         'func',
         'path',
@@ -32,6 +49,20 @@ class Middleware:
         Splits a path into the part matching this middleware, and the part
         remaining.
         If path does not exist, it returns a pair of None values.
+
+        Parameters
+        ----------
+        path : str
+            The url to split
+
+        Returns
+        -------
+        matching_path : str or None
+            The beginning of the path which matches this middleware or None if
+            it does not match
+        remaining_path : str or None
+            The 'rest' of the path, following the matching part
+
         """
         if isinstance(self.path, str):
             if path.startswith(self.path):
@@ -62,8 +93,25 @@ class MiddlewareChain:
         """
         Generator yielding the middleware which matches the provided path.
 
+        When called with an HTTP method and path, the middleware chain returns
+        a generator object that will walk along the chain in a depth-first
+        pattern. Any middleware nodes matching both the method code and path
+        are yielded.
+
+        The generator keeps any error handlers encountered walking the tree in
+        its internal state. If an error occurs during execution of a middleware
+        function, the exception should be sent back to the generator via the
+        send method: ``mw_chain.send(err)``. The error handlers will be looped
+        through in reverse order, so the most specific handler matching method
+        and path is called first.
+
+        If an error occurs during the execution of an error handler, it is
+        ignored (for now) until a solution is determined.
+
         Parameters
         ----------
+        method : growler.http.HTTPMethod
+            The request method which
         path : str
             url path of the request.
         """
@@ -101,6 +149,8 @@ class MiddlewareChain:
 
                     # Yield the middleware function
                     err = yield sub_mw
+
+                    # the subchain had an error - forward error to subchain
                     if err:
                         subchain.send(err)
 
@@ -123,7 +173,18 @@ class MiddlewareChain:
 
     def add(self, method_mask, path, func):
         """
-        Add a function to the middleware chain, listening on func
+        Add a function to the middleware chain. This function is returned when
+        iterating over the chain with matching method and path.
+
+        Parameters
+        ----------
+        method_mask : growler.http.HTTPMethod
+            A bitwise mask intended to match specific request methods.
+        path : str or regex
+            An object to compare request urls to
+        func : callable
+            The function to be yieled from the generator upon a request
+            matching the method_mask and path
         """
         is_err = len(signature(func).parameters) == 3
         is_subchain = isinstance(func, MiddlewareChain)
@@ -136,7 +197,20 @@ class MiddlewareChain:
 
     def __contains__(self, func):
         """
-        Returns whether the function is stored anywhere in the middleware chain
+        Returns whether the function is stored anywhere in the middleware
+        chain.
+
+        This runs recursively though any subchains.
+
+        Parameters
+        ----------
+        func : callable
+            A function which may be present in the chain
+
+        Returns
+        -------
+        contains_function : bool
+            True if func is a function contained anywhere in the chain.
         """
         return any((func is mw.func) or (mw.is_subchain and func in mw.func)
                    for mw in self.mw_list)
