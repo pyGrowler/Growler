@@ -158,9 +158,9 @@ class RouterMeta(type):
 
         def build_router(self):
             router = Router()
-            # should keys be instead classdict.keys()
-            nxt = get_routing_attributes(self, keys=list(k for k in classdict.keys() if hasattr(self, k)))
-            for method, path, func in nxt:
+
+            routes = get_routing_attributes(self, keys=classdict.keys())
+            for method, path, func in routes:
                 router.add(method, path, func)
             self.__growler_router__ = router
             return router
@@ -187,11 +187,14 @@ def get_routing_attributes(obj, modify_doc=False, keys=None):
 
     for attr in keys:
         matches = ROUTABLE_NAME_REGEX.match(attr)
-        val = getattr(obj, attr)
-        if matches is None or not callable(val):
+        if matches is None:
             continue
 
         try:
+            val = getattr(obj, attr)
+            if not callable(val):
+                continue
+
             split_doc = val.__doc__.split(maxsplit=1) or ('', '')
         except AttributeError:
             continue
