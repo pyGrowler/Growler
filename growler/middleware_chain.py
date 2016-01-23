@@ -11,7 +11,7 @@ import re
 from inspect import signature
 
 
-class Middleware:
+class MiddlewareNode:
     """
     A class representing a node in the MiddlewareChain. It contains the actual
     middleware function, the path this node is mounted on, and the 'method
@@ -190,11 +190,11 @@ class MiddlewareChain:
         """
         is_err = len(signature(func).parameters) == 3
         is_subchain = isinstance(func, MiddlewareChain)
-        tup = Middleware(func=func,
-                         mask=method_mask,
-                         path=path,
-                         is_errorhandler=is_err,
-                         is_subchain=is_subchain,)
+        tup = MiddlewareNode(func=func,
+                             mask=method_mask,
+                             path=path,
+                             is_errorhandler=is_err,
+                             is_subchain=is_subchain,)
         self.mw_list.append(tup)
 
     def __contains__(self, func):
@@ -251,7 +251,7 @@ class MiddlewareChain:
 
         Returns
         -------
-        Middleware
+        MiddlewareNode
             The first middleware in the chain.
 
         Raises
@@ -267,7 +267,7 @@ class MiddlewareChain:
 
         Returns
         -------
-        Middleware
+        MiddlewareNode
             The last middleware stored in the chain.
 
         Raises
