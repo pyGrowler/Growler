@@ -27,25 +27,15 @@ __all__ = [
     'HTTPRequest',
     'HTTPResponse',
     'HTTPParser',
+    'HttpStatusPhrase',
     'GrowlerHTTPProtocol',
 ]
 
 __all__.extend(http_errors)
 
-KB = 1024
-MB = KB ** 2
-GB = KB ** 3
-
-MAX_REQUEST_LENGTH = 4 * KB
-MAX_POST_LENGTH = 2 * MB
-
-# MAX_REQUEST_LENGTH = 96
-
-# End of line and end of header
-EOL = "\r\n"
-# EOL = "\n"
-HEADER_DELIM = EOL * 2
+MAX_REQUEST_LENGTH = 4 * (2 ** 10)  # 4KB
+MAX_POST_LENGTH = 2 * (2 ** 20)     # 2MB
 
 RESPONSES = BaseHTTPRequestHandler.responses
 
-HTTPStatusPhrase = Status.Phrase
+HttpStatusPhrase = Status.Phrase
