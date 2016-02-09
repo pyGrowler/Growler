@@ -9,10 +9,14 @@ import logging
 log = logging.getLogger(__name__)
 
 
-class Static():
+class Static:
     """
     Static middleware catches any uri paths which match a filesystem file and
     serves that file.
+
+    This middleware uses the HTTPResponse object's send_file method to
+    determine mime type. At this time there is no way to change this without
+    subclassing.
 
     Paramaters
     ----------

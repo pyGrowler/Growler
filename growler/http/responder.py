@@ -73,7 +73,19 @@ class GrowlerHTTPResponder():
     def on_data(self, data):
         """
         This is the function called by the http protocol upon receipt of
-        incoming client data.
+        incoming client data. The data is passed to the responder's parser
+        class (via the consume method), which digests and stores as HTTP
+        fields.
+
+        Upon completion of parsing the HTTP headers, the responder creates the
+        request and response objects, and passes them to the begin_application
+        method, which starts the parent application's middleware chain.
+
+        Parameters
+        ----------
+        data : bytes
+            HTTP data from the socket, expected to be passed directly from the
+            transport/protocol objects.
         """
         # Headers have not been read in yet
         if self.headers is None:
@@ -120,6 +132,9 @@ class GrowlerHTTPResponder():
 
     @property
     def method(self):
+        """
+        The HTTP method as an all-caps string (e.g. 'GET')
+        """
         return self._proto.client_method
 
     @method.setter
@@ -132,6 +147,9 @@ class GrowlerHTTPResponder():
 
     @property
     def parsed_query(self):
+        """
+        The HTTP query as parsed by the standard python urllib.parse library.
+        """
         return self._proto.client_query
 
     @parsed_query.setter
@@ -144,6 +162,9 @@ class GrowlerHTTPResponder():
 
     @property
     def headers(self):
+        """
+        The dict of HTTP headers.
+        """
         return self._proto.client_headers
 
     @headers.setter
@@ -155,6 +176,10 @@ class GrowlerHTTPResponder():
         self._proto.client_headers = header_dict
 
     def build_req_and_res(self):
+        """
+        Simple method which calls the request and response factories the
+        responder was given, and returns the pair.
+        """
         req = self.build_req(self._proto, self.headers)
         res = self.build_res(self._proto)
         return req, res
@@ -189,8 +214,14 @@ class GrowlerHTTPResponder():
 
     @property
     def loop(self):
+        """
+        The asyncio event loop this responder belongs to.
+        """
         return self._proto.loop
 
     @property
     def app(self):
+        """
+        The growler application this responder belongs to.
+        """
         return self._proto.http_application

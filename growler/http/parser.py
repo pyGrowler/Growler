@@ -26,11 +26,24 @@ MAX_REQUEST_LINE_LENGTH = 8 * 1024  # 8 KB
 
 class Parser:
     """
-    New version of the Growler HTTPParser class. Responsible for interpreting
-    the reqests made by the client and creating a request object.
+
+    Class responsible for interpreting the reqests made by the client. This is
+    where the actual implementation of the HTTP occurs.
+
+    The parser object is created by the client's GrowlerHTTPResponder upon
+    construction. When data is passed to the responder's on_data method, the
+    consume method of the parser is called. If the data does not contain the
+    complete header, nor finishes the header, consume returns None, otherwise
+    the remaining data (the body/beginning of body) is returned as encoded
+    bytes.
+
+    Most users do not need to interact with the parser. The default respnoder
+    class (GrowlerHTTPResponder) accepts a parser_factor method which is called
+    to create the parser. This should make it easy to use a custom parser.
 
     Current implementation accepts both LF and CRLF line endings, discovered
-    while processing the first line. Each header is read in one at a time.
+    while processing the first line. Each header is read in one at a time, as
+    they come in over the wire.
 
     Upon finding an error the Parser will throw a 'BadHTTPRequest' exception.
 
@@ -60,8 +73,22 @@ class Parser:
         """
         Consumes data provided by the responder.
 
-        If headers have finished being read in, this returns asyncio.Future
-        which will contain the body. Else it returns None.
+        If headers have finished being read in, the buffer containing the
+        avaiable body is returned (as bytes); note that the body might be
+        incomplete and more data will come in via the asyncronous transport.
+        If there is no body, the empty bytes object is returned (b'').
+
+        If headers have NOT finished, None is returned.
+
+        Parameters
+        ----------
+        data : bytes
+            data to be parsed
+
+        Raises
+        ------
+        BadHTTPRequest
+            When any unexpected values are encountered in the data
         """
         self.request_length += len(data)
 
