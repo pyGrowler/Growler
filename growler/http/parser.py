@@ -4,6 +4,7 @@
 
 import re
 import sys
+from collections import deque
 from urllib.parse import (unquote, urlparse, parse_qs)
 
 from .methods import (
@@ -18,7 +19,7 @@ from growler.http.errors import (
     HTTPErrorVersionNotSupported,
 )
 
-INVALID_CHAR_REGEX = re.compile('[\x00-\x1F\x7F(),/:;<=>?@\[\]{} \t\\\\\"]')
+INVALID_CHAR_REGEX = re.compile('[\x00-\x1F\x7F\(\),/:;<=>?@\[\]\{\} \t\\\\\"]')
 
 MAX_REQUEST_LENGTH = 1024 ** 2  # 1 MB
 MAX_REQUEST_LINE_LENGTH = 8 * 1024  # 8 KB
@@ -69,13 +70,17 @@ class Parser:
         self.request_length = 0
         self.body_buffer = None
 
+        # create the parser generator 'object'
+        self._http_parser = self._http_parser()
+        self._http_parser.send(None)
+
     def consume(self, data):
         """
         Consumes data provided by the responder.
 
         If headers have finished being read in, the buffer containing the
         avaiable body is returned (as bytes); note that the body might be
-        incomplete and more data will come in via the asyncronous transport.
+        incomplete and more data will come in via the asynchronous transport.
         If there is no body, the empty bytes object is returned (b'').
 
         If headers have NOT finished, None is returned.
@@ -90,53 +95,103 @@ class Parser:
         BadHTTPRequest
             When any unexpected values are encountered in the data
         """
-        self.request_length += len(data)
+        body = self._http_parser.send(data)
+        return body
 
-        if self.request_length > MAX_REQUEST_LENGTH:
+    def _http_parser(self):
+        """
+        Meat of the parsing algorithm. This is a generator that data is 'sent'
+        to by the consume method. Using the generator type allows state to be
+        maintained despite not having all data. It is assumed that this is more
+        efficient than checking state (headers parsed, EOL found, etc) on every
+        consume call, but I'm not going to check this.
+        """
+
+        buffer = bytearray()
+
+        # first, find first EOL (i.e. get request line)
+        while self.EOL_TOKEN is None:
+
+            # use yield to have data sent to us - store in buffer
+            buffer += yield
+            if len(buffer) > MAX_REQUEST_LENGTH:
+                raise HTTPErrorBadRequest("Max request length exceeded")
+            self.EOL_TOKEN = self.determine_newline(buffer)
+
+        # we now have the newline character - get request line + any header
+        # lines, last element remains the buffer
+        req_line, *lines, buffer = buffer.split(self.EOL_TOKEN)
+
+        # save raw_request_line (as str)
+        try:
+            self.raw_request_line = req_line.decode()
+        except UnicodeDecodeError:
             raise HTTPErrorBadRequest
 
-        # if no newline - store in buffer
-        if self.find_newline(data) == -1:
-            self._buffer.append(data)
-            return
+        self.parse_request_line(self.raw_request_line)
 
-        lines = b''.join(self._buffer + [data]).split(self.EOL_TOKEN)
+        # header parser is the algorithm for parsing... headers
+        header_parser = self._header_parser()
+        header_parser.send(None)
 
-        # The last element was NOT a complete line, put back in the buffer
-        last_line = lines.pop()
+        body_data = None
 
-        # last line didn't terminate - store back in buffer. Else, clear buffer
-        if not data.endswith(self.EOL_TOKEN):
-            self._buffer = [last_line]
-        else:
-            self._buffer.clear()
+        while body_data is None:
+            # send each line to the header_parser generator
+            line_it = iter(lines)
+            for line in line_it:
+                hdata = header_parser.send(line)
+                if hdata is not None:
+                    hkey, hval = hdata
+                    if hkey is None:
+                        body_data = self.EOL_TOKEN.join(line_it) + buffer
+                        break
+                    self.headers[hkey] = hval
+                if line == b'':
+                    body_data = self.EOL_TOKEN.join(line_it) + buffer
+                    break
+            else:
+                lines.clear()
+                while len(lines) < 1:
+                    buffer += yield
+                    if buffer.startswith(self.EOL_TOKEN):
+                        body_data = buffer[len(self.EOL_TOKEN):]
+                        break
+                    *lines, buffer = buffer.split(self.EOL_TOKEN)
 
-        # process request line (first line in 'lines')
-        if self.needs_request_line:
-            try:
-                req_str = lines.pop(0).decode()
-            except UnicodeDecodeError:
-                raise HTTPErrorBadRequest
+        yield body_data
 
-            req_data = self.parse_request_line(req_str)
+    def _header_parser(self):
+        """
+        """
+        line = yield
+        if line == b'':
+            yield (None, b'')
 
-            self.parent.set_request_line(*req_data)
-            self.needs_request_line = False
+        next_line = yield
+        if next_line == b'':
+            k, v = self.header_key_value(line)
+            yield k.upper(), v
+            line = next_line
 
-        if not lines:
-            return
+        # if line is empty we have reached the end of the loop
+        while line != b'':
 
-        # process headers
-        if self.needs_headers:
-            self.store_headers_from_lines(lines)
+            key, value = self.header_key_value(line)
 
-            # nothing was left in buffer - we have finished headers
-            if not self._header_buffer:
-                self.parent.headers = self.headers
-                self.needs_headers = False
+            # if next line starts with space or tab, value becomes a list
+            if next_line.startswith((b' ', b'\t')):
+                value = [value]
 
-        # return None if we have not stored the body, else return the body
-        return self.body_buffer
+                while next_line.startswith((b' ', b'\t')):
+                    value += [next_line.strip().decode()]
+                    next_line = yield
+
+            key = key.upper()
+            line = next_line
+            next_line = yield key, value
+
+        yield (None, b'')
 
     def parse_request_line(self, req_line):
         """
@@ -148,6 +203,15 @@ class Parser:
         -------
         request_tuple : tuple
             Tuple containing the parsed (method, parsed_url, version)
+
+        Raises
+        ------
+        HTTPErrorBadRequest
+            If request line is invalid
+        HTTPErrorNotImplemented
+            If HTTP method is not recognized
+        HTTPErrorVersionNotSupported
+            If HTTP version is not recognized
         """
         try:
             method, request_uri, version = req_line.split()
@@ -181,129 +245,62 @@ class Parser:
         self.path = unquote(self.parsed_url.path)
         self.query = parse_qs(self.parsed_url.query)
         self.parent.parsed_query = self.query
+
         return self.method, self.parsed_url, version
 
-    def _flush_header_buffer(self):
-        """
-        Stores the _header_buffer into the self.headers. Then Nonifies the
-        _header_buffer.
-        """
-        self.headers[self._header_buffer['key']] = self._header_buffer['value']
-        self._header_buffer = None
+    @staticmethod
+    def determine_newline(data):
+        r"""
+        Looks for a newline character in bytestring parameter 'data'.
+        Currently only looks for strings '\r\n', '\n'. If '\n' is found at the
+        first position of the string, this raises an exception.
 
-    def find_newline(self, string):
-        """
-        Finds an End-Of-Line character in the string. If this has not been
-        determined, simply look for the \n, then check if there was an \r
-        before it. If not found, return -1.
-        Edgecase: If buffers end with '\r' and string starts with '\n' return
-                  -2
-        """
-        if isinstance(string, str):
-            string = string.encode()
+        Parameters
+        ----------
+        data : bytes
+            The data to be searched
 
-        # we have not processed the first line yet
-        if self.EOL_TOKEN is None:
-            token = self.determine_newline_from_string(string)
-            if token is None:
-                return -1
-            else:
-                self.EOL_TOKEN = token
-            position = string.find(self.EOL_TOKEN)
-            if position == -1:
-                position = -2
-            return position
-
-        return string.find(self.EOL_TOKEN)
-
-    def determine_newline_from_string(self, string):
+        Returns
+        -------
+        None : If no-newline is found
+        One of '\n', '\r\n', whichever is found first
         """
-        Looks for a newline character in bytestring parameter 'string'.
-        Currently only looks for chars '\r\n', '\n'. If '\n' is found in the
-        first position of the string, and there is at least one string in the
-        _buffer member, this will check if the last character in last element
-        of the buffer is '\r'.
-        """
-        line_end_pos = string.find(b'\n')
-        if line_end_pos == 0:
-            prev_char = self._buffer[-1][-1] if len(self._buffer) > 0 else b''
-        elif line_end_pos != -1:
-            prev_char = string[line_end_pos-1]
-        else:
+        line_end_pos = data.find(b'\n')
+
+        if line_end_pos == -1:
             return None
+        elif line_end_pos == 0:
+            return b'\n'
+
+        prev_char = data[line_end_pos - 1]
 
         return b'\r\n' if (prev_char is b'\r'[0]) else b'\n'
 
-    def store_headers_from_lines(self, lines):
+    def header_key_value(self, line):
         """
-        Takes the list of lines and gets a header from each string, storing
-        first into the buffer, then checks for continuation of the header. If
-        there is no continuing header - place the header into self.headers and
-        continue parsing.
-        """
-        for lineno, line in enumerate(lines):
-            # we are done parsing headers!
-            if line is b'':
-                self._flush_header_buffer()
-                self.body_buffer = b''.join(lines[lineno:])
-                break
-
-            try:
-                line = line.decode(self.encoding)
-            except UnicodeDecodeError:
-                raise HTTPErrorBadRequest
-
-            if line.startswith((' ', '\t')):
-                if self._header_buffer is None:
-                    raise HTTPErrorInvalidHeader
-                line = line.strip()
-                val = self._header_buffer['value']
-                if isinstance(val, str):
-                    self._header_buffer['value'] = [val, line]
-                else:
-                    self._header_buffer['value'] += [line]
-                continue
-
-            if self._header_buffer:
-                self._flush_header_buffer()
-
-            self._header_buffer = self.header_from_line(line)
-
-    def join_and_clear_buffer(self, data=b''):
-        result = b''.join(self._buffer + [data])
-        self._buffer.clear()
-        return result
-
-    @classmethod
-    def header_from_line(cls, line):
-        """
-        Takes a string and attempts to build a key-value pair for the header
-        object. Header names are checked for validity. In the event that the
-        string can not be split on a ':' char, a HTTPErrorBadRequest exception
-        is raised. The keys are stored as UPPER case.
+        Takes a byte string and attempts to decode and build a key-value pair
+        for the header. Header names are checked for validity. In the event
+        that the string can not be split on a ':' char, an
+        HTTPErrorInvalidHeader exception is raised.
         """
         try:
+            line = line.decode()
             key, value = map(str.strip, line.split(':', 1))
         except ValueError:
-            # rederr = colored('ERROR', 'red')
-            rederr = 'ERROR'
-            err_str = "{} parsing headers. Input '{}'".format(rederr, line)
-            print(err_str, file=sys.stderr)
             raise HTTPErrorInvalidHeader
 
-        if cls.is_invalid_header_name(key):
+        if self.is_invalid_header_name(key):
             raise HTTPErrorInvalidHeader
 
-        key = key.upper()
-        return {'key': key, 'value': value}
+        return key, value
 
-    @classmethod
-    def is_invalid_header_name(cls, string):
+    @staticmethod
+    def is_invalid_header_name(header):
         """
         Returns true if the string passes the regex checking for invalid
         header-key characters
         """
-        return string == '' or bool(INVALID_CHAR_REGEX.search(string))
+        return header == '' or bool(INVALID_CHAR_REGEX.search(header))
 
     def process_get_headers(self, data):
         """
