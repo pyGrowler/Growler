@@ -25,38 +25,45 @@ def mock_protocol():
 
 
 @pytest.fixture
+def mock_responder(mock_protocol):
+    rspndr = mock.MagicMock(spec=growler.http.responder.GrowlerHTTPResponder)
+    rspndr._proto = mock_protocol
+    return rspndr
+
+
+@pytest.fixture
 def default_headers():
     return {'HOST': 'example.com'}
 
 
 @pytest.fixture
-def get_req(mock_protocol, default_headers, request_uri, headers):
+def get_req(mock_responder, default_headers, request_uri, headers):
     headers.update(default_headers)
-    mock_protocol.request = {
+    mock_responder.request = {
         'method': "GET",
         'url': mock.Mock(path=request_uri),
         'version': "HTTP/1.1"
     }
-    return growler.http.request.HTTPRequest(mock_protocol, headers)
+    return growler.http.request.HTTPRequest(mock_responder, headers)
 
 
 @pytest.fixture
-def post_req(mock_protocol, default_headers, request_uri, headers):
+def post_req(mock_responder, default_headers, request_uri, headers):
     headers.update(default_headers)
-    mock_protocol.request = {
+    mock_responder.request = {
         'method': "POST",
         'url': request_uri,
         'version': "HTTP/1.1"
     }
-    return growler.http.request.HTTPRequest(mock_protocol, headers)
+    return growler.http.request.HTTPRequest(mock_responder, headers)
 
 
 @pytest.mark.parametrize('headers', [
     {},
     {'x': 'x'},
 ])
-def notest_missing_host_request(mock_protocol, headers):
-    req = HTTPRequest(mock_protocol, headers)
+def notest_missing_host_request(mock_responder, headers):
+    req = HTTPRequest(mock_responder, headers)
     assert req.message
 
 
@@ -72,7 +79,7 @@ def test_request_headers(get_req, request_uri, headers, param):
     ('/', {}, {}),
     ('/?x=0;p', {}, {'x': ['0']}),
 ])
-def test_query_params(get_req, mock_protocol, request_uri, query):
-    mock_protocol.client_query = parse_qs(urlparse(request_uri).query)
+def test_query_params(get_req, mock_responder, request_uri, query):
+    mock_responder.client_query = parse_qs(urlparse(request_uri).query)
     for k, v in query.items():
         assert get_req.param(k) == v

@@ -5,6 +5,7 @@
 The Growler class responsible for responding to HTTP requests.
 """
 
+import sys
 from .parser import Parser
 from .request import HTTPRequest
 from .response import HTTPResponse
@@ -88,12 +89,16 @@ class GrowlerHTTPResponder():
             transport/protocol objects.
         """
         # Headers have not been read in yet
-        if self.headers is None:
+        if len(self.headers) is 0:
             # forward data to the parser
             data = self.parser.consume(data)
 
             # Headers are finished - build the request and response
             if data is not None:
+                self.set_request_line(self.parser.method,
+                                      self.parser.parsed_url,
+                                      self.parser.version)
+
                 # builds request and response out of self.headers and protocol
                 self.req, self.res = self.build_req_and_res()
                 self.begin_application(self.req, self.res)
@@ -122,7 +127,7 @@ class GrowlerHTTPResponder():
         """
         self.method = method
         self.parsed_request = (method, url, version)
-        self._proto.request = {
+        self.request = {
             'method': method,
             'url': url,
             'version': version
@@ -165,22 +170,14 @@ class GrowlerHTTPResponder():
         """
         The dict of HTTP headers.
         """
-        return self._proto.client_headers
-
-    @headers.setter
-    def headers(self, header_dict):
-        """
-        Sets the headers attribute and triggers the beginning of the req/res
-        construction.
-        """
-        self._proto.client_headers = header_dict
+        return self.parser.headers
 
     def build_req_and_res(self):
         """
         Simple method which calls the request and response factories the
         responder was given, and returns the pair.
         """
-        req = self.build_req(self._proto, self.headers)
+        req = self.build_req(self, self.headers)
         res = self.build_res(self._proto)
         return req, res
 
@@ -225,3 +222,7 @@ class GrowlerHTTPResponder():
         The growler application this responder belongs to.
         """
         return self._proto.http_application
+
+    @property
+    def ip(self):
+        return self._proto.socket.getpeername()[0]

@@ -25,7 +25,7 @@ class HTTPRequest:
     headers = None
     body = None
 
-    def __init__(self, protocol, headers):
+    def __init__(self, responder, headers):
         """
         The HTTPRequest object is all the information you could want about the
         incoming http connection. It gets passed along with the HTTPResponse
@@ -39,12 +39,11 @@ class HTTPRequest:
         headers : dict
             The headers gathered from the incoming stream
         """
-        self._protocol = protocol
+        self._protocol = responder
         self.headers = headers
 
         if 'CONTENT-LENGTH' in headers:
             self.body = asyncio.Future()
-
         log.info("%d %s %s" % (id(self), self.method, self.path))
 
     def param(self, name, default=None):
@@ -86,11 +85,11 @@ class HTTPRequest:
 
     @property
     def ip(self):
-        return self._protocol.socket.getpeername()[0]
+        return self._protocol.ip
 
     @property
     def app(self):
-        return self._protocol.http_application
+        return self._protocol.app
 
     @property
     def path(self):
@@ -114,7 +113,7 @@ class HTTPRequest:
 
     @property
     def method(self):
-        return self._protocol.client_method
+        return self._protocol.method
 
     @property
     def protocol(self):

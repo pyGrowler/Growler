@@ -60,14 +60,15 @@ def mock_res():
 
 @pytest.fixture
 def mock_parser():
-    res = mock.Mock(spec=growler.http.Parser)
-    return res
+    parser = mock.MagicMock(spec=growler.http.Parser(mock.MagicMock()))
+    parser.headers = {}
+    return parser
 
 
 @pytest.fixture
 def mock_parser_factory(mock_parser):
-    parser = mock.Mock(return_value=mock_parser)
-    return parser
+    parser_factory = mock.Mock(return_value=mock_parser)
+    return parser_factory
 
 
 @pytest.fixture
