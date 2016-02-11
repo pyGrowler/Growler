@@ -120,7 +120,7 @@ class Parser:
 
         # we now have the newline character - get request line + any header
         # lines, last element remains the buffer
-        req_line, *lines, buffer = buffer.split(self.EOL_TOKEN)
+        req_line, *header_lines, buffer = buffer.split(self.EOL_TOKEN)
 
         # save raw_request_line (as str)
         try:
@@ -138,14 +138,14 @@ class Parser:
 
         while body_data is None:
             # send header lines to header_parser generator
-            for hkey, hval in header_parser.send(lines):
+            for hkey, hval in header_parser.send(header_lines):
                 if hkey is None:
                     body_data = self.EOL_TOKEN.join(hval) + buffer
                     break
                 self.headers[hkey] = hval
             else:  # if no break
                 buffer += yield
-                *lines, buffer = buffer.split(self.EOL_TOKEN)
+                *header_lines, buffer = buffer.split(self.EOL_TOKEN)
         yield body_data
 
     def _header_parser_lines(self):
@@ -198,6 +198,11 @@ class Parser:
         version and method are valid for this server, and uses the urllib.parse
         function to parse the request URI.
 
+        Note
+        ----
+        This method has the additional side effect of updating all request line
+        related attributes of the parser.
+
         Returns
         -------
         request_tuple : tuple
@@ -213,39 +218,38 @@ class Parser:
             If HTTP version is not recognized
         """
         try:
-            method, request_uri, version = req_line.split()
+            self.method_str, self.original_url, self.version = req_line.split()
         except ValueError:
             raise HTTPErrorBadRequest()
 
-        if version not in ('HTTP/1.1', 'HTTP/1.0'):
+        if self.version not in ('HTTP/1.1', 'HTTP/1.0'):
             raise HTTPErrorVersionNotSupported()
 
+        # allow lowercase methodname?
+        # self.method_str = self.method_str.upper()
+
+        # save 'method' and get the correct function to finish processing
         try:
-            self.method = Gen_HTTP_Method[method]
+            self.method = Gen_HTTP_Method[self.method_str]
         except KeyError:
             # Method not found
-            err = "Unknown HTTP Method '{}'".format(method)
+            err = "Unknown HTTP Method '{}'".format(self.method_str)
             raise HTTPErrorNotImplemented(err)
-
-        # save 'method' to self and get the correct function to finish
-        # processing
-        num_str = version[version.find('/')+1:]
-        self.HTTP_VERSION = tuple(num_str.split('.'))
-        self.version_number = float(num_str)
-        self.version = version
 
         self._process_headers = {
             HTTPMethod.GET: self.process_get_headers,
             HTTPMethod.POST: self.process_post_headers
-        }.get(self.method, None)
+        }.get(self.method, lambda data: True)
 
-        self.original_url = request_uri
-        self.parsed_url = urlparse(request_uri)
+        _, num_str = self.version.split('/', 1)
+        self.HTTP_VERSION = tuple(num_str.split('.'))
+        self.version_number = float(num_str)
+
+        self.parsed_url = urlparse(self.original_url)
         self.path = unquote(self.parsed_url.path)
         self.query = parse_qs(self.parsed_url.query)
-        self.parent.parsed_query = self.query
 
-        return self.method, self.parsed_url, version
+        return self.method, self.parsed_url, self.version
 
     @staticmethod
     def determine_newline(data):

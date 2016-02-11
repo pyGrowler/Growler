@@ -125,7 +125,6 @@ class GrowlerHTTPResponder():
         """
         Sets the request line on the responder.
         """
-        self.method = method
         self.parsed_request = (method, url, version)
         self.request = {
             'method': method,
@@ -138,32 +137,23 @@ class GrowlerHTTPResponder():
     @property
     def method(self):
         """
+        The HTTP method as the growler enumerated value
+        """
+        return self.parser.method
+
+    @property
+    def method_str(self):
+        """
         The HTTP method as an all-caps string (e.g. 'GET')
         """
-        return self._proto.client_method
-
-    @method.setter
-    def method(self, method):
-        """
-        Sets the headers attribute and triggers the beginning of the req/res
-        construction.
-        """
-        self._proto.client_method = method
+        return self.parser.method
 
     @property
     def parsed_query(self):
         """
         The HTTP query as parsed by the standard python urllib.parse library.
         """
-        return self._proto.client_query
-
-    @parsed_query.setter
-    def parsed_query(self, value):
-        """
-        Stores the parsed query from the 'path' part of the client's request
-        line. This value will be forwarded to the parent protocol object.
-        """
-        self._proto.client_query = value
+        return self.parser.query
 
     @property
     def headers(self):
