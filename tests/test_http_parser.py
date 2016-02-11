@@ -167,18 +167,18 @@ def test_bad_request(parser, req_str, err):
 
 
 @pytest.mark.parametrize("header_list, expected", [
-    ([b''], [(None, b'')]),
-    ([b'a:b', b''], [('A', 'b'), (None, b'')]),
-    ([b'a:b', b'x:z', b''], [('A', 'b'), ('X', 'z'), (None, b'')]),
-    ([b'a:b', b' xz', b''], [('A', ['b', 'xz']), (None, b'')]),
-    ([b'a:b', b' xz', b'q:w b z ', b''], [('A', ['b', 'xz']), ('Q', 'w b z'), (None, b'')]),
-    ([b'host: nowhere.com', b'x:y', b' z', b''],  [('HOST', 'nowhere.com'), ('X', ['y', 'z']), (None, b'')]),
+    # ([b''], [(None, b'')]),
+    ([b'a:b', b''], [('A', 'b'), (None, [])]),
+    ([b'a:b', b'x:z', b''], [('A', 'b'), ('X', 'z'), (None, [])]),
+    ([b'a:b', b' xz', b'', b'123', b'45'], [('A', ['b', 'xz']), (None, [b'123', b'45'])]),
+    ([b'a:b', b' xz', b'q:w b z ', b'', b'x'], [('A', ['b', 'xz']), ('Q', 'w b z'), (None, [b'x'])]),
+    ([b'host: nowhere.com', b'x:y', b' z', b''],  [('HOST', 'nowhere.com'), ('X', ['y', 'z']), (None, [])]),
 ])
-def test_header_parser(parser, header_list, expected):
-    header_parser = parser._header_parser()
+def test_header_parser_lines(parser, header_list, expected):
+    header_parser = parser._header_parser_lines()
     header_parser.send(None)
-    ret = list(filter(bool, map(header_parser.send, header_list + [None])))
-    for a, b in zip_longest(ret, expected):
+    # ret = list(filter(bool, map(header_parser.send, header_list + [None])))
+    for a, b in zip_longest(header_parser.send(header_list), expected):
         assert a == b
 
 
@@ -200,7 +200,7 @@ def test_good_header_all(parser, mock_responder, header, header_dict):
     parser.consume(header)
     assert parser.headers == header_dict
 
-
+@pytest.mark.timeout(3)
 @pytest.mark.parametrize("req_pieces, expected_header", [
     ((b"GET / HTTP/1.1\r\n", b'h:d\r\n\r\n'),
      {'H': 'd'}),

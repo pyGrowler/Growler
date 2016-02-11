@@ -131,67 +131,66 @@ class Parser:
         self.parse_request_line(self.raw_request_line)
 
         # header parser is the algorithm for parsing... headers
-        header_parser = self._header_parser()
+        header_parser = self._header_parser_lines()
         header_parser.send(None)
 
         body_data = None
 
         while body_data is None:
-            # send each line to the header_parser generator
-            line_it = iter(lines)
-            for line in line_it:
-                hdata = header_parser.send(line)
-                if hdata is not None:
-                    hkey, hval = hdata
-                    if hkey is None:
-                        body_data = self.EOL_TOKEN.join(line_it) + buffer
-                        break
-                    self.headers[hkey] = hval
-                if line == b'':
-                    body_data = self.EOL_TOKEN.join(line_it) + buffer
+            # send header lines to header_parser generator
+            for hkey, hval in header_parser.send(lines):
+                if hkey is None:
+                    body_data = self.EOL_TOKEN.join(hval) + buffer
                     break
-            else:
-                lines.clear()
-                while len(lines) < 1:
-                    buffer += yield
-                    if buffer.startswith(self.EOL_TOKEN):
-                        body_data = buffer[len(self.EOL_TOKEN):]
-                        break
-                    *lines, buffer = buffer.split(self.EOL_TOKEN)
-
+                self.headers[hkey] = hval
+            else:  # if no break
+                buffer += yield
+                *lines, buffer = buffer.split(self.EOL_TOKEN)
         yield body_data
 
-    def _header_parser(self):
+    def _header_parser_lines(self):
         """
+        Same behavior as _header_parser, but accepts a list of lines, rather
+        than one line at a time.
         """
-        line = yield
-        if line == b'':
-            yield (None, b'')
 
-        next_line = yield
-        if next_line == b'':
-            k, v = self.header_key_value(line)
-            yield k.upper(), v
-            line = next_line
+        outgoing_list, lines = [], []
 
-        # if line is empty we have reached the end of the loop
+        # init loop - get sent a non-empty list of lines
+        while len(lines) == 0:
+            lines = yield outgoing_list
+
+        line = lines.pop(0)
+
         while line != b'':
 
+            # get key-value from line
             key, value = self.header_key_value(line)
-
-            # if next line starts with space or tab, value becomes a list
-            if next_line.startswith((b' ', b'\t')):
-                value = [value]
-
-                while next_line.startswith((b' ', b'\t')):
-                    value += [next_line.strip().decode()]
-                    next_line = yield
-
             key = key.upper()
-            line = next_line
-            next_line = yield key, value
 
-        yield (None, b'')
+            # ensure there is a following line
+            while len(lines) == 0:
+                lines = yield outgoing_list
+                outgoing_list = []
+
+            # if next line is a continuation - do stuff
+            if lines[0].startswith((b' ', b'\t')):
+                value = [value]
+                while lines[0].startswith((b' ', b'\t')):
+                    value += [lines.pop(0).strip().decode()]
+
+                    while len(lines) == 0:
+                        lines = yield outgoing_list
+                        outgoing_list = []
+
+            # at this point we know next line is NOT continuation line, so we
+            # can add key/value to next result
+            outgoing_list.append((key, value))
+            line = lines.pop(0)
+
+        outgoing_list.append((None, lines))
+        yield outgoing_list
+
 
     def parse_request_line(self, req_line):
         """
