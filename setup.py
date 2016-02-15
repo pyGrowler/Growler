@@ -25,6 +25,10 @@ TESTS_REQUIRE = [
     'pytest-asyncio',
 ]
 
+SETUP_REQUIRES = [
+    'pytest-runner',
+]
+
 PACKAGES = find_packages(
     exclude=["*.tests", "*.tests.*", "tests.*", "tests"]
 )
@@ -41,12 +45,13 @@ CLASSIFIERS = [
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.4",
     "Programming Language :: Python :: 3.5",
     "Topic :: Internet :: WWW/HTTP",
     "Natural Language :: English"
 ]
 
-tar_url = 'https://github.com/PyGrowler/growler/archive/v%s.tar.gz' % (metadata.version)  # noqa
+tar_url = 'https://github.com/pyGrowler/growler/archive/v%s.tar.gz' % (metadata.version)  # noqa
 
 setup(
     name="growler",
@@ -63,6 +68,7 @@ setup(
     tests_require=TESTS_REQUIRE,
     packages=PACKAGES,
     namespace_packages=NAMESPACES,
+    setup_requires=SETUP_REQUIRES,
     platforms='all',
     scripts=glob('scripts/*')
 )
