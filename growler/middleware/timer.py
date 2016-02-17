@@ -5,7 +5,7 @@
 from datetime import datetime
 
 
-class Timer():
+class Timer:
     """Times the response generation"""
 
     def __init__(self, option={}):

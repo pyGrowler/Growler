@@ -8,7 +8,7 @@ import logging
 import asyncio
 
 
-class Logger():
+class Logger:
 
     # Not pep8 but much better!
     DEFAULT = '/033[30m'

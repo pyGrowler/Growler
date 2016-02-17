@@ -10,7 +10,7 @@ import json
 log = logging.getLogger(__name__)
 
 
-class CookieParser():
+class CookieParser:
     """
     Middleware which adds a 'cookies' attribute to requests, which is a
     standard library http.cookies.SimpleCookie object, allowing dict like
