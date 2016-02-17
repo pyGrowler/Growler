@@ -5,12 +5,11 @@
 A micro web-framework using asyncio coroutines and chained middleware.
 """
 
-from os import path
 from glob import glob
-from imp import load_source
+from importlib.machinery import SourceFileLoader
 from setuptools import setup, find_packages
 
-metadata = load_source("metadata", path.join("growler", "__meta__.py"))
+metadata = SourceFileLoader("metadata", "growler/__meta__.py").load_module()
 
 REQUIRES = [
 ]
@@ -47,7 +46,7 @@ CLASSIFIERS = [
     "Natural Language :: English"
 ]
 
-tar_url = 'https://github.com/pygrowler/growler/archive/v%s.tar.gz' % (metadata.version)  # noqa
+tar_url = 'https://github.com/PyGrowler/growler/archive/v%s.tar.gz' % (metadata.version)  # noqa
 
 setup(
     name="growler",
