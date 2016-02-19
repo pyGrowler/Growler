@@ -134,7 +134,7 @@ def test_use_list(app, mock_route_generator):
 def test_use_growler_router(app, mock_route_generator):
     m = mock.Mock()
     route = mock_route_generator()
-    m.__growler_router__ = route
+    m.__growler_router = route
     app.use(m)
     assert app.middleware.last().func is route
 
@@ -142,10 +142,10 @@ def test_use_growler_router(app, mock_route_generator):
 def test_use_growler_router_factory(app, mock_route_generator):
     router = mock_route_generator()
     m = mock.Mock()
-    m.__growler_router__ = mock.Mock(spec=types.MethodType,
+    m.__growler_router = mock.Mock(spec=types.MethodType,
                                    return_value=router)
     app.use(m)
-    assert m.__growler_router__.called
+    assert m.__growler_router.called
     assert app.middleware.last().func is router
 
 
