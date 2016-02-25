@@ -451,6 +451,7 @@ class Application:
 
         lines = [self.name]
         lines += decend_into_tree(self.middleware, 0)
+        lines.append('┴')
         print(EOL.join(lines), file=file)
 
     @classmethod
