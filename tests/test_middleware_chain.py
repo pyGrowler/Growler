@@ -3,7 +3,7 @@
 #
 
 import growler
-from growler.middleware_chain import MiddlewareChain
+from growler.middleware_chain import MiddlewareChain, MiddlewareNode
 import pytest
 from unittest import mock
 
@@ -20,8 +20,6 @@ def chain():
 @pytest.fixture
 def mock_chain():
     return mock.create_autospec(MiddlewareChain)
-    return mock.MagicMock(spec=MiddlewareChain,
-                          __class__=MiddlewareChain,)
 
 
 def test_constructor(chain):
@@ -55,7 +53,7 @@ def test_deep_contains(chain):
 
 
 @pytest.mark.parametrize('mask, path, reqtuple', [
-    (0b01, '/a', (0b01, '/a'))
+    (0b01, '/a', (0b01, '/a')),
 ])
 def test_matches_routes(chain, mask, path, reqtuple):
     func = mock.Mock()
@@ -66,7 +64,9 @@ def test_matches_routes(chain, mask, path, reqtuple):
 
 @pytest.mark.parametrize('mask, path, reqtuple', [
     (0b01, '/a', (0b10, '/a')),
-    (0b01, '/a', (0b01, '/b'))
+    (0b01, '/a', (0b01, '/b')),
+    (0b01, '/', (0b01, '/a')),
+    (0b01, '/a', (0b01, '/')),
 ])
 def test_not_matches_routes(chain, mask, path, reqtuple):
     func = mock.Mock()
@@ -74,25 +74,59 @@ def test_not_matches_routes(chain, mask, path, reqtuple):
     assert len([mw for mw in chain(*reqtuple)]) is 0
 
 
-@pytest.mark.parametrize('req_uri, middlewares, called', [
-    ('/', [mock.Mock(path='/')], [True]),
-    ('/a', [mock.Mock(path='/'),
-            mock.Mock(path='/a'),
-            mock.Mock(path='/b')], [True, True, False]),
-    ('/x', [mock.Mock(path='/y'),
-            mock.Mock(path='/x/a'),
-            mock.Mock(path='/x/a/b/c')], [False, False, False]),
-    ('/x-y/a/b', [mock.Mock(path='/y'),
-                  mock.MagicMock(path='/x-y/'),
-                  mock.Mock(path='/x-y')], [False, True, True]),
-    ('/[x-y]', [mock.Mock(path='/[x-y]'),
-                mock.MagicMock(path='/x')], [True, False]),
+@pytest.mark.parametrize('mw_path, req_uris, matches', [
+    ('/', ['/', '/a'], [True, False]),
+    ('/a', ['/', '/a', '/axb', '/a/b'], [False, True, False, False]),
+    ('/aba', ['/aba/',], [True]),
+    ('/a/c', ['/a/c', '/a/c/', '/a/c/b'], [True, True, False]),
+    ('/[x-y]', ['/[x-y]', '/[x-y]/', '/[x-y]/a/c/b'], [True, True, False]),
 ])
-def test_handle_client_request_get(chain, req_uri, middlewares, called):
-    [chain.add(0x1, mw.path, mw) for mw in middlewares]
-    # map(lambda mw: chain.add(0x1, mw.path, mw), middlewares)
-    for x in chain(0x1, req_uri):
-        x()
+def test_matching_paths(chain, mw_path, req_uris, matches):
+    # build middleware from path - add to chain
+    mw = mock.MagicMock(path=mw_path)
+    chain.add(0x1, mw.path, mw)
 
-    for mw, should_call in zip(middlewares, called):
-        assert mw.called == should_call
+    # loop through
+    for req_uri, should_match in zip(req_uris, matches):
+
+        for x in chain(0x1, req_uri):
+            x()
+        assert mw.called == should_match, req_uri
+        mw.reset_mock()
+
+
+@pytest.mark.parametrize('mw_path, req_uris', [
+    ('/', ['/']),
+    ('/a', ['/a/', '/a', '/a/b'],),
+    ('/a/c', ['/a/c', '/a/c/', '/a/c/b'],),
+    ('/[x-y]', ['/[x-y]', '/[x-y]/', '/[x-y]/a/c/b'],),
+])
+def test_subchain_matching_paths(chain, mw_path, req_uris):
+    # build middleware from path - add to chain
+    mw = mock.MagicMock(path=mw_path, spec=MiddlewareChain())
+    chain.add(0x1, mw.path, mw)
+
+    # loop through given requests
+    for req_uri in req_uris:
+
+        for x in chain(0x1, req_uri):
+            x()
+        assert mw.called, req_uri
+        mw.reset_mock()
+
+
+@pytest.mark.parametrize('mw_path, req_uris', [
+    ('/a', ['/', '/x', '/x/a', '/abc'],),
+    ('/a/', ['/a', '/x/a/'],),
+])
+def test_subchain_not_matching_paths(chain, mw_path, req_uris):
+    # build middleware from path - add to chain
+    mw = mock.MagicMock(path=mw_path, spec=MiddlewareChain())
+    chain.add(0x1, mw.path, mw)
+
+    # loop through
+    for req_uri in req_uris:
+        for m in chain(0x1, req_uri):
+            m()
+        assert not mw.called, req_uri
+        mw.reset_mock()

@@ -30,6 +30,8 @@ class MiddlewareNode:
         Simple mappings to attributes
     """
 
+    IGNORE_TRAILING_SLASH = True
+
     __slots__ = [
         'func',
         'path',
@@ -41,8 +43,14 @@ class MiddlewareNode:
     def __init__(self, **inits):
         for k, v in inits.items():
             if k == 'path' and isinstance(v, str):
-                v = re.compile(re.escape(v))
+                v = self.path_to_regex(v)
             setattr(self, k, v)
+
+    @staticmethod
+    def path_to_regex(path):
+        last_slash = '' if path.endswith('/') else '/'
+        esc_path = re.escape(path)
+        return re.compile(esc_path)
 
     def matches_method(self, method):
         """
@@ -70,11 +78,28 @@ class MiddlewareNode:
             The 'rest' of the path, following the matching part
 
         """
+
         match = self.path.match(path)
-        if match is not None:
-            return match, path[:match.span()[1]]
-        else:
+        if match is None:
             return None, None
+
+        # split string at position
+        the_rest = path[match.end():]
+
+        # ensure we split at a '/' character
+        if the_rest:
+            if match.group().endswith('/'):
+                pass
+            elif the_rest.startswith('/'):
+                pass
+            else:
+                print("Nopass")
+                return None, None
+
+        if self.IGNORE_TRAILING_SLASH and the_rest == '/':
+            the_rest = ''
+
+        return match, the_rest
 
 
 class MiddlewareChain:
@@ -123,7 +148,7 @@ class MiddlewareChain:
         # loop through this chain's middleware list
         for mw in self.mw_list:
 
-            # skip if method
+            # skip if method does not match
             if not mw.matches_method(method):
                 continue
 
@@ -156,9 +181,15 @@ class MiddlewareChain:
                     if err:
                         subchain.send(err)
 
+            # this is not a subchain and path did not match exactly - skip
+            elif rest_url:
+                continue
+
+            # add to list of error handler
             elif mw.is_errorhandler:
                 error_handler_stack.append(mw.func)
 
+            # matching request! yield result function
             else:
                 # Yield the middleware function
                 err = yield mw.func
