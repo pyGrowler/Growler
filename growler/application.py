@@ -446,7 +446,8 @@ class Application:
                 lines_ += [prefix + "├── %s %s %s" % info]
                 if mw.is_subchain:
                     lines_ += decend_into_tree(mw.func, level+1)
-            lines_[-1] = lines_[-1].replace('├', '└')
+            if level:
+                lines_[-1] = lines_[-1].replace('├', '└')
             return lines_
 
         lines = [self.name]
