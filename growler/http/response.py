@@ -37,8 +37,7 @@ class HTTPResponse:
     EOL : str
         The string with which to end lines
     """
-
-    SERVER_INFO = 'Python/{py_version} Growler/{growler_version}'.format(
+    SERVER_INFO = 'Growler/{growler_version} Python/{py_version}'.format(
         py_version=".".join(map(str, sys.version_info[:2])),
         growler_version=growler.__version__,
     )
