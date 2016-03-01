@@ -52,10 +52,12 @@ def mock_router():
 
 @pytest.mark.parametrize("test_route, req_path, req_method, should_call", [
     ((GET, "/", mock.Mock()), "/", GET, True),
-    ((GET, "/", mock.Mock()), "/x", GET, True),
+    ((GET, "/", mock.Mock()), "/x", GET, False),
     ((GET, "/x", mock.Mock()), "/", GET, False),
     ((POST, "/", mock.Mock()), "/x", GET, False),
-    ((POST, "/", mock.Mock()), "/x", POST, True),
+    ((POST, "/", mock.Mock()), "/", GET, False),
+    ((POST, "/", mock.Mock()), "/x", POST, False),
+    ((POST, "/x", mock.Mock()), "/x", POST, True),
 ])
 def test_add_route(router, mock_req, test_route, should_call):
     func = test_route[2]
@@ -70,10 +72,10 @@ def test_add_route(router, mock_req, test_route, should_call):
 
 @pytest.mark.parametrize("middleware, req_path, req_method, should_call", [
     ((mock.Mock(), None), "/", GET, True),
-    ((mock.Mock(), "/"), "/x", GET, True),
+    ((mock.Mock(), "/a"), "/a", GET, True),
     ((mock.Mock(), "/x"), "/", GET, False),
-    ((mock.Mock(), '/'), "/x", GET, True),
-    ((mock.Mock(), '/'), "/x", POST, True),
+    ((mock.Mock(), '/x'), "/x", GET, True),
+    ((mock.Mock(), '/x'), "/x", POST, True),
 ])
 def test_use(router, mock_req, middleware, should_call):
     func = middleware[0]
