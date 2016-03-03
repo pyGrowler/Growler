@@ -2,10 +2,9 @@
 # tests/test_http_protocol.py
 #
 
-import growler
-
-import asyncio
 import pytest
+import asyncio
+import growler
 from unittest import mock
 
 from mocks import (
@@ -148,6 +147,7 @@ def test_on_data_error(proto, mock_responder, mock_transport):
     mock_responder.on_data.side_effect = ex
     proto.data_received(data)
     assert mock_transport.write.called
+
 
 def test_factory(mock_app):
     proto = growler.http.GrowlerHTTPProtocol.factory(mock_app)

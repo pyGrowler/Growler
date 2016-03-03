@@ -9,6 +9,7 @@ import time
 from datetime import datetime
 import io
 from wsgiref.handlers import format_date_time as format_RFC_1123
+from wsgiref.headers import Headers
 
 from .status import Status
 
@@ -57,7 +58,7 @@ class HTTPResponse:
         self.protocol = protocol
         self.EOL = EOL
 
-        self.headers = dict()
+        self.headers = Headers()
 
         self._events = {
             'before_headers': [],
@@ -73,7 +74,7 @@ class HTTPResponse:
         time_string = self.get_current_time()
         self.headers.setdefault('Date', time_string)
         self.headers.setdefault('Server', self.SERVER_INFO)
-        self.headers.setdefault('Content-Length', len(self.message))
+        self.headers.setdefault('Content-Length', "%d" % len(self.message))
         if self.app.enabled('x-powered-by'):
             self.headers.setdefault('X-Powered-By', 'Growler')
 
@@ -87,15 +88,7 @@ class HTTPResponse:
         self.headerstrings = [self.status_line]
 
         self._set_default_headers()
-
-        self.headerstrings += ["%s: %s" % (k, v)
-                               for k, v in self.headers.items()]
-
-        for func in self._events['headerstrings']:
-            func()
-
-        http_header = self.EOL.join(self.headerstrings + [self.EOL])
-        self.protocol.transport.write(http_header.encode())
+        self.protocol.transport.write(bytes(self.headers))
 
     def write(self, msg=None):
         msg = self.message if msg is None else msg
@@ -133,14 +126,15 @@ class HTTPResponse:
         Redirect to the specified url, optional status code defaults to 302.
         """
         self.status_code = status
-        self.headers = {'Location': url}
+        self.headers = Headers([('location', url)])
         self.message = ''
         self.end()
 
     def set(self, header, value=None):
         """Set header to the key"""
         if value is None:
-            self.headers.update(header)
+            for k, v in header.items():
+                self.headers[k] = v
         else:
             self.headers[header] = value
 
