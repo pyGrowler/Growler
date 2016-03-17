@@ -45,18 +45,13 @@ class CookieParser:
             # Create an empty cookie state
             req.cookies, res.cookies = SimpleCookie(), SimpleCookie()
 
-        # print("[CookieParser]")
-        # print("   Headers", req.headers)
-
         # If the request had a cookie, load it!
         if 'COOKIE' in req.headers:
             req.cookies.load(req.headers['COOKIE'])
 
-        def _send_headers():
-            # print("[CookieParser::_send_headers]")
+        def _gen_cookie():
             if res.cookies:
-                cookie_string = res.cookies.output(sep=res.EOL)
-                res.headerstrings.append(cookie_string)
-                # print("  ", cookie_string)
+                cookie_string = res.cookies.output(header='', sep=res.EOL)
+                return cookie_string
 
-        res.on_headerstrings(_send_headers)
+        res.headers['Set-Cookie'] = _gen_cookie
