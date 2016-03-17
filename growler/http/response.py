@@ -2,14 +2,16 @@
 # growler/http/response.py
 #
 
+import io
 import sys
-import growler
 import json
 import time
+import growler
+
+from itertools import chain
 from datetime import datetime
-import io
+from collections import OrderedDict
 from wsgiref.handlers import format_date_time as format_RFC_1123
-from wsgiref.headers import Headers
 
 from .status import Status
 
@@ -71,8 +73,7 @@ class HTTPResponse:
         Create some default headers that should be sent along with every HTTP
         response
         """
-        time_string = self.get_current_time()
-        self.headers.setdefault('Date', time_string)
+        self.headers.setdefault('Date', self.get_current_time)
         self.headers.setdefault('Server', self.SERVER_INFO)
         self.headers.setdefault('Content-Length', "%d" % len(self.message))
         if self.app.enabled('x-powered-by'):
@@ -88,7 +89,8 @@ class HTTPResponse:
         self.headerstrings = [self.status_line]
 
         self._set_default_headers()
-        self.protocol.transport.write(bytes(self.headers))
+        header_str = self.status_line + self.EOL + str(self.headers)
+        self.protocol.transport.write(header_str.encode())
 
     def write(self, msg=None):
         msg = self.message if msg is None else msg
@@ -168,17 +170,6 @@ class HTTPResponse:
         for rel in links:
             s.append("<{}>; rel=\"{}\"".format(links[rel], rel))
         self.headers['Link'] = ','.join(s)
-
-    # def send(self, obj, status = 200):
-    #  """
-    #    Responds to request with obj; action is dependent on type of obj.
-    #    If obj is a string, it sends text,
-    #
-    #  """
-    #  func = {
-    #    str: self.send_text
-    #  }.get(type(obj), self.send_json)
-    #  func(obj, status)
 
     def json(self, body, status=200):
         """Alias of send_json"""
@@ -288,3 +279,141 @@ class HTTPResponse:
     def get_current_time():
         # return time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime())
         return format_RFC_1123(time.mktime(datetime.now().timetuple()))
+
+
+class Headers:
+    """
+    A class for maintaining HTTP headers, offering a dict-like interface. Keys
+    must be strings, and are stored in a case-insensitive manner. Values are
+    strings, , lists of strings or bytes, or a callable, which will be
+    called upon stringification of the headers.
+
+    The mechanism behind case insensitivity is python's str.casefold, so any
+    peculiarities should be investigated starting there.
+
+    Stringification of the headers will provide an HTTP compatible header
+    string, terminated by two EOL chars.
+    """
+
+    EOL = '\r\n'
+
+    def __init__(self, headers={}, **kw_headers):
+        """
+        Construct a headers object.
+
+        The constructor provides the same interface as the standard
+        dict constructor.
+
+        The default value is an empty container, which will .
+
+        """
+        self._header_data = OrderedDict()
+        headers = dict(headers)
+        headers.update(kw_headers)
+        for key, value in headers.items():
+            self[key] = value
+
+    def __getitem__(self, key):
+        ci_key = self.escape(key).casefold()
+        return self._header_data[ci_key][1]
+
+    def __setitem__(self, key, value):
+        key = self.escape(key)
+        ci_key = key.casefold()
+        self._header_data[ci_key] = (key, value)
+
+    def __delitem__(self, key):
+        key = self.escape(key)
+        ci_key = key.casefold()
+        del self._header_data[ci_key]
+
+    def setdefault(self, key, default=None):
+        key = self.escape(key)
+        ci_key = key.casefold()
+
+        try:
+            v = self._header_data[ci_key]
+            return v
+        except KeyError:
+            self._header_data[ci_key] = (key, default)
+            return default
+
+    def update(self, *args, **kwargs):
+        """
+        Equivalent to the python dict update method.
+
+        Update the dictionary with the key/value pairs from other, overwriting
+        existing keys.
+
+        Args:
+            other (dict): The source of key value pairs to add to headers
+        Keyword Args:
+            All keyword arguments are stored in header directly
+
+        Returns:
+            None
+        """
+        for next_dict in chain(args, (kwargs, )):
+            for k, v in next_dict.items():
+                self[k] = v
+
+    def add_header(self, key, value, **params):
+        """
+        Add a header to the collection, including potential parameters.
+
+        Args:
+            key (str): The name of the header
+            value (str): The value to store under that key
+            params: Option parameters to be appended to the value,
+                automatically formatting them in a standard way
+        """
+
+        key = self.escape(key)
+        ci_key = key.casefold()
+
+        def quoted_params(items):
+            for p in items:
+                param_name = self.escape(p[0])
+                param_val = self.de_quote(self.escape(p[1]))
+                yield param_name, param_val
+
+        quoted_iter = ('%s="%s"' % p for p in quoted_params(params.items()))
+        param_str = ' '.join(quoted_iter)
+
+        if param_str:
+            value = "%s; %s" % (value, param_str)
+
+        self[ci_key] = (key, value)
+
+    def stringify(self, use_bytes=False):
+        """
+        Returns representation of headers as a valid HTTP header string. This
+        is called by __str__.
+
+        Args:
+            use_bytes (bool): Returns a bytes object instead of a str.
+        """
+        def _str_value(value):
+            if isinstance(value, list):
+                value = (self.EOL + '\t').join((_str_value(v) for v in value))
+            elif callable(value):
+                value = _str_value(value())
+
+            return value
+
+        s = self.EOL.join(("{key}: {value}".format(key=key,
+                                                   value=_str_value(value))
+                           for key, value in self._header_data.values()
+                           if value is not None))
+        return s + (self.EOL * 2)
+
+    @staticmethod
+    def escape(value):
+        return value.replace("\n", r"\n")
+
+    @staticmethod
+    def de_quote(value):
+        return value.replace('"', r'\"')
+
+    def __str__(self):
+        return self.stringify()
