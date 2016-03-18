@@ -40,5 +40,5 @@ def test_render_file(sr, viewdir):
     view = viewdir.joinpath("hello.html")
     view.touch()
     view.write_text(txt)
-    res = sr.render_file("hello.html")
+    res = sr.render_source("hello.html")
     assert res == txt

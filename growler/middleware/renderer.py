@@ -4,7 +4,6 @@
 
 import os
 import logging
-from copy import copy
 from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -64,10 +63,10 @@ class Renderer:
                 if obj:
                     self.res.locals.update(obj)
                 html = engine.render_source(filename, self.res.locals)
-                self.res.send(html)
+                self.res.send_html(html)
                 break
         else:
-            raise Exception()
+            raise ValueError("Could not find a template with name '%s'" % template)
 
     def _find_file(self, fname):
         """
@@ -99,6 +98,11 @@ class RenderEngine:
 
     Upon being called in the middleware chain, the __call__ method will add a
     'render' function.
+
+    Attributes:
+        path (pathlib.Path): The directory containing the view files this
+            renderer will find.
+
     """
 
     def __init__(self, path):
@@ -130,7 +134,7 @@ class RenderEngine:
             res.render = Renderer(res)
             res.locals = {}
 
-        res.renderer.add_engine(self)
+        res.render.add_engine(self)
 
     def find_filename(self, filename):
         """
@@ -170,20 +174,21 @@ class StringRenderer(RenderEngine):
 
     default_file_extension = '.html.tmpl'
 
-    def render_file(self, filename, render_obj={}, **kwargs):
+    def render_source(self, filename, obj=None):
         txt = self.file_text(str(self.path.joinpath(filename)))
-        obj = copy(render_obj)
-        obj.update(kwargs)
-        return txt.format(**obj)
+        if obj is None:
+            return txt
+        else:
+            return txt.format(**obj)
 
     def file_text(self, filename):
         with open(filename, 'r') as file:
             return file.read()
 
-    def __call__(self, filename, res):
-        with open(filename, 'r') as file:
-            s = file.read()
-        return s.format(**res.locals)
+    def find_filename(self, filename):
+        filename = filename + self.default_file_extension
+        for f in self.path.glob(filename):
+            return f
 
 
 # register the renderer
