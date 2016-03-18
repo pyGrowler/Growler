@@ -1,25 +1,20 @@
-/*.py
-/*.js
-!/setup.py
+syntax: glob
 
-# Byte-compiled / optimized / DLL files
+.git
+.svn
+
 __pycache__/
 *.py[cod]
 
-# C extensions
-*.so
-*.exe
-
-dist
-pyvenv.cfg
-nbproject/
-.idea/
-
 # Distribution / packaging
+*.exe
+*.elc
+*.so
+*~
 .Python
 env/
 venv*/
-*build/
+build/
 develop-eggs/
 dist/
 downloads/
@@ -34,11 +29,15 @@ var/
 .installed.cfg
 *.egg
 *.eggs
+*.manifest
+*.spec
 .ipynb_checkpoints
 
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+dist
+pyvenv.cfg
+nbproject/
+.idea/
+
 *.manifest
 *.spec
 
@@ -54,13 +53,6 @@ htmlcov/
 nosetests.xml
 coverage.xml
 
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
-
 # Sphinx documentation
 docs/_build/
 
@@ -68,5 +60,5 @@ docs/_build/
 target/
 
 # misc development items
-node_modules
-bower_components
+node_modules/
+bower_components/
