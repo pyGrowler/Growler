@@ -48,7 +48,7 @@ class MiddlewareNode:
 
     @staticmethod
     def path_to_regex(path):
-        last_slash = '' if path.endswith('/') else '/'
+        # last_slash = '' if path.endswith('/') else '/'
         esc_path = re.escape(path)
         return re.compile(esc_path)
 

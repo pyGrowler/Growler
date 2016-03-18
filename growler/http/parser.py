@@ -3,8 +3,6 @@
 #
 
 import re
-import sys
-from collections import deque
 from urllib.parse import (unquote, urlparse, parse_qs)
 
 from .methods import (
@@ -190,7 +188,6 @@ class Parser:
 
         outgoing_list.append((None, lines))
         yield outgoing_list
-
 
     def parse_request_line(self, req_line):
         """

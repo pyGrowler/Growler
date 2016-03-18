@@ -5,7 +5,6 @@
 The Growler class responsible for responding to HTTP requests.
 """
 
-import sys
 from .parser import Parser
 from .request import HTTPRequest
 from .response import HTTPResponse

@@ -23,20 +23,20 @@ a class to modify the behavior of the app. (decorators explained elsewhere)
         print("myfunc")
 """
 
-import asyncio
 import os
 import sys
-import logging
 import types
-from .http import (
+import asyncio
+import logging
+from growler.http import (
     HTTPRequest,
     HTTPResponse,
     GrowlerHTTPProtocol,
 )
-from .router import Router
-from .middleware_chain import MiddlewareChain
-from .http.methods import HTTPMethod
 import growler.http.methods
+from growler.http.methods import HTTPMethod
+from growler.router import Router
+from growler.middleware_chain import MiddlewareChain
 
 log = logging.getLogger(__name__)
 
@@ -297,10 +297,12 @@ class Application:
             mw = self.middleware.last()
         except IndexError:
             return False
-        return (isinstance(mw.func, Router)
-                and mw.mask == HTTPMethod.ALL
-                and mw.path is MiddlewareChain.ROOT_PATTERN
-                )
+
+        return (
+            isinstance(mw.func, Router)
+            and mw.mask == HTTPMethod.ALL
+            and mw.path is MiddlewareChain.ROOT_PATTERN
+        )
 
     @types.coroutine
     def handle_client_request(self, req, res):
@@ -445,7 +447,7 @@ class Application:
                 prefix = "│   " * level
                 lines_ += [prefix + "├── %s %s %s" % info]
                 if mw.is_subchain:
-                    lines_ += decend_into_tree(mw.func, level+1)
+                    lines_ += decend_into_tree(mw.func, level + 1)
             if level:
                 lines_[-1] = lines_[-1].replace('├', '└')
             return lines_

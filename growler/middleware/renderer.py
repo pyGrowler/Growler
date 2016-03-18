@@ -64,7 +64,7 @@ class Renderer:
                 if obj:
                     self.res.locals.update(obj)
                 html = engine.render_source(filename, self.res.locals)
-                # res.send(html)
+                self.res.send(html)
                 break
         else:
             raise Exception()
