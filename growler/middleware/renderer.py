@@ -42,10 +42,11 @@ class Renderer:
 
     def __call__(self, template, obj=None):
         """
-        Should be called via `res.render(...)`
+        Should be called via `res.render(...)`.
 
         This sends the response to the client and will therefore finish the
-        growler application chain.
+        growler application chain. An error is raised if no template could be
+        found.
 
         Args:
             template (str): The name of the template to render. If there is no
@@ -58,7 +59,7 @@ class Renderer:
             ValueError: If no template could be found with the provided name.
         """
         for engine in self.engines:
-            filename = engine.find_filename(template)
+            filename = engine.find_template_filename(template)
             if filename:
                 if obj:
                     self.res.locals.update(obj)
@@ -67,23 +68,6 @@ class Renderer:
                 break
         else:
             raise ValueError("Could not find a template with name '%s'" % template)
-
-    def _find_file(self, fname):
-        """
-        Looks for the file with filename 'fname'
-        """
-
-        def next_file():
-            filename = os.path.join(self.path, fname)
-            yield filename
-            yield filename + self.engine.default_file_extension
-
-        for filename in next_file():
-            if not os.path.isfile(filename):
-                continue
-            return filename
-
-        raise Exception("No file found provided name '{}'.".format(fname))
 
     def add_engine(self, engine):
         """
@@ -97,12 +81,22 @@ class RenderEngine:
     Class used to render templates.
 
     Upon being called in the middleware chain, the __call__ method will add a
-    'render' function.
+    'render' function to the res object.
+
+    To create your own RenderEngine, you must subclass this class and implement
+    the render_source method.
+
+    If the template name does not follow a typical template_name.extension
+    format, you can implement your own by overloading the
+    find_template_filename method.
+
+    It is not recommended to change the behavior of the __call__ method, which
+    may modify the res object in a manner all other RenderEngines are
+    dependent.
 
     Attributes:
         path (pathlib.Path): The directory containing the view files this
             renderer will find.
-
     """
 
     def __init__(self, path):
@@ -110,15 +104,19 @@ class RenderEngine:
         Constructor
 
         Args:
-            path (str): Top level directory to search for template files.
+            path (str): Top level directory to search for template files - the
+                path must exist and the path must be a directory.
+
+        Raises:
+            FileNotFoundError: If the provided path does not exists.
+            NotADirectoryError: If the path is not a directory.
         """
-        if isinstance(path, Path):
-            self.path = path.resolve()
-        else:
-            self.path = Path(path).resolve()
+        self.path = Path(path).resolve()
 
         if not self.path.is_dir():
             log.warning("path given to render engine is not a directory")
+            raise NotADirectoryError("path '%s' is not a directory" % path)
+
 
     def __call__(self, req, res):
         """
@@ -136,21 +134,33 @@ class RenderEngine:
 
         res.render.add_engine(self)
 
-    def find_filename(self, filename):
+    def find_template_filename(self, template_name):
         """
-        Finds a filename
+        Searches for a file matching the given template name.
+
+        If found, this method returns the pathlib.Path object of the found
+        template file.
 
         Args:
-            filename (str): Path to the template file
+            template_name (str): Name of the template, with or without a file
+                extension.
 
         Returns:
-            str: Path a filename
+            pathlib.Path: Path to the matching filename.
         """
-        raise NotImplementedError()
+
+        def next_file():
+            filename = self.path / template_name
+            yield filename
+            yield Path(str(filename) + self.default_file_extension)
+
+        for filename in next_file():
+            if filename.is_file():
+                return filename
 
     def render_source(self, filename, obj):
         """
-        Render the filename
+        Render the template file found at filename.
 
         Args:
             filename (str): Path to the template file
@@ -184,11 +194,6 @@ class StringRenderer(RenderEngine):
     def file_text(self, filename):
         with open(filename, 'r') as file:
             return file.read()
-
-    def find_filename(self, filename):
-        filename = filename + self.default_file_extension
-        for f in self.path.glob(filename):
-            return f
 
 
 # register the renderer
