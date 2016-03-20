@@ -587,4 +587,7 @@ class Application:
             for details.
         """
         self.create_server(**server_config)
-        self.loop.run_forever()
+        try:
+            self.loop.run_forever()
+        except KeyboardInterrupt:
+            pass
