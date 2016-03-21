@@ -215,19 +215,19 @@ def test_router_property(app):
 
 # def test_use_with_routified_obj(app, router):
 #     obj = mock.Mock()
-#     obj.__growler_router__ = mock.NonCallableMock()
+#     obj.__growler_router = mock.NonCallableMock()
 #     app.use(obj)
-#     router.add_router.assert_called_with(None, obj.__growler_router__)
+#     router.add_router.assert_called_with(None, obj.__growler_router)
 
 
 # def test_use_with_routified_class(app, router):
 #     sub_router = mock.Mock()
 #     obj = mock.MagicMock()
-#     obj.__growler_router__.return_value = sub_router
-#     obj.__growler_router__.__class__ = types.MethodType
+#     obj.__growler_router.return_value = sub_router
+#     obj.__growler_router.__class__ = types.MethodType
 #     app.use(obj)
 #     router.add_router.assert_called_with(None, sub_router)
-#     obj.__growler_router__.assert_called()
+#     obj.__growler_router.assert_called()
 
 
 def test_enable(app):

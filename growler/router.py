@@ -151,7 +151,7 @@ class RouterMeta(type):
         """
         Creates the class type, adding an additional attributes
         __ordered_attrs__, a snapshot of the dictionary keys, and
-        __growler_router__, a method which will generate a growler.Router
+        __growler_router, a method which will generate a growler.Router
         object.
         """
         child_class = type.__new__(cls, name, bases, classdict)
@@ -162,10 +162,10 @@ class RouterMeta(type):
             routes = get_routing_attributes(self, keys=classdict.keys())
             for method, path, func in routes:
                 router.add(method, path, func)
-            self.__growler_router__ = router
+            self.__growler_router = router
             return router
 
-        child_class.__growler_router__ = build_router
+        child_class.__growler_router = build_router
         child_class.__ordered_attrs__ = classdict.keys()
         return child_class
 
@@ -228,7 +228,7 @@ def routerclass(cls):
     attempt to match.
     """
     logging.debug("Creating a routerclass with the class %s" % cls)
-    cls.__growler_router__ = lambda self: routerify(self)
+    cls.__growler_router = lambda self: routerify(self)
     return cls
 
 
@@ -244,5 +244,5 @@ def routerify(obj):
     router = Router()
     for info in get_routing_attributes(obj):
         router.add_route(*info)
-    obj.__growler_router__ = router
+    obj.__growler_router = router
     return router

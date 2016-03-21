@@ -188,8 +188,8 @@ def test_routerify():
 
     foo = Foo('1')
     routerify(foo)
-    assert hasattr(foo, '__growler_router__')
-    first_route = foo.__growler_router__.routes[0]
+    assert hasattr(foo, '__growler_router')
+    first_route = foo.__growler_router.routes[0]
     assert first_route[0] == GET
     assert first_route[1] == re.compile('\\/')
     assert first_route[2](None, None) is foo.get_something(None, None)
@@ -197,12 +197,12 @@ def test_routerify():
 
 def test_mock_routerclass():
     cls = growler.router.routerclass(mock.MagicMock())
-    assert isinstance(cls.__growler_router__, types.FunctionType)
+    assert isinstance(cls.__growler_router, types.FunctionType)
     # obj = cls()
     # print(dir(obj))
-    # assert isinstance(obj.__growler_router__, types.FunctionType)
-    # apply cls.__growler_router__
-    # obj.__growler_router__()
+    # assert isinstance(obj.__growler_router, types.FunctionType)
+    # apply cls.__growler_router
+    # obj.__growler_router()
 
 
 def test_routerclass():
@@ -214,20 +214,20 @@ def test_routerclass():
             pass
 
     sf = SubFoo('X')
-    assert isinstance(sf.__growler_router__, types.MethodType)
+    assert isinstance(sf.__growler_router, types.MethodType)
 
-    # We must CALL __growler_router__ to routerify with the instance itself
-    sf.__growler_router__()
-    assert hasattr(sf, '__growler_router__')
-    first_route = sf.__growler_router__.routes[0]
+    # We must CALL __growler_router to routerify with the instance itself
+    sf.__growler_router()
+    assert hasattr(sf, '__growler_router')
+    first_route = sf.__growler_router.routes[0]
     assert first_route[0] == GET
     assert first_route[1] == re.compile('\\/')
     assert first_route[2](None, None) is sf.get_something(None, None)
-    assert len(sf.__growler_router__.routes) == 1
+    assert len(sf.__growler_router.routes) == 1
 
     foo = SubFoo('Y')
-    foo.__growler_router__()
-    foo_route = foo.__growler_router__.routes[0]
+    foo.__growler_router()
+    foo_route = foo.__growler_router.routes[0]
     assert first_route[2](None, None) is not foo_route[2](None, None)
 
 
@@ -250,10 +250,9 @@ def test_router_metaclass(router):
             """/xyz/ijk"""
             pass
 
-    assert callable(MyRouter.__growler_router__)
+    assert callable(MyRouter._RouterMeta__growler_router)
     sub_router = MyRouter()
-    new_router = sub_router.__growler_router__()
-    assert sub_router.__growler_router__ is new_router
+    new_router = sub_router._RouterMeta__growler_router()
     assert len(new_router) is 2
     assert new_router.first().func.__func__ is MyRouter.get_foo
     assert new_router.last().func.__func__ is MyRouter.get_bar

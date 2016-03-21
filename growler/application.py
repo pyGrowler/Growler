@@ -35,7 +35,7 @@ from growler.http import (
 )
 import growler.http.methods
 from growler.http.methods import HTTPMethod
-from growler.router import Router
+from growler.router import Router, RouterMeta
 from growler.middleware_chain import MiddlewareChain
 
 log = logging.getLogger(__name__)
@@ -239,6 +239,9 @@ class Application:
             router = getattr(middleware, '__growler_router')
             if isinstance(router, (types.MethodType,)):
                 router = router()
+            self.middleware.add(func=router, path=path, method_mask=HTTPMethod.ALL)
+        elif isinstance(type(middleware), RouterMeta):
+            router = middleware._RouterMeta__growler_router()
             self.add_router(path, router)
         elif hasattr(middleware, '__iter__'):
             for mw in middleware:
