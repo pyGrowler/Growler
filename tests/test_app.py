@@ -149,6 +149,20 @@ def test_use_growler_router_factory(app, mock_route_generator):
     assert app.middleware.last().func is router
 
 
+def test_use_growler_router_metaclass(app, mock_route_generator):
+
+    class TestMeta(metaclass=grower.router.RouterMeta):
+        pass
+
+    router = mock_route_generator()
+    m = mock.Mock()
+    m.__growler_router = mock.Mock(spec=types.MethodType,
+                                   return_value=router)
+    app.use(TestMeta())
+    assert m.__growler_router.called
+    assert app.middleware.last().func is router
+
+
 def test_create_server(app):
     """ Test if the application creates a server coroutine """
     app._protocol_factory = mock.Mock()
@@ -283,7 +297,7 @@ def test_handle_client_request_ex(app, req, res, mock_route_generator):
 
     yield from app.handle_client_request(req, res)
 
-    assert generator.send.called
+    assert generator.throw.called
     assert len(handler.mock_calls) is 1
     handler.assert_called_with(req, res, generator, ex)
 

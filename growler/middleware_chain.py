@@ -175,11 +175,11 @@ class MiddlewareChain:
                 for sub_mw in subchain:
 
                     # Yield the middleware function
-                    err = yield sub_mw
-
-                    # the subchain had an error - forward error to subchain
-                    if err:
-                        subchain.send(err)
+                    try:
+                        yield sub_mw
+                    except Exception as err:
+                        # the subchain had an error - forward error to subchain
+                        subchain.throw(err)
 
             # this is not a subchain and path did not match exactly - skip
             elif rest_url:
@@ -192,10 +192,10 @@ class MiddlewareChain:
             # matching request! yield result function
             else:
                 # Yield the middleware function
-                err = yield mw.func
-
-            if err:
-                break
+                try:
+                    yield mw.func
+                except Exception as err:
+                    break
 
         if err:
             self.log.error(err)

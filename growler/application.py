@@ -361,7 +361,7 @@ class Application:
 
             # on an unhandled exception - notify the generator of the error
             except Exception as error:
-                mw_generator.send(error)
+                mw_generator.throw(error)
                 self.handle_server_error(req, res, mw_generator, error)
                 break
 
