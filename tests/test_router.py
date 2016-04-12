@@ -6,6 +6,7 @@ import growler
 from growler.router import (
     Router,
     HTTPMethod,
+    get_routing_attributes,
 )
 from unittest import mock
 import pytest
@@ -51,10 +52,12 @@ def mock_router():
 
 @pytest.mark.parametrize("test_route, req_path, req_method, should_call", [
     ((GET, "/", mock.Mock()), "/", GET, True),
-    ((GET, "/", mock.Mock()), "/x", GET, True),
+    ((GET, "/", mock.Mock()), "/x", GET, False),
     ((GET, "/x", mock.Mock()), "/", GET, False),
     ((POST, "/", mock.Mock()), "/x", GET, False),
-    ((POST, "/", mock.Mock()), "/x", POST, True),
+    ((POST, "/", mock.Mock()), "/", GET, False),
+    ((POST, "/", mock.Mock()), "/x", POST, False),
+    ((POST, "/x", mock.Mock()), "/x", POST, True),
 ])
 def test_add_route(router, mock_req, test_route, should_call):
     func = test_route[2]
@@ -65,6 +68,24 @@ def test_add_route(router, mock_req, test_route, should_call):
     else:
         assert len(m) is 1
         assert m[0] is func
+
+
+@pytest.mark.parametrize("middleware, req_path, req_method, should_call", [
+    ((mock.Mock(), None), "/", GET, True),
+    ((mock.Mock(), "/a"), "/a", GET, True),
+    ((mock.Mock(), "/x"), "/", GET, False),
+    ((mock.Mock(), '/x'), "/x", GET, True),
+    ((mock.Mock(), '/x'), "/x", POST, True),
+])
+def test_use(router, mock_req, middleware, should_call):
+    func = middleware[0]
+    router.use(*middleware)
+    m = list(router.match_routes(mock_req))
+    if should_call:
+        assert len(m) is 1
+        assert m[0] is func
+    else:
+        assert len(m) is 0
 
 
 @pytest.mark.parametrize("mount, req_path, matches", [
@@ -84,6 +105,27 @@ def test_add_router(router, mock_router, mock_req, mount, matches):
         assert mock_router.called
     else:
         assert not mock_router.called
+
+@pytest.mark.parametrize("method_func, method_key", [
+    (Router.all, HTTPMethod.ALL),
+    (Router.get, HTTPMethod.GET),
+    (Router.post, HTTPMethod.POST),
+    (Router.delete, HTTPMethod.DELETE),
+])
+def test_auto_methods(router, method_func, method_key):
+    m = mock.Mock()
+    method_func(router, '/foo', m)
+
+    assert router.last().func is m
+    assert router.last().mask is method_key
+
+    @method_func(router, '/foo')
+    def foo(req, res):
+        pass
+
+    assert isinstance(foo, types.FunctionType)
+    assert router.last().func is foo
+    assert router.last().mask is method_key
 
 
 @pytest.mark.parametrize("path, req_path, matches", [
@@ -149,16 +191,18 @@ def test_routerify():
     assert hasattr(foo, '__growler_router')
     first_route = foo.__growler_router.routes[0]
     assert first_route[0] == GET
-    assert first_route[1] == re.compile('/')
+    assert first_route[1] == re.compile('\\/')
     assert first_route[2](None, None) is foo.get_something(None, None)
 
 
 def test_mock_routerclass():
-    cls = growler.router.routerclass(mock.Mock())
+    cls = growler.router.routerclass(mock.MagicMock())
     assert isinstance(cls.__growler_router, types.FunctionType)
-    obj = cls()
+    # obj = cls()
+    # print(dir(obj))
+    # assert isinstance(obj.__growler_router, types.FunctionType)
     # apply cls.__growler_router
-    obj.__growler_router()
+    # obj.__growler_router()
 
 
 def test_routerclass():
@@ -177,7 +221,7 @@ def test_routerclass():
     assert hasattr(sf, '__growler_router')
     first_route = sf.__growler_router.routes[0]
     assert first_route[0] == GET
-    assert first_route[1] == re.compile('/')
+    assert first_route[1] == re.compile('\\/')
     assert first_route[2](None, None) is sf.get_something(None, None)
     assert len(sf.__growler_router.routes) == 1
 
@@ -185,3 +229,60 @@ def test_routerclass():
     foo.__growler_router()
     foo_route = foo.__growler_router.routes[0]
     assert first_route[2](None, None) is not foo_route[2](None, None)
+
+
+def test_router_metaclass(router):
+    from growler.router import RouterMeta
+
+    class MyRouter(metaclass=RouterMeta):
+
+        get_something = 153
+
+        def get_foo(self, req, res):
+            """/abc/efg"""
+            pass
+
+        def get_skip(self, req, res):
+            """"""
+            pass
+
+        def get_bar(self, req, res):
+            """/xyz/ijk"""
+            pass
+
+    assert callable(MyRouter._RouterMeta__growler_router)
+    sub_router = MyRouter()
+    new_router = sub_router._RouterMeta__growler_router()
+    assert len(new_router) is 2
+    assert new_router.first().func.__func__ is MyRouter.get_foo
+    assert new_router.last().func.__func__ is MyRouter.get_bar
+
+@pytest.mark.parametrize("attrs", [
+    [('get_a', '/a'), ('get_b', '/b')]
+])
+def test_get_routing_attributes(attrs):
+    m = mock.Mock()
+    mounts = []
+    for path, doc in attrs:
+        getattr(m, path).__doc__ = doc
+        mounts.append(doc.split()[0])
+    rets = tuple(i[1] for i in get_routing_attributes(m))
+    assert all(a == b for a, b in zip(rets, mounts))
+
+@pytest.mark.parametrize("attrs", [
+    [('get_a', '/a blah blah blah', '/a', 'blah blah blah'),
+     ('get_b', '/b', '/b', ''),
+    ],
+])
+def test_get_routing_attributes_modify_doc(attrs):
+    m = mock.Mock()
+    paths = []
+    docs = []
+    for name, doc, path, newdoc in attrs:
+        getattr(m, name).__doc__ = doc
+        paths.append(path)
+        docs.append(newdoc)
+    rets = tuple(get_routing_attributes(m, True))
+    for a, b, c in zip(rets, paths, docs):
+        assert a[1] == b
+        assert a[2].__doc__ == c

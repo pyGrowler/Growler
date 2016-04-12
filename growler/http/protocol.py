@@ -24,6 +24,9 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
     Additional responders may be created and used, the req/res pair may be
     lost, but only one GrowlerHTTPProtocol object will persist through the
     connection; it may be wise to store HTTP information in this.
+
+    To change the responder type to something other than GrowlerHTTPResponder,
+    overload or replace the http_responder_factory method.
     """
 
     client_method = None
@@ -35,18 +38,45 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
         Construct a GrowlerHTTPProtocol object. This should only be called from
         a growler.HTTPServer instance (or any asyncio.create_server function).
 
-        :param app: Typically a growler application which is the 'target' for
-            this protocol, but any callable with a 'loop' and middleware_chain
-            generator attributes should work.
+        Parameters
+        ----------
+        app : growler.Application
+            Typically a growler application which is the 'target object' of
+            this protocol. Any callable with a 'loop' attribute and a
+            handle_client_request coroutine method should work.
         """
-
-        def responder_factory(_self):
-            return GrowlerHTTPResponder(_self,
-                                        request_factory=app._request_class,
-                                        response_factory=app._response_class)
-
-        super().__init__(loop=app.loop, responder_factory=responder_factory)
         self.http_application = app
+        super().__init__(loop=app.loop,
+                         responder_factory=self.http_responder_factory)
+
+    @staticmethod
+    def http_responder_factory(proto):
+        """
+        The default factory function which creates a GrowlerHTTPResponder with
+        this object as the parent protocol, and the application's req/res
+        factory functions.
+
+        To change the default responder, overload this method with the same
+        to return your
+        own responder.
+
+        Params
+        ------
+        proto : GrowlerHTTPProtocol
+            Explicitly passed protocol object (actually it's what would be
+            'self'!)
+
+        Note
+        ----
+        This method is decorated with @staticmethod, as the connection_made
+        method of GrowlerProtocol explicitly passes `self` as a parameters,
+        instead of treating as a bound method.
+        """
+        return GrowlerHTTPResponder(
+            proto,
+            request_factory=proto.http_application._request_class,
+            response_factory=proto.http_application._response_class,
+        )
 
     def handle_error(self, error):
         """
@@ -54,7 +84,10 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
         during a responder's on_data() function. There is no default
         functionality and the subclasses must overload this.
 
-        :param error: Exception thrown in code
+        Parameters
+        ----------
+        error : Exception
+            Exception thrown during code execution
         """
 
         err_code = error.code if isinstance(error, HTTPError) else 500

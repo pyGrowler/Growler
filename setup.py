@@ -5,12 +5,11 @@
 A micro web-framework using asyncio coroutines and chained middleware.
 """
 
-from os import path
 from glob import glob
-from imp import load_source
+from importlib.machinery import SourceFileLoader
 from setuptools import setup, find_packages
 
-metadata = load_source("metadata", path.join("growler", "__meta__.py"))
+metadata = SourceFileLoader("metadata", "growler/__meta__.py").load_module()
 
 REQUIRES = [
 ]
@@ -24,6 +23,10 @@ OPTIONAL_REQUIRES = {
 TESTS_REQUIRE = [
     'pytest',
     'pytest-asyncio',
+]
+
+SETUP_REQUIRES = [
+    'pytest-runner',
 ]
 
 PACKAGES = find_packages(
@@ -42,12 +45,13 @@ CLASSIFIERS = [
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.4",
     "Programming Language :: Python :: 3.5",
     "Topic :: Internet :: WWW/HTTP",
     "Natural Language :: English"
 ]
 
-tar_url = 'https://github.com/pygrowler/growler/archive/v%s.tar.gz' % (metadata.version)  # noqa
+tar_url = 'https://github.com/pyGrowler/growler/archive/v%s.tar.gz' % (metadata.version)  # noqa
 
 setup(
     name="growler",
@@ -64,6 +68,7 @@ setup(
     tests_require=TESTS_REQUIRE,
     packages=PACKAGES,
     namespace_packages=NAMESPACES,
+    setup_requires=SETUP_REQUIRES,
     platforms='all',
     scripts=glob('scripts/*')
 )

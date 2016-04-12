@@ -6,7 +6,7 @@ import logging
 log = logging.getLogger(__name__)
 
 
-class Auth():
+class Auth:
     """
     Authentication middleware used to log users or validate services.
     """

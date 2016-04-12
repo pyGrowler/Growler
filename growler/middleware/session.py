@@ -10,7 +10,7 @@ import asyncio
 import uuid
 
 
-class Session(object):
+class Session:
     """
     Session middleware!
     """
@@ -76,7 +76,7 @@ class Session(object):
         yield from self._store.save(self)
 
 
-class SessionStorage(object):
+class SessionStorage:
 
     def __init__(self, **kwargs):
         print("[SessionStorage]")

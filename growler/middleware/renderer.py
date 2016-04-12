@@ -2,56 +2,119 @@
 # growler/middleware/renderer.py
 #
 
-import os
 import logging
-from copy import copy
+from pathlib import Path
 
 log = logging.getLogger(__name__)
 
 
 class Renderer:
     """
-    A growler-middleware class for changing template files into html (or any
-    file format) to send back to the client.
+    Renderer is a helper class designed to provide a common interface for
+    rendering html (or potentially any file format) from templates files. It is
+    important to note that Renderer itself is not middleware, but an extension
+    given to 'res' objects by the actually middleware, RendererEngines.
 
-    A renderer is created with the template directory and name of rendering
-        engine as parameters.
+    The expected behavior of a RendererEngine middleware is to add a Renderer
+    object to res (if it is not already present) at res.render, and add the
+    engine to this object.
 
-    Upon being called in the middleware chain, the __call__ method will add a
-    'render' function
+    The Renderer is callable, so expected usage is as simple as
+    `res.render('tmplate_file')`. The renderer will intelligently find the
+    appropriate file and engine pair, and send the results to the client.
+
+    To add custom templating functionality, look to subclass the RendererEngine
+    class, and leave the renderer class alone.
     """
 
     render_engine_map = dict()
 
-    def __init__(self, path, engine):
+    def __init__(self, res):
         """
-        Construct a renderer.
+        Constructor
 
-        :param path: The directory containing the templates to render. If this
-            is a list, it is automatically concatenated by os.path.join.
-
-        :param engine: The rendering engine or the string key for the type of
-            engine, details should be found in the documentation for that
-            engine.
+        Args:
+            res (HttpResponse): The response which owns this renderer
         """
-        if isinstance(path, list):
-            path = os.path.join(*path)
+        self.res = res
+        self.engines = []
 
-        self.path = os.path.abspath(path)
+    def __call__(self, template, obj=None):
+        """
+        Should be called via `res.render(...)`.
 
-        if not os.path.exists(self.path):
-            log.error("%d No path at %s" % (id(self), self.path))
-            raise Exception("Path '{}' does not exist.".format(self.path))
+        This sends the response to the client and will therefore finish the
+        growler application chain. An error is raised if no template could be
+        found.
 
-        log.info("%d files located in %s" % (id(self), self.path))
+        Args:
+            template (str): The name of the template to render. If there is no
+                file extension, each engine will search for files matching its
+                own designated extension.
+            obj (dict): A dictionary containing the 'local namespace' of the
+                rendering environment.
 
-        if isinstance(engine, str):
-            engine = self.render_engine_map.get(engine, None)
+        Raises:
+            ValueError: If no template could be found with the provided name.
+        """
+        for engine in self.engines:
+            filename = engine.find_template_filename(template)
+            if filename:
+                if obj:
+                    self.res.locals.update(obj)
+                html = engine.render_source(filename, self.res.locals)
+                self.res.send_html(html)
+                break
+        else:
+            raise ValueError("Could not find a template with name '%s'" % template)
 
-        if engine is None:
-            raise Exception("[Renderer] No valid rendering engine provided.")
+    def add_engine(self, engine):
+        """
+        Add an engine to the engines
+        """
+        self.engines.append(engine)
 
-        self.engine = engine(self)
+
+class RenderEngine:
+    """
+    Class used to render templates.
+
+    Upon being called in the middleware chain, the __call__ method will add a
+    'render' function to the res object.
+
+    To create your own RenderEngine, you must subclass this class and implement
+    the render_source method.
+
+    If the template name does not follow a typical template_name.extension
+    format, you can implement your own by overloading the
+    find_template_filename method.
+
+    It is not recommended to change the behavior of the __call__ method, which
+    may modify the res object in a manner all other RenderEngines are
+    dependent.
+
+    Attributes:
+        path (pathlib.Path): The directory containing the view files this
+            renderer will find.
+    """
+
+    def __init__(self, path):
+        """
+        Constructor
+
+        Args:
+            path (str): Top level directory to search for template files - the
+                path must exist and the path must be a directory.
+
+        Raises:
+            FileNotFoundError: If the provided path does not exists.
+            NotADirectoryError: If the path is not a directory.
+        """
+        self.path = Path(path).resolve()
+
+        if not self.path.is_dir():
+            log.warning("path given to render engine is not a directory")
+            raise NotADirectoryError("path '%s' is not a directory" % path)
 
     def __call__(self, req, res):
         """
@@ -63,35 +126,51 @@ class Renderer:
         runs on this file, the resulting html is sent to the client
         automatically, ending the res/req chain.
         """
+        if not hasattr(res, 'render'):
+            res.render = Renderer(res)
+            res.locals = {}
 
-        def _render(template, obj={}):
-            res.locals.update(obj)
-            filename = self._find_file(template)
-            html = self.engine(filename, res)
-            res.send_html(html)
+        res.render.add_engine(self)
 
-        res.locals = {}
-        res.render = _render
-
-    def _find_file(self, fname):
+    def find_template_filename(self, template_name):
         """
-        Looks for the file with filename 'fname'
+        Searches for a file matching the given template name.
+
+        If found, this method returns the pathlib.Path object of the found
+        template file.
+
+        Args:
+            template_name (str): Name of the template, with or without a file
+                extension.
+
+        Returns:
+            pathlib.Path: Path to the matching filename.
         """
 
         def next_file():
-            filename = os.path.join(self.path, fname)
+            filename = self.path / template_name
             yield filename
-            yield filename + self.engine.default_file_extension
+            yield Path(str(filename) + self.default_file_extension)
 
         for filename in next_file():
-            if not os.path.isfile(filename):
-                continue
-            return filename
+            if filename.is_file():
+                return filename
 
-        raise Exception("No file found provided name '{}'.".format(fname))
+    def render_source(self, filename, obj):
+        """
+        Render the template file found at filename.
+
+        Args:
+            filename (str): Path to the template file
+            obj (dict): Dictionary of data to pass to templating engine
+
+        Returns:
+            str: The rendererd file
+        """
+        raise NotImplementedError()
 
 
-class StringRenderer(Renderer):
+class StringRenderer(RenderEngine):
     """
     A renderer that uses the basic str.format method to generate html pages.
 
@@ -101,33 +180,19 @@ class StringRenderer(Renderer):
     string then .format is called with the contents of the dictionary.
     """
 
-    def __init__(self, view_directory, extensions=None):
-        super().__init__(view_directory, StringRenderer.Engine)
-        self.extensions = [] if extensions is None else extensions
-        self.path = view_directory
+    default_file_extension = '.html.tmpl'
 
-    def render_file(self, filename, render_obj, **kwargs):
-        txt = self.file_text(filename)
-        obj = copy(render_obj)
-        obj.update(kwargs)
-        return txt.format(**obj)
+    def render_source(self, filename, obj=None):
+        txt = self.file_text(str(self.path.joinpath(filename)))
+        if obj is None:
+            return txt
+        else:
+            return txt.format(**obj)
 
     def file_text(self, filename):
         with open(filename, 'r') as file:
             return file.read()
 
-
-    class Engine:
-
-        default_file_extension = '.html.tmpl'
-
-        def __init__(self, parent):
-            self.parent = parent
-
-        def __call__(self, filename, res):
-            with open(filename, 'r') as file:
-                s = file.read()
-            return s.format(**res.locals)
 
 # register the renderer
 Renderer.render_engine_map['string'] = StringRenderer

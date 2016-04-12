@@ -1,0 +1,23 @@
+[run]
+branch = False
+
+[report]
+exclude_lines =
+    # standard pragma
+    pragma: no cover
+
+    # debug-only code
+    def __repr__
+    if self\.debug
+
+    # defensive assertion code
+    raise AssertionError
+    raise NotImplementedError
+
+    # non-runnable code
+    if 0:
+    if False:
+    if not True:
+    if __name__ == .__main__.:
+
+ignore_errors = True

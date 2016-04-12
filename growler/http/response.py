@@ -2,24 +2,48 @@
 # growler/http/response.py
 #
 
+import io
 import sys
-import growler
 import json
 import time
+import growler
+
+from itertools import chain
 from datetime import datetime
-import io
+from collections import OrderedDict
 from wsgiref.handlers import format_date_time as format_RFC_1123
 
 from .status import Status
 
 
-class HTTPResponse(object):
+class HTTPResponse:
     """
-    Response class which handles writing to the client.
+
+    Response class which handles HTTP formatting and sending a response to the
+    client. If the response has sent a message (the `has_ended` property
+    evaluates to True) the middleware chain will stop.
+
+    There are many convenience functions such as `send_json` and `send_html`
+    which will handle formatting data, setting headers and sending objects and
+    strings for you.
+
+    A typical use is the modification of the response object by the standard
+    Renderer middleware, which adds a `render` method to the response object.
+    Any middleware after this one (i.e. your routes) can then call
+    res.render("template_name", data) to automatically render a web view and
+    send it to.
+
+    Parameters
+    ----------
+    protocol : GrowlerHTTPProtocol
+        Protocol object creating the response
+    EOL : str
+        The string with which to end lines
     """
-    SERVER_INFO = 'Python/{0[0]}.{0[1]} Growler/{1}'.format(sys.version_info,
-                                                            growler.__version__
-                                                            )
+    SERVER_INFO = 'Growler/{growler_version} Python/{py_version}'.format(
+        py_version=".".join(map(str, sys.version_info[:2])),
+        growler_version=growler.__version__,
+    )
 
     protocol = None
     has_sent_headers = False
@@ -33,16 +57,10 @@ class HTTPResponse(object):
     _events = None
 
     def __init__(self, protocol, EOL="\r\n"):
-        """
-        Create the http response.
-
-        :param protocol: GrowlerHTTPProtocol object creating the response
-        :param EOL str: The string with which to end lines
-        """
         self.protocol = protocol
         self.EOL = EOL
 
-        self.headers = dict()
+        self.headers = Headers()
 
         self._events = {
             'before_headers': [],
@@ -55,32 +73,24 @@ class HTTPResponse(object):
         Create some default headers that should be sent along with every HTTP
         response
         """
-        time_string = self.get_current_time()
-        # time_string = time.strftime("%a, %d %b %Y %H:%M:%S GMT",
-        #  time.gmtime())
-        self.headers.setdefault('Date', time_string)
+        self.headers.setdefault('Date', self.get_current_time)
         self.headers.setdefault('Server', self.SERVER_INFO)
-        self.headers.setdefault('Content-Length', len(self.message))
+        self.headers.setdefault('Content-Length', "%d" % len(self.message))
         if self.app.enabled('x-powered-by'):
             self.headers.setdefault('X-Powered-By', 'Growler')
 
     def send_headers(self):
-        """Sends the headers to the client"""
+        """
+        Sends the headers to the client
+        """
         for func in self._events['before_headers']:
             func()
 
-        self.headerstrings = [self.StatusLine()]
+        self.headerstrings = [self.status_line]
 
         self._set_default_headers()
-
-        self.headerstrings += ["%s: %s" % (k, v)
-                               for k, v in self.headers.items()]
-
-        for func in self._events['headerstrings']:
-            func()
-
-        http_header = self.EOL.join(self.headerstrings + [self.EOL])
-        self.protocol.transport.write(http_header.encode())
+        header_str = self.status_line + self.EOL + str(self.headers)
+        self.protocol.transport.write(header_str.encode())
 
     def write(self, msg=None):
         msg = self.message if msg is None else msg
@@ -93,9 +103,14 @@ class HTTPResponse(object):
         for f in self._events['after_send']:
             f()
 
-    def StatusLine(self):
-        self.phrase = self.phrase if self.phrase else Status.Phrase(
-            self.status_code)
+    @property
+    def status_line(self):
+        """
+        Returns the first line of response, including http version, status
+        and a phrase (OK).
+        """
+        if not self.phrase:
+            self.phrase = Status.Phrase(self.status_code)
         return "{} {} {}".format("HTTP/1.1", self.status_code, self.phrase)
 
     def end(self):
@@ -113,14 +128,15 @@ class HTTPResponse(object):
         Redirect to the specified url, optional status code defaults to 302.
         """
         self.status_code = status
-        self.headers = {'Location': url}
+        self.headers = Headers([('location', url)])
         self.message = ''
         self.end()
 
     def set(self, header, value=None):
         """Set header to the key"""
         if value is None:
-            self.headers.update(header)
+            for k, v in header.items():
+                self.headers[k] = v
         else:
             self.headers[header] = value
 
@@ -155,27 +171,40 @@ class HTTPResponse(object):
             s.append("<{}>; rel=\"{}\"".format(links[rel], rel))
         self.headers['Link'] = ','.join(s)
 
-    # def send(self, obj, status = 200):
-    #  """
-    #    Responds to request with obj; action is dependent on type of obj.
-    #    If obj is a string, it sends text,
-    #
-    #  """
-    #  func = {
-    #    str: self.send_text
-    #  }.get(type(obj), self.send_json)
-    #  func(obj, status)
-
     def json(self, body, status=200):
         """Alias of send_json"""
         return self.send_json(body, status)
 
     def send_json(self, obj, status=200):
+        """
+        Sends a stringified JSON response to client. Automatically sets the
+        content-type header to application/json.
+
+        Parameters
+        ----------
+        obj : mixed
+            Any object which will be serialized by the json.dumps module
+            function
+        status : int, optional
+            The HTTP status code, defaults to 200 (OK)
+        """
         self.headers['content-type'] = 'application/json'
         self.status_code = status
-        self.send_text(json.dumps(obj))
+        message = json.dumps(obj)
+        self.send_text(message)
 
     def send_html(self, html, status=200):
+        """
+        Sends html response to client. Automatically sets the content-type
+        header to text/html.
+
+        Parameters
+        ----------
+        html : str
+            The raw html string to be sent back to the client
+        status : int, optional
+            The HTTP status code, defaults to 200 (OK)
+        """
         self.headers.setdefault('content-type', 'text/html')
         self.message = html
         self.status_code = status
@@ -189,19 +218,32 @@ class HTTPResponse(object):
         header to text/plain. If txt is not a string, it will be formatted as
         one.
 
-        :param txt str: The plaintext string to be sent back to the client
-        :param status int: The HTTP status code, defaults to 200 (OK)
+        Parameters
+        ----------
+        txt : str
+            The plaintext string to be sent back to the client
+        status : int, optional
+            The HTTP status code, defaults to 200 (OK)
         """
         self.headers.setdefault('content-type', 'text/plain')
-        self.message = str(txt)
+        if isinstance(txt, bytes):
+            self.message = txt
+        else:
+            self.message = str(txt)
         self.status_code = status
         self.end()
 
     def send_file(self, filename, status=200):
-        """Reads in the file 'filename' and sends string."""
-        # f = open(filename, 'r')
-        # f = io.FileIO(filename)
-        # print ("[send_file] sending file :", filename)
+        """
+        Reads in the file 'filename' and sends bytes to client
+
+        Parameters
+        ----------
+        filename : str
+            Filename of the file to read
+        status : int, optional
+            The HTTP status code, defaults to 200 (OK)
+        """
         with io.FileIO(filename) as f:
             self.message = f.read()
         self.status_code = status
@@ -223,7 +265,7 @@ class HTTPResponse(object):
 
     @property
     def info(self):
-        return 'Python/{0[0]}.{0[1]} growler/{1}'
+        return self.SERVER_INFO
 
     @property
     def stream(self):
@@ -235,4 +277,143 @@ class HTTPResponse(object):
 
     @staticmethod
     def get_current_time():
+        # return time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime())
         return format_RFC_1123(time.mktime(datetime.now().timetuple()))
+
+
+class Headers:
+    """
+    A class for maintaining HTTP headers, offering a dict-like interface. Keys
+    must be strings, and are stored in a case-insensitive manner. Values are
+    strings, , lists of strings or bytes, or a callable, which will be
+    called upon stringification of the headers.
+
+    The mechanism behind case insensitivity is python's str.casefold, so any
+    peculiarities should be investigated starting there.
+
+    Stringification of the headers will provide an HTTP compatible header
+    string, terminated by two EOL chars.
+    """
+
+    EOL = '\r\n'
+
+    def __init__(self, headers={}, **kw_headers):
+        """
+        Construct a headers object.
+
+        The constructor provides the same interface as the standard
+        dict constructor.
+
+        The default value is an empty container, which will .
+
+        """
+        self._header_data = OrderedDict()
+        headers = dict(headers)
+        headers.update(kw_headers)
+        for key, value in headers.items():
+            self[key] = value
+
+    def __getitem__(self, key):
+        ci_key = self.escape(key).casefold()
+        return self._header_data[ci_key][1]
+
+    def __setitem__(self, key, value):
+        key = self.escape(key)
+        ci_key = key.casefold()
+        self._header_data[ci_key] = (key, value)
+
+    def __delitem__(self, key):
+        key = self.escape(key)
+        ci_key = key.casefold()
+        del self._header_data[ci_key]
+
+    def setdefault(self, key, default=None):
+        key = self.escape(key)
+        ci_key = key.casefold()
+
+        try:
+            v = self._header_data[ci_key]
+            return v
+        except KeyError:
+            self._header_data[ci_key] = (key, default)
+            return default
+
+    def update(self, *args, **kwargs):
+        """
+        Equivalent to the python dict update method.
+
+        Update the dictionary with the key/value pairs from other, overwriting
+        existing keys.
+
+        Args:
+            other (dict): The source of key value pairs to add to headers
+        Keyword Args:
+            All keyword arguments are stored in header directly
+
+        Returns:
+            None
+        """
+        for next_dict in chain(args, (kwargs, )):
+            for k, v in next_dict.items():
+                self[k] = v
+
+    def add_header(self, key, value, **params):
+        """
+        Add a header to the collection, including potential parameters.
+
+        Args:
+            key (str): The name of the header
+            value (str): The value to store under that key
+            params: Option parameters to be appended to the value,
+                automatically formatting them in a standard way
+        """
+
+        key = self.escape(key)
+        ci_key = key.casefold()
+
+        def quoted_params(items):
+            for p in items:
+                param_name = self.escape(p[0])
+                param_val = self.de_quote(self.escape(p[1]))
+                yield param_name, param_val
+
+        quoted_iter = ('%s="%s"' % p for p in quoted_params(params.items()))
+        param_str = ' '.join(quoted_iter)
+
+        if param_str:
+            value = "%s; %s" % (value, param_str)
+
+        self[ci_key] = (key, value)
+
+    def stringify(self, use_bytes=False):
+        """
+        Returns representation of headers as a valid HTTP header string. This
+        is called by __str__.
+
+        Args:
+            use_bytes (bool): Returns a bytes object instead of a str.
+        """
+        def _str_value(value):
+            if isinstance(value, list):
+                value = (self.EOL + '\t').join((_str_value(v) for v in value))
+            elif callable(value):
+                value = _str_value(value())
+
+            return value
+
+        s = self.EOL.join(("{key}: {value}".format(key=key,
+                                                   value=_str_value(value))
+                           for key, value in self._header_data.values()
+                           if value is not None))
+        return s + (self.EOL * 2)
+
+    @staticmethod
+    def escape(value):
+        return value.replace("\n", r"\n")
+
+    @staticmethod
+    def de_quote(value):
+        return value.replace('"', r'\"')
+
+    def __str__(self):
+        return self.stringify()

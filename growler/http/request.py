@@ -8,35 +8,42 @@ import logging
 log = logging.getLogger(__name__)
 
 
-class HTTPRequest(object):
+class HTTPRequest:
     """
-    Helper class which handles the parsing of an incoming http request.
-    The usage should only be from an HTTPRequest object calling the parse()
-    function.
+    Helper class which normalizes access to client information of an incoming
+    http request. The object is intended to be mutable, with middleware adding
+    methods and members for maximum flexibility.
+
+    The HTTPRequest is almost always paired with a HTTPResponse object to reply
+    back to the client.
+
+    Object construction should only happen by an HTTPProtocol object after HTTP
+    headers have been parsed; not by any middleware or auxillary function.
     """
 
     _protocol = None
     headers = None
     body = None
 
-    def __init__(self, protocol, headers):
+    def __init__(self, responder, headers):
         """
         The HTTPRequest object is all the information you could want about the
         incoming http connection. It gets passed along with the HTTPResponse
         object to all the middleware of the app.
 
-        :param protocol growler.HTTPProtocol: A reference to the protocol which
-            was responsible for handling th e client's request and creating
-            this HTTPRequest object.
-
-        :param headers dict: The headers gathered from the incoming stream
+        Parameters
+        ----------
+        protocol : growler.HTTPProtocol
+            A reference to the protocol which was responsible for handling the
+            client's request and creating this HTTPRequest object.
+        headers : dict
+            The headers gathered from the incoming stream
         """
-        self._protocol = protocol
+        self._protocol = responder
         self.headers = headers
 
         if 'CONTENT-LENGTH' in headers:
             self.body = asyncio.Future()
-
         log.info("%d %s %s" % (id(self), self.method, self.path))
 
     def param(self, name, default=None):
@@ -44,10 +51,12 @@ class HTTPRequest(object):
         Return value of HTTP parameter 'name' if found, else return provided
         'default'
 
-        :param name: Key to search the query dict for
-        :type name: str
-
-        :param default: Returned if 'name' is not found in the query dict
+        Parameters
+        ----------
+        name : str
+            Key used to search the query dict
+        default : mixed
+            Value returned if 'name' is not found in the query dict
         """
         return self.query.get(name, default)
 
@@ -76,11 +85,11 @@ class HTTPRequest(object):
 
     @property
     def ip(self):
-        return self._protocol.socket.getpeername()[0]
+        return self._protocol.ip
 
     @property
     def app(self):
-        return self._protocol.http_application
+        return self._protocol.app
 
     @property
     def path(self):
@@ -104,7 +113,7 @@ class HTTPRequest(object):
 
     @property
     def method(self):
-        return self._protocol.client_method
+        return self._protocol.method
 
     @property
     def protocol(self):

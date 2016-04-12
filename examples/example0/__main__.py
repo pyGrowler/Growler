@@ -22,7 +22,7 @@ app = App('GrowlerServer')
 view_dir = path.join(path.dirname(__file__), "views")
 
 app.use(Logger())
-app.use(StringRenderer(view_dir, extensions=['.html.tmpl']))
+app.use(StringRenderer(view_dir))
 
 
 @app.get('/')
