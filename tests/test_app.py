@@ -149,18 +149,29 @@ def test_use_growler_router_factory(app, mock_route_generator):
     assert app.middleware.last().func is router
 
 
+def test_add_bad_router(app):
+    # TODO: Implement real check for router type
+    app.strict_router_check = True
+    with pytest.raises(TypeError):
+        app.add_router("/foo", lambda req, res: res.send_text("bad type!"))
+
+
 def test_use_growler_router_metaclass(app, mock_route_generator):
 
     class TestMeta(metaclass=growler.router.RouterMeta):
-        pass
 
-    router = mock_route_generator()
-    m = mock.Mock()
-    m.__growler_router = mock.Mock(spec=types.MethodType,
-                                   return_value=router)
-    app.use(TestMeta())
-    assert m.__growler_router.called
-    assert app.middleware.last().func is router
+        def get_z(self, req, res): '''/'''
+        def get_a(self, req, res): '''/a/a'''
+        def get_b(self, req, res): '''/a/b'''
+
+    mrouter = TestMeta()
+    app.use(mrouter)
+    router = app.middleware.mw_list[0].func
+
+    assert isinstance(router, growler.router.Router)
+    assert mrouter.get_z == router.mw_list[0].func
+    assert mrouter.get_a == router.mw_list[1].func
+    assert mrouter.get_b == router.mw_list[2].func
 
 
 def test_create_server(app):

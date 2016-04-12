@@ -154,6 +154,8 @@ class Application:
             'http_error': [],
         }
 
+        self.strict_router_check = False
+
         self._request_class = request_class
         self._response_class = response_class
         self._protocol_factory = protocol_factory
@@ -239,7 +241,7 @@ class Application:
             router = getattr(middleware, '__growler_router')
             if isinstance(router, (types.MethodType,)):
                 router = router()
-            self.middleware.add(func=router, path=path, method_mask=HTTPMethod.ALL)
+            self.add_router(path, router)
         elif isinstance(type(middleware), RouterMeta):
             router = middleware._RouterMeta__growler_router()
             self.add_router(path, router)
@@ -264,10 +266,13 @@ class Application:
         router : growler.Router
             The router which will respond to requests
         """
+        if self.strict_router_check and not isinstance(router, Router):
+            raise TypeError("Expected object of type Router, found %r" % type(router))
+
         log.info("%d Adding router %s on path %s" % (id(self), router, path))
-        self.use(middleware=router,
-                 path=path,
-                 method_mask=HTTPMethod.ALL,)
+        self.middleware.add(path=path,
+                            func=router,
+                            method_mask=HTTPMethod.ALL,)
 
     @property
     def router(self):
