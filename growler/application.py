@@ -295,7 +295,7 @@ class Application:
             and mw.path is MiddlewareChain.ROOT_PATTERN
         )
 
-    @types.coroutine
+    @asyncio.coroutine
     def handle_client_request(self, req, res):
         """
         Entry point for the request + response middleware chain. This is called
@@ -348,8 +348,8 @@ class Application:
             # on an unhandled exception - notify the generator of the error
             except Exception as error:
                 mw_generator.throw(error)
-                self.handle_server_error(req, res, mw_generator, error)
-                break
+                yield from self.handle_server_error(req, res, mw_generator, error)
+                return
 
             if res.has_ended:
                 break
@@ -357,7 +357,7 @@ class Application:
         if not res.has_ended:
             res.send_text("500 - Server Error", 500)
 
-    # TODO : Should this be a coroutine?
+    @asyncio.coroutine
     def handle_server_error(self, req, res, mw_generator, error, err_count=0):
         """
         Entry point for handling an exception that occured during execution of
@@ -381,22 +381,27 @@ class Application:
             raise Exception("Too many exceptions:" + error)
 
         for mw in mw_generator:
-
             try:
-                mw(req, res, error)
+                if asyncio.iscoroutinefunction(mw):
+                    yield from mw(req, res, error)
+                else:
+                    mw(req, res, error)
             except Exception as new_error:
-                mw_generator.send(new_error)
-                self.handle_server_error(
+                yield from self.handle_server_error(
                     req,
                     res,
                     mw_generator,
                     new_error,
                     err_count + 1,
                 )
-                break
-
-            if res.has_ended:
-                break
+            finally:
+                if res.has_ended:
+                    break
+        else:
+            self.default_error_handler(req, res, error)
+            if not res.has_ended:  # noqa pragma: no cover
+                print("Default error handler did not send a response to "
+                      "client!", file=sys.stderr)
 
     def print_middleware_tree(self, *, EOL=os.linesep, **kwargs):  # noqa pragma: no cover
         """
@@ -441,8 +446,8 @@ class Application:
         lines.append('┴')
         print(EOL.join(lines), **kwargs)
 
-    @classmethod
-    def default_error_handler(cls, req, res, error):
+    @staticmethod
+    def default_error_handler(req, res, error):
         html = ("<html><head><title>404 - Not Found</title></head><body>"
                 "<h1>404 - Not Found</h1><hr>"
                 "<p style='font-family:monospace;'>"

@@ -93,7 +93,6 @@ class MiddlewareNode:
             elif the_rest.startswith('/'):
                 pass
             else:
-                print("Nopass")
                 return None, None
 
         if self.IGNORE_TRAILING_SLASH and the_rest == '/':
@@ -143,7 +142,7 @@ class MiddlewareChain:
             url path of the request.
         """
         error_handler_stack = []
-        err = None
+        error = None
 
         # loop through this chain's middleware list
         for mw in self.mw_list:
@@ -179,7 +178,11 @@ class MiddlewareChain:
                         yield sub_mw
                     except Exception as err:
                         # the subchain had an error - forward error to subchain
-                        subchain.throw(err)
+                        yield subchain.throw(err)
+                        error = err
+
+                if error:
+                    break
 
             # this is not a subchain and path did not match exactly - skip
             elif rest_url:
@@ -195,14 +198,19 @@ class MiddlewareChain:
                 try:
                     yield mw.func
                 except Exception as err:
+                    error = err
+                    # Yielding None here returns execution to the caller,
+                    # allowing it to request error handling middleware from us
+                    yield None
                     break
 
-        if err:
-            self.log.error(err)
+        if error:
+            self.log.error(error)
             for errhandler in reversed(error_handler_stack):
                 new_error = yield errhandler
                 if new_error:
                     pass
+            return
 
     def add(self, method_mask, path, func):
         """
