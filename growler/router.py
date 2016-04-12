@@ -82,8 +82,15 @@ class Router(MiddlewareChain):
 
     def use(self, middleware, path=None):
         """
-        Use the middleware (a callable with parameters res, req, next) upon
-        requests match the provided path. A None path matches every request.
+        Call the provided middleware upon requests matching the path. If path
+        is not provided or None, all requests will match.
+
+        Args:
+            middleware (callable): Callable with the signature (res, req) -> None
+            path (Optional[str or regex]): a specific path the request must
+                match for the middleware to be called.
+        Returns:
+            This router
         """
         self.log.info(" Using middleware %s" % middleware)
         if path is None:
@@ -140,10 +147,15 @@ class RouterMeta(type):
     @classmethod
     def __prepare__(metacls, name, bases, **kargs):
         """
-        Metaclass attribute which creates the mapping object - in this case the
-        a standard collections.OrderedDict object to preserve order of method
-        names. Name is the name of the class, bases are baseclasses, kargs are
-        any keyword arguments we may provide in the future for fun options.
+        Metaclass attribute which creates the mapping object - in this case a
+        standard collections.OrderedDict object to preserve order of method
+        names.
+
+        Args:
+            name (str): The name of the class
+            base (tuple): Collection of baseclasses
+        Return:
+            Simple ordered dict to store the class members/methods
         """
         return OrderedDict()
 
@@ -166,7 +178,6 @@ class RouterMeta(type):
             return router
 
         child_class.__growler_router = build_router
-        child_class.__ordered_attrs__ = classdict.keys()
         return child_class
 
 
@@ -238,8 +249,11 @@ def routerify(obj):
     route signature. A router will be created and added to the object with
     parameter.
 
-    :param obj: some object (with attributes) from which to setup a router
-    @return router: The router created.
+    Args:
+        obj (object): The object (with attributes) from which to setup a router
+
+    Returns:
+        Router: The router created from attributes in the object.
     """
     router = Router()
     for info in get_routing_attributes(obj):
