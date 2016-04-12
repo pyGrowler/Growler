@@ -5,16 +5,15 @@
 
 package = 'growler'
 project = 'Web framework using standard python asyncio'
-project_no_spaces = project.replace(' ', '')
 
-version_info = (0, 6, 5)
+version_info = (0, 7, 0)
 version = '.'.join(map(str, version_info))
 version_name = ''.join((project, 'version', version))
 
-date = "Dec 15, 2015"
+date = "Apr 12, 2016"
 author = "Andrew Kubera"
 author_email = "andrew.kubera@gmail.com"
-copyright = "Copyright 2015, Andrew Kubera"
+copyright = "Copyright 2016, Andrew Kubera"
 
 url = "https://github.com/pyGrowler/Growler"
 
