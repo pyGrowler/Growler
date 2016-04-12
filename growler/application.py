@@ -295,7 +295,6 @@ class Application:
         bool
             Whether the last element in chain is a "root router"
         """
-        from .http.methods import HTTPMethod
         try:
             mw = self.middleware.last()
         except IndexError:

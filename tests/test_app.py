@@ -151,7 +151,7 @@ def test_use_growler_router_factory(app, mock_route_generator):
 
 def test_use_growler_router_metaclass(app, mock_route_generator):
 
-    class TestMeta(metaclass=grower.router.RouterMeta):
+    class TestMeta(metaclass=growler.router.RouterMeta):
         pass
 
     router = mock_route_generator()
