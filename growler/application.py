@@ -97,42 +97,32 @@ class Application:
         """
         Creates an application object.
 
-        Parameters
-        ----------
-        name : str
-            does nothing right now
+        Args:
+            name (str): Does nothing right now except identify object
+            loop (asyncio.AbstractEventLoop): The event loop to run on
+            debug (bool): (de)Activates the loop's debug setting
+            request_class (type or callable): The factory of request objects,
+                the default of which is growler.HTTPRequest. This should only
+                be set in special cases, like debugging or if the dev doesn't
+                want to modify default request objects via middleware.
 
-        loop : asyncio.AbstractEventLoop
-            The event loop to run on
+            response_class (type or callable): The factory of response objects,
+                the default of which is growler.HTTPResponse. This should only
+                be set in special cases, like debugging or if the dev doesn't
+                want to modify default response objects via middleware.
 
-        debug : bool
-            (de)Activates the loop's debug setting
+            protocol_factory (callable): Factory function this application uses
+                to construct the asyncio protocol object which responds to
+                client connections. The default is the
+                GrowlerHTTPProtocol.get_factory method, which simply returns a
+                lambda returning new GrowlerHTTPProtocol objects.
 
-        request_class : type or callable
-            The factory of request objects, the default of which is
-            growler.HTTPRequest. This should only be set in special cases, like
-            debugging or if the dev doesn't want to modify default request
-            objects via middleware.
+            **kw: Any other custom variables for the application. This dict is
+                stored as 'self.config' in the application. These variables are
+                accessible by the application's dict-access, as in:
 
-        response_class : type or callable
-            The factory of response objects, the default of which is
-            growler.HTTPResponse. This should only be set in special cases,
-            like debugging or if the dev doesn't want to modify default
-            response objects via middleware.
-
-        protocol_factory : callable
-            Factory function this application uses to construct the asyncio
-            protocol object which responds to client connections. The default
-            is the GrowlerHTTPProtocol.get_factory method, which simply returns
-            a lambda returning new GrowlerHTTPProtocol objects.
-
-        kw : mixed
-            Any other custom variables for the application. This dict is
-            stored as 'self.config' in the application. These variables are
-            accessible by the application's dict-access, as in:
-
-            ``app = app(..., val='VALUE')``
-            ``app['val'] #=> VALUE``
+                ``app = app(..., val='VALUE')``
+                ``app['val'] #=> VALUE``
         """
         self.name = name
 
@@ -179,12 +169,10 @@ class Application:
         is called upon any HTTP request that matching the path, regardless of
         the method.
 
-        Parameters
-        ----------
-        path : str
-            The URL path the middleware is mounted upon
-        middleware: callable
-            The middleware function called upon a request matching the url
+        Args:
+            path (str): The URL path on which the middleware is mounted
+            middleware (callable): The middleware function called upon a
+                request matching the url
         """
         return self.router.all(path, middleware)
 
@@ -193,12 +181,10 @@ class Application:
         An alias call for simple access to the default router. The middleware
         provided is called upon any HTTP 'GET' request which matches the path.
 
-        Parameters
-        ----------
-        path : str
-            The URL path the middleware is mounted upon
-        middleware: callable
-            The middleware function called upon a request matching the url
+        Args:
+            path (str): The URL path on which the middleware is mounted
+            middleware (callable): The middleware function called upon a
+                request matching the url
         """
         return self.router.get(path, middleware)
 
@@ -207,12 +193,10 @@ class Application:
         An alias of the default router's 'post' method. The middleware provided
         is called upon a POST HTTP request matching the path.
 
-        Parameters
-        ----------
-        path : str
-            The URL path the middleware is mounted upon
-        middleware: callable
-            The middleware function called upon a request matching the url
+        Args:
+            path (str): The URL path on which the middleware is mounted
+            middleware (callable): The middleware function called upon a
+                request matching the url
         """
         return self.router.post(path, middleware)
 
@@ -222,20 +206,21 @@ class Application:
         requests match the provided path. A None path matches every request.
         Returns 'self' so the middleware may be nicely chained.
 
-        Parameters
-        ----------
-        middleware : callable
-            A function with signature '(req, res)' to be called with every
-            request which matches path.
-        path : str or regex
-            Object used to test the requests path. If it matches, either by
-            equality or a successful regex match, the middleware is called with
-            the req/res pair.
-        method_mask : HTTPMethod (int), optional
-            Filters requests by HTTP method. The HTTPMethod enum behaves as a
-            bitmask, so multiple methods may be joined by + or |, or removed
-            with -, or toggled with '^' (e.g. HTTPMethod.GET + HTTPMethod.POST,
-            HTTPMethod.ALL - HTTPMethod.DELETE).
+        Args:
+            middleware (callable): A function with signature '(req, res)' to be
+                called with every request which matches path.
+            path (str or regex): Object used to test the requests path. If it
+                matches, either by equality or a successful regex match, the
+                middleware is called with the req/res pair.
+            method_mask (Optional[HTTPMethod]): Filters requests by HTTP
+                method. The HTTPMethod enum behaves as a bitmask, so multiple
+                methods may be joined by + or |, or removed with -, or toggled
+                with '^' (e.g. HTTPMethod.GET + HTTPMethod.POST, HTTPMethod.ALL
+                - HTTPMethod.DELETE).
+
+        Returns:
+            Returns the application object so multiple use methods may be
+                chained together. This may change in the future.
         """
         if hasattr(middleware, '__growler_router'):
             router = getattr(middleware, '__growler_router')
@@ -259,12 +244,13 @@ class Application:
         """
         Adds a router to the list of routers
 
-        Parameters
-        ----------
-        path : str or regex
-            The path on which the router binds
-        router : growler.Router
-            The router which will respond to requests
+        Args:
+            path (str or regex): The path on which the router binds
+            router (growler.Router): The router which will respond to requests
+
+        Raises:
+            TypeError: If strict_router_check is True and the router is not an
+                instance of growler.Router
         """
         if self.strict_router_check and not isinstance(router, Router):
             raise TypeError("Expected object of type Router, found %r" % type(router))
@@ -295,10 +281,8 @@ class Application:
         instance of growler.Router, the mask matches ALL methods, and
         the path is the root (/) path.
 
-        Returns
-        -------
-        bool
-            Whether the last element in chain is a "root router"
+        Returns:
+            bool: Whether the last element in chain is a "root router"
         """
         try:
             mw = self.middleware.last()
@@ -337,13 +321,11 @@ class Application:
         not, res.has_ended does not evaluate to true, the response is sent a
         simple server error message in text.
 
-        Parameters
-        ----------
-        req : growler.HTTPRequest
-            The incoming request, containing all information about the client.
-        res : growler.HTTPResponse
-            The outgoing response, containing methods for sending headers and
-            data back to the client.
+        Args:
+            req (growler.HTTPRequest): The incoming request, containing all
+                information about the client.
+            res (growler.HTTPResponse): The outgoing response, containing
+                methods for sending headers and data back to the client.
         """
         # create a middleware generator
         mw_generator = self.middleware(req.method, req.path)
@@ -381,23 +363,19 @@ class Application:
         Entry point for handling an exception that occured during execution of
         the middleware chain. If an
 
-        Parameters
-        ----------
-        req : growler.HTTPRequest
-            The incoming request, containing all information about the client.
-        res : growler.HTTPResponse
-            The outgoing response, containing methods for sending headers and
-            data back to the client.
-        mw_generator : generator
-            The generator producing middleware. This has already been
-            'notified' of the error and should now only yield error handling
-            middleware.
-        error : Exception
-            The exception raised during middleware execution
-        err_count : int
-            A value for keeping track of recursive calls to the error handler.
-            If this value equals self.error_recursion_max_depth, a new
-            exception is raised, potentially confusing everyone involved.
+        Args:
+            req (growler.HTTPRequest): The incoming request, containing all
+                information about the client.
+            res (growler.HTTPResponse): The outgoing response, containing
+                methods for sending headers and data back to the client.
+            mw_generator (Generator): The generator producing middleware. This
+                has already been 'notified' of the error and should now only
+                yield error handling middleware.
+            error (Exception): The exception raised during middleware execution
+            err_count (int): A value for keeping track of recursive calls to
+                the error handler. If this value equals
+                self.error_recursion_max_depth, a new exception is raised,
+                potentially confusing everyone involved.
         """
         if err_count >= self.error_recursion_max_depth:
             raise Exception("Too many exceptions:" + error)
@@ -420,17 +398,16 @@ class Application:
             if res.has_ended:
                 break
 
-    def print_middleware_tree(self, *, file=sys.stdout, EOL=os.linesep):  # noqa pragma: no cover
+    def print_middleware_tree(self, *, EOL=os.linesep, **kwargs):  # noqa pragma: no cover
         """
         Prints a unix-tree-like output of the structure of the web application
         to the file specified (stdout by default).
 
-        Parameters
-        ----------
-        file : stream on which the standard 'print' function may write
-            The file to print to
-        EOL : str
-            The character or string that ends the line
+        Args:
+            EOL (str): The character or string that ends the line
+            **kwargs: Arguments pass to the standard print function. This
+                allows specifying the file to write to and the ability to flush
+                output upon creation.
         """
 
         def mask_to_method_name(mask):
@@ -462,7 +439,7 @@ class Application:
         lines = [self.name]
         lines += decend_into_tree(self.middleware, 0)
         lines.append('┴')
-        print(EOL.join(lines), file=file)
+        print(EOL.join(lines), **kwargs)
 
     @classmethod
     def default_error_handler(cls, req, res, error):
@@ -481,10 +458,8 @@ class Application:
         """
         Set setting 'name' to true
 
-        Parameters
-        ----------
-        name : str
-            The name of the the configuration option
+        Args:
+            name (str): The name of the the configuration option
         """
         self.config[name] = True
 
@@ -492,10 +467,8 @@ class Application:
         """
         Set setting 'name' to false
 
-        Parameters
-        ----------
-        name : str
-            The name of the the configuration option
+        Args:
+            name (str): The name of the the configuration option
         """
         self.config[name] = False
 
@@ -504,10 +477,8 @@ class Application:
         Returns whether a setting has been enabled. This just casts the
         configuration value to a boolean.
 
-        Parameters
-        ----------
-        name : str
-            The name of the the configuration option
+        Args:
+            name (str): The name of the the configuration option
         """
         return bool(self.config[name])
 
@@ -544,28 +515,24 @@ class Application:
         This function exists only to remove boilerplate code for starting up a
         growler app.
 
-        Parameters
-        ----------
-        gen_coroutine : bool
-            If True, this function only returns the coroutine generator
-            returned by self.loop.create_server, else it will
-            'run_until_complete' the generator and return the created server
-            object.
-        server_config : mixed
-            These keyword arguments parameters are passed directly to the
-            BaseEventLoop.create_server function. Consult their documentation
-            for details.
+        Args:
+            gen_coroutine (bool): If True, this function only returns the
+                coroutine generator returned by self.loop.create_server, else
+                it will 'run_until_complete' the generator and return the
+                created server object.
 
-        Returns
-        -------
-        server : asyncio.Server
-            The result of asyncio.BaseEventLoop.create_server which has been
-            passed to the event loop and setup with the provided parameters.
-            This is returned if gen_coroutine is False (default).
-        coro : asyncio.coroutine
-            An asyncio.coroutine which will produce the asyncio.Server from
-            the provided configuration parameters. This is returned if
-            gen_coroutine is True.
+            server_config (mixed): These keyword arguments parameters are
+                passed directly to the BaseEventLoop.create_server function.
+                Consult their documentation for details.
+
+        Returns:
+            asyncio.Server: The result of asyncio.BaseEventLoop.create_server
+                which has been passed to the event loop and setup with the
+                provided parameters. This is returned if gen_coroutine is False
+                (default).
+            asyncio.coroutine: An asyncio.coroutine which will produce the
+                asyncio.Server from the provided configuration parameters. This
+                is returned if gen_coroutine is True.
         """
         create_server = self.loop.create_server(
             self._protocol_factory(self),
@@ -585,13 +552,10 @@ class Application:
         This function exists only to remove boilerplate code for starting up a
         growler app.
 
-        Parameters
-        ----------
-
-        server_config : mixed
-            These keyword arguments parameters are passed directly to the
-            BaseEventLoop.create_server function. Consult their documentation
-            for details.
+        Args:
+            **server_config: These keyword arguments are forwarded directly to
+                the BaseEventLoop.create_server function. Consult their
+                documentation for details.
         """
         self.create_server(**server_config)
         try:
