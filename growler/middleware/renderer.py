@@ -2,7 +2,6 @@
 # growler/middleware/renderer.py
 #
 
-import os
 import logging
 from pathlib import Path
 
@@ -116,7 +115,6 @@ class RenderEngine:
         if not self.path.is_dir():
             log.warning("path given to render engine is not a directory")
             raise NotADirectoryError("path '%s' is not a directory" % path)
-
 
     def __call__(self, req, res):
         """
