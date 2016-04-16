@@ -127,7 +127,7 @@ class MiddlewareChain:
         The generator keeps any error handlers encountered walking the tree in
         its internal state. If an error occurs during execution of a middleware
         function, the exception should be sent back to the generator via the
-        send method: ``mw_chain.send(err)``. The error handlers will be looped
+        throw method: ``mw_chain.throw(err)``. The error handlers will be looped
         through in reverse order, so the most specific handler matching method
         and path is called first.
 
@@ -203,8 +203,10 @@ class MiddlewareChain:
         if error:
             self.log.error(error)
             for errhandler in reversed(error_handler_stack):
-                new_error = yield errhandler
-                if new_error:
+                try:
+                    yield errhandler
+                except Exception as new_error:
+                    yield None
                     pass
             return
 
