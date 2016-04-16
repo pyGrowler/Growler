@@ -109,6 +109,13 @@ class Router(MiddlewareChain):
         for mw in self.mw_list:
             yield (mw.mask, mw.path, mw.func)
 
+    def should_skip_middleware(self, middleware, matching, rest) -> bool:
+        """
+        Returns True (i.e. should skip) if request does not match the entire
+        middleware path. This is a simple check if 'rest' is truthy or not.
+        """
+        return bool(not matching) or bool(rest)
+
     @property
     def routes(self):
         return tuple(route for route in self.iter_routes())

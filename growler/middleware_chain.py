@@ -157,11 +157,11 @@ class MiddlewareChain:
             path_match, rest_url = mw.path_split(path)
 
             # skip if not a match
-            if not path_match:
+            if self.should_skip_middleware(mw, path_match, rest_url):
                 continue
 
             # If a subchain - loop through middleware
-            if mw.is_subchain:
+            elif mw.is_subchain:
 
                 # We need to call sub middleware with only the URL past the
                 # matching string
@@ -183,10 +183,6 @@ class MiddlewareChain:
 
                 if error:
                     break
-
-            # this is not a subchain and path did not match exactly - skip
-            elif rest_url:
-                continue
 
             # add to list of error handler
             elif mw.is_errorhandler:
@@ -211,6 +207,18 @@ class MiddlewareChain:
                 if new_error:
                     pass
             return
+
+    def should_skip_middleware(self, middleware, matching, rest):
+        """
+        Method used to determine if middleware should be called. Returns True
+        (should skip) only if matching evaluates to False (no match), otherwise
+        the standard MiddlewareChain returns any matching request. The Router
+        overrides this and the *entire* request must be matched to warrant
+        yielding a function. This method was factored out of __call__ so it may
+        be overriden with cust logic without reimplementing the whole __call__
+        method.
+        """
+        return bool(not matching)
 
     def add(self, method_mask, path, func):
         """
