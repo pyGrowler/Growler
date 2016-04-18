@@ -65,7 +65,7 @@ def test_matches_routes(chain, mask, path, reqtuple):
 @pytest.mark.parametrize('mask, path, reqtuple', [
     (0b01, '/a', (0b10, '/a')),
     (0b01, '/a', (0b01, '/b')),
-    (0b01, '/', (0b01, '/a')),
+    (0b01, '/aa', (0b01, '/a')),
     (0b01, '/a', (0b01, '/')),
 ])
 def test_not_matches_routes(chain, mask, path, reqtuple):
@@ -74,20 +74,20 @@ def test_not_matches_routes(chain, mask, path, reqtuple):
     assert len([mw for mw in chain(*reqtuple)]) is 0
 
 
-@pytest.mark.parametrize('mw_path, req_uris, matches', [
-    ('/', ['/', '/a'], [True, False]),
-    ('/a', ['/', '/a', '/axb', '/a/b'], [False, True, False, False]),
-    ('/aba', ['/aba/',], [True]),
-    ('/a/c', ['/a/c', '/a/c/', '/a/c/b'], [True, True, False]),
-    ('/[x-y]', ['/[x-y]', '/[x-y]/', '/[x-y]/a/c/b'], [True, True, False]),
+@pytest.mark.parametrize('mw_path, req_match', [
+    ('/aa', [('/aa', True), ('/aa/bb', True), ('/bb', False)]),
+    ('/aba', [('/aba/', True), ('/abaa', False), ('/aba/a', True)]),
+    ('/', [('/', True), ('/a', True)]),
+    ('/a', [('/', False), ('/a', True), ('/axb', False), ('/a/b', True)]),
+    ('/[x-y]', [('/[x-y]', True), ('/[x-y]/', True), ('/[x-y]/a/c/b', True)]),
 ])
-def test_matching_paths(chain, mw_path, req_uris, matches):
+def test_matching_paths(chain, mw_path, req_match):
     # build middleware from path - add to chain
     mw = mock.MagicMock(path=mw_path)
     chain.add(0x1, mw.path, mw)
 
     # loop through
-    for req_uri, should_match in zip(req_uris, matches):
+    for req_uri, should_match in req_match:
 
         for x in chain(0x1, req_uri):
             x()
