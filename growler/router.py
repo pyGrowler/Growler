@@ -118,7 +118,7 @@ class Router(MiddlewareChain):
 
     @property
     def routes(self):
-        return tuple(route for route in self.iter_routes())
+        return tuple(self.iter_routes())
 
     @property
     def subrouters(self):
