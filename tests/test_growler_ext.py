@@ -25,11 +25,13 @@ def test_load_module():
     assert xxxx is mod
 
 
+def test_load_missing_module():
+    with pytest.raises(ImportError):
+        from growler.ext import yyy
+
+
 def test_load_module_cached():
     import growler.ext
-    mod = mock.Mock()
     growler.ext.__mods__ = mock.MagicMock()
-    growler.ext.__mods__.__contains__.return_value = True
-    growler.ext.mod_is_cached
-    assert growler.ext.__mods__.__getitem__.called
-    growler.ext.__mods__.__contains__.assert_called_with("mod_is_cached")
+    mod = growler.ext.mod_is_cached
+    growler.ext.__mods__.__getitem__.assert_called_with("mod_is_cached")

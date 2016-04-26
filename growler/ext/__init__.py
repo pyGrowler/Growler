@@ -8,7 +8,6 @@ Virtual namespace for other pacakges to extend the growler server
 import sys
 from importlib import (
     import_module,
-    # invalidate_caches,
 )
 
 
@@ -23,19 +22,19 @@ class GrowlerExtensionImporter:
         Get the 'attribute' of growler.ext, which looks for the module in the
         python virtual namespace growler_ext
         """
-        if module_name in self.__mods__:
-            return self.__mods__[module_name]
+        try:
+            result = self.__mods__[module_name]
+        except KeyError:
+            # import the 'real' module
+            result = import_module('growler_ext.' + module_name)
 
-        # invalidate_caches()
+            # store alias in sys.modules
+            alias_mod_name = 'growler.ext.' + module_name
+            sys.modules[alias_mod_name] = result
 
-        real_mod_path = 'growler_ext.' + module_name
-        tmp_module = import_module(real_mod_path)
+            # cache in this object
+            self.__mods__[module_name] = result
 
-        module_path = 'growler.ext.' + module_name
-
-        sys.modules[module_path] = tmp_module
-        self.__mods__[module_name] = tmp_module
-
-        return tmp_module
+        return result
 
 sys.modules[__name__] = GrowlerExtensionImporter()
