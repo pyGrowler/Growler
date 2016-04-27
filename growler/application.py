@@ -214,13 +214,13 @@ class Application:
                 middleware is called with the req/res pair.
             method_mask (Optional[HTTPMethod]): Filters requests by HTTP
                 method. The HTTPMethod enum behaves as a bitmask, so multiple
-                methods may be joined by + or |, or removed with -, or toggled
-                with '^' (e.g. HTTPMethod.GET + HTTPMethod.POST, HTTPMethod.ALL
-                - HTTPMethod.DELETE).
+                methods may be joined by + or \|, removed with -, or toggled
+                with ^ (e.g. HTTPMethod.GET + HTTPMethod.POST, HTTPMethod.ALL -
+                HTTPMethod.DELETE).
 
         Returns:
             Returns the application object so multiple use methods may be
-                chained together. This may change in the future.
+            chained together. This may change in the future.
         """
         if hasattr(middleware, '__growler_router'):
             router = getattr(middleware, '__growler_router')
