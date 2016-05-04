@@ -2,16 +2,18 @@
 # test_app
 #
 
-import asyncio
-import pytest
+import re
 import types
+import pytest
+import asyncio
 import growler
 import growler.application
-from growler.application import GrowlerStopIteration
-from unittest import mock
-from growler.application import Application
 
 from mocks import *                                                      # noqa
+from unittest import mock
+from growler.application import Application
+from growler.application import GrowlerStopIteration
+
 
 from mock_classes import (
     MockRequest,
@@ -149,11 +151,38 @@ def test_use_growler_router_factory(app, mock_route_generator):
     assert app.middleware.last().func is router
 
 
+def test_use_as_decorator(app):
+
+    @app.use
+    def test_mw(req, res):
+        pass
+
+    assert test_mw is not app
+    assert app.middleware.last().func is test_mw
+    assert app.middleware.last().path is growler.MiddlewareChain.ROOT_PATTERN
+
+
+def test_use_as_called_decorator(app):
+
+    @app.use(path='/foo')
+    def test_mw(req, res):
+        pass
+
+    assert test_mw is not app
+    assert app.middleware.last().func is test_mw
+    assert app.middleware.last().path == re.compile('\\/foo')
+
+
 def test_add_bad_router(app):
     # TODO: Implement real check for router type
     app.strict_router_check = True
     with pytest.raises(TypeError):
         app.add_router("/foo", lambda req, res: res.send_text("bad type!"))
+
+
+def test_ignore_add_bad_router(app):
+    app.strict_router_check = False
+    app.add_router("/foo", lambda req, res: res.send_text("bad type!"))
 
 
 def test_use_growler_router_metaclass(app, mock_route_generator):

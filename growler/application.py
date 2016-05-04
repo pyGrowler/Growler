@@ -200,11 +200,11 @@ class Application:
         """
         return self.router.post(path, middleware)
 
-    def use(self, middleware, path='/', method_mask=HTTPMethod.ALL):
+    def use(self, middleware=None, path='/', method_mask=HTTPMethod.ALL):
         """
         Use the middleware (a callable with parameters res, req, next) upon
         requests match the provided path. A None path matches every request.
-        Returns 'self' so the middleware may be nicely chained.
+        Returns the middleware so this method may be used as a decorator.
 
         Args:
             middleware (callable): A function with signature '(req, res)' to be
@@ -214,14 +214,19 @@ class Application:
                 middleware is called with the req/res pair.
             method_mask (Optional[HTTPMethod]): Filters requests by HTTP
                 method. The HTTPMethod enum behaves as a bitmask, so multiple
-                methods may be joined by + or |, or removed with -, or toggled
-                with '^' (e.g. HTTPMethod.GET + HTTPMethod.POST, HTTPMethod.ALL
-                - HTTPMethod.DELETE).
+                methods may be joined by + or \|, removed with -, or toggled
+                with ^ (e.g. HTTPMethod.GET + HTTPMethod.POST, HTTPMethod.ALL -
+                HTTPMethod.DELETE).
 
         Returns:
-            Returns the application object so multiple use methods may be
-                chained together. This may change in the future.
+            Returns the provided middleware; a requirement if the use method is
+            a decorator.
         """
+
+        # catch decorator pattern
+        if middleware is None:
+            return lambda mw: self.use(mw, path, method_mask)
+
         if hasattr(middleware, '__growler_router'):
             router = getattr(middleware, '__growler_router')
             if isinstance(router, (types.MethodType,)):
@@ -238,7 +243,7 @@ class Application:
             self.middleware.add(path=path,
                                 func=middleware,
                                 method_mask=method_mask)
-        return self
+        return middleware
 
     def add_router(self, path, router):
         """
