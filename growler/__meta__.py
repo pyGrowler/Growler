@@ -1,5 +1,5 @@
 #
-# metadata.py
+# growler/__meta__.py
 #
 """Project Metadata"""
 
