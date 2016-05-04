@@ -39,7 +39,7 @@ NAMESPACES = [
 ]
 
 CLASSIFIERS = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 3 - Alpha",
     "Environment :: Web Environment",
     "Operating System :: OS Independent",
     # "Framework :: Growler",
