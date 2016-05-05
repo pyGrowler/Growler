@@ -157,7 +157,7 @@ As it stands, Growler is single threaded, and not tested very well. Any submissi
 would be appreciated.
 
 The name Growler comes from the `beer bottle
-<https://en.wikipedia.org/wiki/Growler_%28jug%2>`__ keeping in line with the theme of giving
+<https://en.wikipedia.org/wiki/Growler_%28jug%29>`__ keeping in line with the theme of giving
 python micro-web-frameworks fluid container names.
 
 License
