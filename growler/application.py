@@ -359,8 +359,12 @@ class Application:
             if res.has_ended:
                 break
 
+        # TODO: Decide if a 404 exception should be thrown back into the generator somehow.
+        #       This is not easy as the generator should be closed at end of for loop. - could
+        #       change generator behavior to yield the exception - prompting app to throw it
+        #       back.
         if not res.has_ended:
-            res.send_text("500 - Server Error", 500)
+            self.handle_response_not_sent(req, res)
 
     @asyncio.coroutine
     def handle_server_error(self, req, res, mw_generator, error, err_count=0):
@@ -407,6 +411,13 @@ class Application:
             if not res.has_ended:  # noqa pragma: no cover
                 print("Default error handler did not send a response to "
                       "client!", file=sys.stderr)
+
+    def handle_response_not_sent(self, req, res):
+        """
+        Method called upon reaching the end of the middleware chain with no request being sent.
+        Default implementation is to simply respond with a 404 error with a text message.
+        """
+        res.send_text("404 - Not Found", 404)
 
     def print_middleware_tree(self, *, EOL=os.linesep, **kwargs):  # noqa pragma: no cover
         """

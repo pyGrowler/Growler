@@ -492,3 +492,23 @@ def test_handle_server_error_in_error(app, req, res):
 
     assert m1.called
     assert not m2.called
+
+
+@pytest.mark.asyncio
+def test_response_not_sent(app, req, res):
+    req.method = 0b000001
+    req.path = '/'
+    res.has_ended = False
+
+    def send_req(rq, rs):
+        rs.has_ended = True
+
+    foo = mock.Mock(_is_coroutine=False, side_effect=send_req)
+    app.get("/foo", foo)
+    bar = mock.Mock(_is_coroutine=False, side_effect=send_req)
+    app.get("/bar", bar)
+    app.handle_response_not_sent = mock.Mock()
+    yield from app.handle_client_request(req, res)
+    foo.assert_not_called
+    bar.assert_not_called
+    app.handle_response_not_sent.assert_called_with(req, res)
