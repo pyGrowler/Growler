@@ -92,6 +92,7 @@ class Application:
                  request_class=HTTPRequest,
                  response_class=HTTPResponse,
                  protocol_factory=GrowlerHTTPProtocol.get_factory,
+                 middleware_chain_factory=MiddlewareChain,
                  **kw
                  ):
         """
@@ -101,28 +102,35 @@ class Application:
             name (str): Does nothing right now except identify object
             loop (asyncio.AbstractEventLoop): The event loop to run on
             debug (bool): (de)Activates the loop's debug setting
-            request_class (type or callable): The factory of request objects,
-                the default of which is growler.HTTPRequest. This should only
-                be set in special cases, like debugging or if the dev doesn't
-                want to modify default request objects via middleware.
 
-            response_class (type or callable): The factory of response objects,
-                the default of which is growler.HTTPResponse. This should only
-                be set in special cases, like debugging or if the dev doesn't
-                want to modify default response objects via middleware.
+            request_class (type or callable): The factory of request objects, the default of
+                which is growler.HTTPRequest. This should only be set in special cases, like
+                debugging or if the dev doesn't want to modify default request objects via
+                middleware.
 
-            protocol_factory (callable): Factory function this application uses
-                to construct the asyncio protocol object which responds to
-                client connections. The default is the
-                GrowlerHTTPProtocol.get_factory method, which simply returns a
-                lambda returning new GrowlerHTTPProtocol objects.
+            response_class (type or callable): The factory of response objects, the default of
+                which is growler.HTTPResponse. This should only be set in special cases, like
+                debugging or if the dev doesn't want to modify default response objects via
+                middleware.
 
-            **kw: Any other custom variables for the application. This dict is
-                stored as 'self.config' in the application. These variables are
-                accessible by the application's dict-access, as in:
+            protocol_factory (callable): Factory function this application uses to construct
+                the asyncio protocol object which responds to client connections. The default
+                is the GrowlerHTTPProtocol.get_factory method, which simply returns a lambda
+                returning new GrowlerHTTPProtocol objects.
 
-                ``app = app(..., val='VALUE')``
-                ``app['val'] #=> VALUE``
+            middleware_chain_factory (type or callable): Called upon with no arguments to
+                create the middleware chain used by the application. This is accessible via
+                the attribute 'middleware'.
+
+        Keyword Args:
+            Any other custom variables for the application. This dict is stored as the
+            attribute 'config' in the application. These variables are accessible by the
+            application's dict-access, as in:
+
+            .. code:: python
+
+                app = app(..., val='VALUE')
+                app['val'] #=> VALUE
         """
         self.name = name
 
@@ -131,7 +139,7 @@ class Application:
         self.loop = asyncio.get_event_loop() if loop is None else loop
         self.loop.set_debug(debug)
 
-        self.middleware = MiddlewareChain()
+        self.middleware = middleware_chain_factory()
 
         self.enable('x-powered-by')
         self['env'] = os.getenv('GROWLER_ENV', 'development')
@@ -307,28 +315,25 @@ class Application:
         by growler.HTTPResponder (the default responder) after the headers have
         been processed in the begin_application method.
 
-        This iterates over all middleware in the middleware list which matches
-        the client's method and path. It executes the middleware and continues
-        iterating until the res.has_ended property is true.
+        This iterates over all middleware in the middleware list which matches the client's
+        method and path. It executes the middleware and continues iterating until the
+        res.has_ended property is true.
 
-        If the middleware raises a GrowlerStopIteration exception, this method
-        immediatly returns None, breaking the loop and leaving res without
-        sending any information back to the client. Be *sure* that you have
-        another coroutine scheduled that will take over handling client data.
+        If the middleware raises a GrowlerStopIteration exception, this method immediatly
+        returns None, breaking the loop and leaving res without sending any information back to
+        the client. Be *sure* that you have another coroutine scheduled that will take over
+        handling client data.
 
-        If a middleware function raises any other exception, the exception is
-        forwarded to the middleware generator, which changes behavior to
-        generating any error handlers it had encountered. This method then
-        calls the handle_server_error method which *should* handle the error
-        and notify the user.
+        If a middleware function raises any other exception, the exception is forwarded to the
+        middleware generator, which changes behavior to generating any error handlers it had
+        encountered. This method then calls the handle_server_error method which *should*
+        handle the error and notify the user.
 
-        If after the chain is exhausted, either with an exception raised or
-        not, res.has_ended does not evaluate to true, the response is sent a
-        simple server error message in text.
+        If after the chain is exhausted, either with an exception raised or not, res.has_ended
+        does not evaluate to true, the response is sent a simple server error message in text.
 
         Args:
-            req (growler.HTTPRequest): The incoming request, containing all
-                information about the client.
+            req (growler.HTTPRequest): The incoming request, containing all information about the client.
             res (growler.HTTPResponse): The outgoing response, containing
                 methods for sending headers and data back to the client.
         """
