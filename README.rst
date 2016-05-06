@@ -141,9 +141,9 @@ import error.
 Users *must* use the ``from growler.ext import ...`` syntax instead.
 
 The best practice for developers to add their middleware to growler is now to put their code in
-the python module growler_ext/my_extesion.
+the python module growler_ext/my_extension.
 This will allow your code to be imported by others via ``from growler.ext import my_extension``
-or the combination of ``from growler import ext`` and ``ext.my_extesion``.
+or the combination of ``from growler import ext`` and ``ext.my_extension``.
 
 
 An example of an extension is the `indexer <https://github.com/pyGrowler/growler-indexer>`__
