@@ -78,6 +78,7 @@ class Router(MiddlewareChain):
     all = partialmethod(_add_route, HTTPMethod.ALL)
     get = partialmethod(_add_route, HTTPMethod.GET)
     post = partialmethod(_add_route, HTTPMethod.POST)
+    put = partialmethod(_add_route, HTTPMethod.PUT)
     delete = partialmethod(_add_route, HTTPMethod.DELETE)
 
     def use(self, middleware, path=None):
