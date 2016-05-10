@@ -47,6 +47,10 @@ def mock_MiddlewareChain():
     return mock.create_autospec(growler.application.MiddlewareChain)
 
 @pytest.fixture
+def use_mock_middlewarechain():
+    return False
+
+@pytest.fixture
 def proto():
     proto = mock.create_autospec(growler.http.GrowlerHTTPProtocol)
     return proto
@@ -65,23 +69,38 @@ def req(req_uri):
 
 
 @pytest.fixture
-def app(app_name, mock_MiddlewareChain, mock_event_loop, MockProtocol):
+def app(app_name, mock_MiddlewareChain, use_mock_middlewarechain, mock_event_loop, MockProtocol):
+
+    mw_chain = (lambda: mock_MiddlewareChain) if use_mock_middlewarechain else growler.MiddlewareChain
     result = growler.application.Application(app_name,
                                              loop=mock_event_loop,
                                              request_class=MockRequest,
                                              response_class=MockResponse,
+                                             middleware_chain_factory=mw_chain,
                                              protocol_factory=MockProtocol,
                                              )
     return result
+
 
 @pytest.fixture
 def app_with_router(app, router):
     app.middleware.add(growler.http.methods.HTTPMethod.ALL, '/', router)
     return app
 
+
 def test_application_constructor():
     app = growler.application.Application('Test')
     assert app.name == 'Test'
+
+
+@pytest.mark.parametrize("use_mock_middlewarechain", [True])
+def test_app_fixture(app, app_name, mock_MiddlewareChain, mock_event_loop, MockProtocol):
+    assert isinstance(app, growler.application.Application)
+    assert app.middleware is mock_MiddlewareChain
+    assert app.loop is mock_event_loop
+    assert app._protocol_factory is MockProtocol
+    assert app._request_class is MockRequest
+    assert app._response_class is MockResponse
 
 
 def test_application_saves_config():
@@ -492,3 +511,23 @@ def test_handle_server_error_in_error(app, req, res):
 
     assert m1.called
     assert not m2.called
+
+
+@pytest.mark.asyncio
+def test_response_not_sent(app, req, res):
+    req.method = 0b000001
+    req.path = '/'
+    res.has_ended = False
+
+    def send_req(rq, rs):
+        rs.has_ended = True
+
+    foo = mock.Mock(_is_coroutine=False, side_effect=send_req)
+    app.get("/foo", foo)
+    bar = mock.Mock(_is_coroutine=False, side_effect=send_req)
+    app.get("/bar", bar)
+    app.handle_response_not_sent = mock.Mock()
+    yield from app.handle_client_request(req, res)
+    foo.assert_not_called
+    bar.assert_not_called
+    app.handle_response_not_sent.assert_called_with(req, res)
