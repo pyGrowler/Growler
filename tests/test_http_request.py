@@ -80,6 +80,6 @@ def test_request_headers(get_req, request_uri, headers, param):
     ('/?x=0;p', {}, {'x': ['0']}),
 ])
 def test_query_params(get_req, mock_responder, request_uri, query):
-    mock_responder.client_query = parse_qs(urlparse(request_uri).query)
+    mock_responder.parsed_query = parse_qs(urlparse(request_uri).query)
     for k, v in query.items():
         assert get_req.param(k) == v
