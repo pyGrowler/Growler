@@ -3,6 +3,7 @@
 #
 
 import re
+import sys
 import types
 import pytest
 import asyncio
@@ -360,9 +361,14 @@ def test_handle_client_request_ex(app, req, res, mock_route_generator):
     app.middleware = middleware
     app.handle_server_error = handler
 
-    ex = Exception()
+    ex = Exception("boom")
     m1 = mock_route_generator()
     m1.side_effect = ex
+
+    # python3.4/mock bug
+    if sys.version_info < (3, 5):
+        def do_exception(req, res): raise ex
+        m1.side_effect = do_exception
 
     generator.__iter__.return_value = [m1]
 
