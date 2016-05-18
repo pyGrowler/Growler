@@ -2,7 +2,7 @@
 # Travis CI configuration
 #
 
-# sudo: required
+sudo: required
 dist: trusty
 
 language: python
