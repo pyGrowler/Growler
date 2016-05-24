@@ -159,10 +159,15 @@ def test_good_request(parser, fullreq, expected):
     (b"\x99Get Stuff]\n", HTTPErrorBadRequest),
     (b"OOPS /path HTTP/1.1\r\nhost: nowhere.com\r\n", HTTPErrorNotImplemented),
     (b"GET /path HTTP/1.3\r\nhost: nowhere.com\r\n", HTTPErrorVersionNotSupported),
-    (b'GET /path HTTP/1.1\n\n' + b'X' * (growler.http.parser.MAX_REQUEST_LENGTH + 4), HTTPErrorBadRequest),
 ])
 def test_bad_request(parser, req_str, err):
     with pytest.raises(err):
+        parser.consume(req_str)
+
+
+def test_request_too_long(parser):
+    req_str = b'GET /path HTTP/1.1\n\n' + b'X' * (growler.http.parser.MAX_REQUEST_LENGTH + 4)
+    with pytest.raises(HTTPErrorBadRequest):
         parser.consume(req_str)
 
 

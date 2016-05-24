@@ -208,6 +208,31 @@ class Application:
         """
         return self.router.post(path, middleware)
 
+    def put(self, path="/", middleware=None):
+        """
+        An alias of the default router's 'put' method. The middleware provided
+        is called upon a PUT HTTP request matching the path.
+
+        Args:
+            path (str): The URL path on which the middleware is mounted
+            middleware (callable): The middleware function called upon a
+                request matching the url
+        """
+        return self.router.put(path, middleware)
+
+    def delete(self, path="/", middleware=None):
+        """
+        An alias of the default router's 'delete' method.
+        The middleware provided is called upon a DELETE HTTP request
+        matching the path.
+
+        Args:
+            path (str): The URL path on which the middleware is mounted
+            middleware (callable): The middleware function called upon a
+                request matching the url
+        """
+        return self.router.delete(path, middleware)
+
     def use(self, middleware=None, path='/', method_mask=HTTPMethod.ALL):
         """
         Use the middleware (a callable with parameters res, req, next) upon
@@ -333,7 +358,8 @@ class Application:
         does not evaluate to true, the response is sent a simple server error message in text.
 
         Args:
-            req (growler.HTTPRequest): The incoming request, containing all information about the client.
+            req (growler.HTTPRequest): The incoming request, containing all information
+                about the client.
             res (growler.HTTPResponse): The outgoing response, containing
                 methods for sending headers and data back to the client.
         """

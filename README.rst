@@ -2,6 +2,12 @@
 Growler
 =======
 
+master
+   |version-master| |travis-master| |coveralls-master|
+
+dev
+   |travis-dev| |coveralls-dev|
+
 Growler is a web framework built atom asyncio, the asynchronous library described in `PEP
 3156`_ and added to the standard library in python 3.4.
 It takes a cue from the `Connect`_ & `Express`_ frameworks in the `nodejs`_ ecosystem, using a
@@ -209,3 +215,24 @@ Growler is licensed under `Apache 2.0`_.
 .. _Apache 2.0: http://www.apache.org/licenses/LICENSE-2.0.html
 .. _mako: http://www.makotemplates.org/
 .. _contributing: https://github.com/pyGrowler/Growler/blob/dev/CONTRIBUTING.rst
+
+
+.. |version-master| image:: https://img.shields.io/pypi/v/growler.svg
+                         :target: https://pypi.python.org/pypi/growler/
+                         :alt: Latest PyPI version
+
+.. |travis-master| image:: https://travis-ci.org/pyGrowler/Growler.svg?branch=master
+                        :target: https://travis-ci.org/pyGrowler/Growler?branch=master
+                        :alt: Testing Report (Master Branch)
+
+.. |travis-dev| image:: https://travis-ci.org/pyGrowler/Growler.svg?branch=dev
+                     :target: https://travis-ci.org/pyGrowler/Growler?branch=dev
+                     :alt: Testing Report (Master Branch)
+
+.. |coveralls-master| image:: https://coveralls.io/repos/github/pyGrowler/Growler/badge.svg?branch=master
+                           :target: https://coveralls.io/github/pyGrowler/Growler?branch=master
+                           :alt: Coverage Report
+
+.. |coveralls-dev| image:: https://coveralls.io/repos/github/pyGrowler/Growler/badge.svg?branch=dev
+                        :target: https://coveralls.io/github/pyGrowler/Growler?branch=dev
+                        :alt: Coverage Report

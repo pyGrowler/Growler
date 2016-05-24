@@ -105,7 +105,7 @@ class HTTPRequest:
 
     @property
     def query(self):
-        return self._protocol.client_query
+        return self._protocol.parsed_query
 
     @property
     def hostname(self):
