@@ -54,8 +54,6 @@ class HTTPResponse:
     EOL = ''
     phrase = None
 
-    _events = None
-
     def __init__(self, protocol, EOL="\r\n"):
         self.protocol = protocol
         self.EOL = EOL

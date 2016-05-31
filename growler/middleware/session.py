@@ -2,32 +2,63 @@
 # growler/middleware/session.py
 #
 """
-A standard 'Session' class which holds data about consecutive calls from a
-browser to the server.
+The standard growler session module which contains code for setting up
+a typical client 'Session', allowing client data to be saved on the
+server.
+
+The Middleware ``SessionStorage`` should be added to the application
+chain somewhere before the main web routes.
+The typical action of the SessionStorage middleware is to add a
+``session`` object to the request.
+This object provides an abstraction around the backend storage system.
+
+The default session storage object uses an 'sid' cookie field to identify
+the client's session.
+(Note that non-secure connections could lead to session hijacking!)
+To use cookies, the author must ensure that the cookie middleware is loaded
+BEFORE the session middleware.
+In other words there will be a lurking AttributeError if req.cookies does
+not exist when the middleware chain meets SessionStorage.
+
+As stated, the session object attached to the request abstracts the
+fetching of data from the backend system.
+The default implementation of this object is found in the class Session,
+which simply uses a python dictionary as the backend storage system.
+It is not recommended that the default session class be used in production.
+Other solutions (yet to be developed) that use a persistent data backend
+should be used, but idealy the interfaces (session objects) will be identical.
+The interface should match the dictionary interface.
+To ensure this it is recommended to subclass the abstract base class
+`collections.abc.MutableMapping` which ensures that all the get/set/del item
+methods are implemented as expected.
+
 """
 
-import asyncio
 import uuid
+import asyncio
+from collections.abc import MutableMapping
 
 
-class Session:
+class Session(MutableMapping):
     """
-    Session middleware!
+    Session data
     """
-    _data = {}
 
-    def __init__(self, storage, values={}):
-        self._data = values
+    def __init__(self, storage, values=None):
+        self._data = {} if values is None else values
         self._store = storage
 
     def __getitem__(self, name):
-        return self._data[name]
+        return self._data.__getitem__(name)
 
     def __setitem__(self, name, value):
-        self._data[name] = value
+        return self._data.__setitem__(name, value)
 
-#   def __delitem__(self, name):
-#     del self._data[name]
+    def __delitem__(self, name):
+        return self._data.__delitem__(name)
+
+    def __len__(self):
+        return self._data.__len__()
 
 #   def __getattr__(self, name):
 #     print ("[__getattr__]:", name)
@@ -40,9 +71,8 @@ class Session:
 #     self._data[name] = value
 
     def get(self, name, default=None):
-        return self._data[name] if name in self._data else default
+        return self._data.get(name, default)
 
-#     return object.__getitem__(self, '_data')['name']
 #   def __set__(self, name, value):
 #     print ("+++ Seting ",name,vlaue)
 #     self._data[name] = value
@@ -106,7 +136,7 @@ class DefaultSessionStorage(SessionStorage):
     def __call__(self, req, res):
         """
         The middleware action. Adds a session member to the req object and the
-        session id to the resoponse object.
+        session id to the response object.
         """
         qid = self.session_id_name
         try:
