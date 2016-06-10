@@ -8,7 +8,7 @@ master
 dev
    |travis-dev| |coveralls-dev|
 
-Growler is a web framework built atom asyncio, the asynchronous library described in `PEP
+Growler is a web framework built atop asyncio, the asynchronous library described in `PEP
 3156`_ and added to the standard library in python 3.4.
 It takes a cue from the `Connect`_ & `Express`_ frameworks in the `nodejs`_ ecosystem, using a
 single application object and series of middleware to process HTTP requests.
