@@ -132,6 +132,12 @@ def test_send_headers_with_callback_event(res):
     assert not w.called
 
 
+def test_send(res, mock_protocol):
+    with pytest.raises(NotImplementedError):
+        res.send()
+    return
+
+
 def test_write(res, mock_protocol):
     res.write()
     mock_protocol.transport.write.assert_called_with(b'')
@@ -179,11 +185,11 @@ def test_redirect(res, mock_protocol, url, status):
     written_bytes = write.call_args_list[0][0][0]
 
     # check status code
-    expected_status = b'302' if status is None else b'%d' % status
+    expected_status = b'302' if status is None else ('%d' % status).encode()
     assert written_bytes.startswith(b"HTTP/1.1 " + expected_status)
 
     # check location header
-    locate_header = b'\nlocation: %s\r\n' % url.encode()
+    locate_header = ('\nlocation: %s\r\n' % url).encode()
     assert locate_header in written_bytes
 
     # never have a content length
@@ -218,7 +224,7 @@ def test_send_html(res, mock_protocol):
 
     header_bytes = mock_protocol.transport.write.call_args_list[0][0][0]
 
-    length_header = b'\r\nContent-Length: %d\r\n' % size
+    length_header = ('\r\nContent-Length: %d\r\n' % size).encode()
     assert length_header in header_bytes
     assert b'\r\nContent-Type: text/html\r\n' in header_bytes
 
@@ -242,7 +248,7 @@ def test_send_file(res, mock_protocol, tmpdir):
     assert body_bytes == random_bytes
 
     header_bytes = mock_protocol.transport.write.call_args_list[0][0][0]
-    length_header = b'\r\nContent-Length: %d\r\n' % size
+    length_header = ('\r\nContent-Length: %d\r\n' % size).encode()
     assert length_header in header_bytes
 
 
@@ -322,12 +328,23 @@ def test_headers_dequote():
     assert Headers.de_quote('foo"bar') == r'foo\"bar'
 
 
-def test_headers_add_header(res):
-    res.headers.add_header('A', 'b')
-    assert res.get('a') == ('A', 'b')
-    # assert res.get('a') == 'b'
+def test_headers_add_header(headers):
+    headers.add_header('A', 'b')
+    # assert res.get('a') == ('A', 'b')
+    assert headers['a'] == 'b'
+    assert str(headers).encode() == b"A: b\r\n\r\n"
 
 
-def test_headers_add_header_with_params(res):
-    res.headers.add_header('A', 'b', encoding='utf8', foo='bar')
-    assert res.get('a') == ('A', 'b; encoding="utf8" foo="bar"')
+def test_headers_add_header_list(headers):
+    headers.add_header('A', ['a', 'b', 'c'])
+    assert str(headers) == 'A: a\r\n\tb\r\n\tc\r\n\r\n'
+
+
+def test_headers_add_header_tuple(headers):
+    headers.add_header('A', ('a', 'b', 'c'))
+    assert str(headers) == 'A: a\r\n\tb\r\n\tc\r\n\r\n'
+
+
+def test_headers_add_header_with_params(headers):
+    headers.add_header('A', 'b', encoding='utf8', foo='bar')
+    assert str(headers) == 'A: b; encoding="utf8" foo="bar"\r\n\r\n'

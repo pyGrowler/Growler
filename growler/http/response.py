@@ -63,7 +63,6 @@ class HTTPResponse:
         self._events = {
             'before_headers': [],
             'after_send': [],
-            'headerstrings': []
         }
 
     def _set_default_headers(self):
@@ -83,8 +82,6 @@ class HTTPResponse:
         """
         for func in self._events['before_headers']:
             func()
-
-        self.headerstrings = [self.status_line]
 
         self._set_default_headers()
         header_str = self.status_line + self.EOL + str(self.headers)
@@ -253,11 +250,9 @@ class HTTPResponse:
     def on_send_end(self, cb):
         self._events['after_send'].append(cb)
 
-    def on_headerstrings(self, cb):
-        self._events['headerstrings'].append(cb)
-
     def send(self, *args, **kwargs):
-        return self.write(*args, **kwargs)
+        raise NotImplementedError
+        # return self.write(*args, **kwargs)
 
     @property
     def info(self):
@@ -381,7 +376,7 @@ class Headers:
         if param_str:
             value = "%s; %s" % (value, param_str)
 
-        self[ci_key] = (key, value)
+        self._header_data[ci_key] = (key, value)
 
     def stringify(self, use_bytes=False):
         """
@@ -392,11 +387,10 @@ class Headers:
             use_bytes (bool): Returns a bytes object instead of a str.
         """
         def _str_value(value):
-            if isinstance(value, list):
-                value = (self.EOL + '\t').join((_str_value(v) for v in value))
+            if isinstance(value, (list, tuple)):
+                value = (self.EOL + '\t').join(map(_str_value, value))
             elif callable(value):
                 value = _str_value(value())
-
             return value
 
         s = self.EOL.join(("{key}: {value}".format(key=key,
