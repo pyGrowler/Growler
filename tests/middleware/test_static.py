@@ -36,13 +36,16 @@ def test_call(static, tmpdir):
     f = tmpdir.mkdir('foo').mkdir('bar') / 'file.txt'
     f.write(file_contents)
 
+    file_path = pathlib.Path(str(f))
+
+    etag = static.calculate_etag(file_path)
+
     req.path = 'foo/bar/file.txt'
 
-    # req.path
     static(req, res)
 
     res.set_type.assert_called_with('text/plain')
-    res.send_file.assert_called_with(pathlib.Path(str(f)))
+    res.send_file.assert_called_with(file_path)
 
 
 def test_call_invalid_path(static):
@@ -52,3 +55,28 @@ def test_call_invalid_path(static):
     static(req, res)
 
     assert not res.set_type.called
+    assert not res.send_file.called
+    assert not res.end.called
+
+
+def test_call_with_etag(static, tmpdir):
+    req, res = mock.MagicMock(), mock.MagicMock()
+
+    file_contents = b'This is some text in teh file'
+
+    f = tmpdir.mkdir('foo').mkdir('bar') / 'file.txt'
+    f.write(file_contents)
+    file_path = pathlib.Path(str(f))
+
+    etag = static.calculate_etag(file_path)
+
+    req.path = 'foo/bar/file.txt'
+
+    req.headers = {'If-None-Match': etag}
+
+    static(req, res)
+
+    assert res.status_code == 304
+
+    assert not res.set_type.called
+    assert not res.send_file.called

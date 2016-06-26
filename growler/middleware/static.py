@@ -52,17 +52,16 @@ class Static:
         has a reference to the parent path, '..', the request is ignored by this
         object.
         """
-        filename = self.path / req.path
+        file_path = self.path / req.path
 
         # ignore anything that tries to reference an invalid path, such as
         # /../spam
-        if any(map(self.INVALID_PATH.match, filename.parts)):
+        if any(map(self.INVALID_PATH.match, file_path.parts)):
             return
 
-        if filename.is_file():
-            mime = mimetypes.guess_type(str(filename))
-            stat = filename.stat()
-            etag = "%x-%x" % (stat.st_mtime_ns, stat.st_size)
+        if file_path.is_file():
+            mime = mimetypes.guess_type(str(file_path))
+            etag = self.calculate_etag(file_path)
             res.headers['Etag'] = etag
 
             if req.headers['If-None-Match'] == etag:
@@ -71,5 +70,20 @@ class Static:
                 return
 
             res.set_type(mime[0])
-            res.send_file(filename)
-            log.info("%d Sent %s (%s)" % (id(self), filename, mime[0]))
+            res.send_file(file_path)
+            log.info("%d Sent %s (%s)" % (id(self), file_path, mime[0]))
+
+    @staticmethod
+    def calculate_etag(file_path):
+        """
+        Calculate an etag value
+
+        Args:
+            a_file (pathlib.Path): The filepath to the
+
+        Returns:
+            String of the etag value to be sent back in header
+        """
+        stat = file_path.stat()
+        etag = "%x-%x" % (stat.st_mtime_ns, stat.st_size)
+        return etag
