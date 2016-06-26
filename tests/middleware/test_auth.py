@@ -1,5 +1,5 @@
 #
-# tests/test_http_response.py
+# tests/middleware/test_auth.py
 #
 
 import growler

@@ -54,7 +54,8 @@ class Static:
         """
         filename = self.path / req.path
 
-        # ignore anything that tries to reference a
+        # ignore anything that tries to reference an invalid path, such as
+        # /../spam
         if any(map(self.INVALID_PATH.match, filename.parts)):
             return
 

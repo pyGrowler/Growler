@@ -330,7 +330,6 @@ def test_headers_dequote():
 
 def test_headers_add_header(headers):
     headers.add_header('A', 'b')
-    # assert res.get('a') == ('A', 'b')
     assert headers['a'] == 'b'
     assert str(headers).encode() == b"A: b\r\n\r\n"
 
