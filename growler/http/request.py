@@ -44,6 +44,7 @@ class HTTPRequest:
 
         if 'CONTENT-LENGTH' in headers:
             self.body = asyncio.Future()
+
         log.info("%d %s %s" % (id(self), self.method, self.path))
 
     def param(self, name, default=None):
@@ -120,4 +121,4 @@ class HTTPRequest:
         """
         The name of the protocol being used
         """
-        return 'https' if (self.protocol.cipher) else 'http'
+        return 'https' if self._protocol.cipher else 'http'
