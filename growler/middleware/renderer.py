@@ -136,7 +136,6 @@ class RenderEngine:
         if not hasattr(res, 'render'):
             res.render = Renderer(res)
             res.locals = {}
-
         res.render.add_engine(self)
 
     def find_template_filename(self, template_name):

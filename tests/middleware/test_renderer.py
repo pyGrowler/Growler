@@ -74,10 +74,9 @@ def test_renderer_requires_real_path(tmpdir):
         RenderEngine(str(tmpdir / 'does-not-exist'))
 
 
-def test_renderer_requires_real_path(tmpdir):
-    not_a_dir = Path(str(tmpdir)) / 'simple_file'
-
-    not_a_dir.touch()
+def test_renderer_constructor_requires_directory(tmpdir):
+    not_a_dir = tmpdir / 'simple_file'
+    not_a_dir.write('')
 
     with pytest.raises(NotADirectoryError):
         RenderEngine(str(not_a_dir))
@@ -93,26 +92,26 @@ def test_missing_file(string_renderer, tmpdir, renderer, req):
 
 
 def test_find_template_filename(string_renderer, tmpdir):
-    foo_file = Path(str(tmpdir)) / 'foo.html.tmpl'
-    foo_file.touch()
+    foo_file = tmpdir / 'foo.html.tmpl'
+    foo_file.write('')
     filename = string_renderer.find_template_filename('foo')
-    assert filename == foo_file
+    assert filename == Path(str(foo_file))
 
 
 def test_find_template_no_extensions(base_renderer, tmpdir):
-    foo_file = Path(str(tmpdir)) / 'foo.txt'
-    foo_file.touch()
+    foo_file = tmpdir / 'foo.txt'
+    foo_file.write('')
     filename = base_renderer.find_template_filename('foo')
     assert filename is None
 
 
 
 def test_find_template_with_extensions(base_renderer, tmpdir):
-    foo_file = Path(str(tmpdir)) / 'foo.txt'
-    foo_file.touch()
+    foo_file = tmpdir / 'foo.txt'
+    foo_file.write('')
     base_renderer.default_file_extensions = ['.txt']
     filename = base_renderer.find_template_filename('foo')
-    assert filename == foo_file
+    assert filename == Path(str(foo_file))
 
 
 def test_find_missing_template_filename(string_renderer):
@@ -121,14 +120,10 @@ def test_find_missing_template_filename(string_renderer):
 
 
 def test_render_source(string_renderer, tmpdir):
-    foo_file = Path(str(tmpdir)) / 'foo.txt'
-    foo_file.touch()
     data = r"spam-{spam}"
-    try:
-        foo_file.write_txt(data)
-    except AttributeError: #python3.4 exception
-        with open(str(foo_file), 'w') as f:
-            f.write(data)
+
+    foo_file = tmpdir / 'foo.txt'
+    foo_file.write(data)
 
     result = string_renderer.render_source('foo.txt', {'spam': 'a-lot'})
 

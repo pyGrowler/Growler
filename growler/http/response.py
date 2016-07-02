@@ -8,6 +8,7 @@ import json
 import time
 import growler
 
+from pathlib import Path
 from itertools import chain
 from datetime import datetime
 from collections import OrderedDict
@@ -237,8 +238,11 @@ class HTTPResponse:
         status : int, optional
             The HTTP status code, defaults to 200 (OK)
         """
-        with io.FileIO(filename) as f:
-            self.message = f.read()
+        if isinstance(filename, Path) and sys.version_info >= (3, 5):
+            self.message = filename.read_bytes()
+        else:
+            with io.FileIO(str(filename)) as f:
+                self.message = f.read()
         self.status_code = status
         self.send_headers()
         self.write()

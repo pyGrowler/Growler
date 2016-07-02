@@ -5,8 +5,10 @@
 import pytest
 import random
 import growler
-from asyncio import BaseEventLoop
+
+from pathlib import Path
 from unittest import mock
+from asyncio import BaseEventLoop
 from collections import OrderedDict
 from growler.http.response import Headers
 
@@ -250,6 +252,17 @@ def test_send_file(res, mock_protocol, tmpdir):
     header_bytes = mock_protocol.transport.write.call_args_list[0][0][0]
     length_header = ('\r\nContent-Length: %d\r\n' % size).encode()
     assert length_header in header_bytes
+
+
+def test_send_file_by_path_object(res, mock_protocol, tmpdir):
+    data = b'spam-spam-spam'
+    f = tmpdir / 'spam.txt'
+    f.write(data)
+
+    res.send_file(Path(str(f)))
+
+    body_bytes = mock_protocol.transport.write.call_args_list[1][0][0]
+    assert body_bytes == data
 
 
 @pytest.mark.parametrize('obj, expect', [

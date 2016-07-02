@@ -4,7 +4,7 @@
 
 import pytest
 import growler
-import pathlib
+from pathlib import Path
 from unittest import mock
 from growler.middleware.static import Static
 
@@ -16,6 +16,7 @@ def static(tmpdir):
 
 def test_static_fixture(static, tmpdir):
     assert isinstance(static, Static)
+    assert str(static.path) == str(tmpdir)
 
 
 def test_construct_with_list(tmpdir):
@@ -24,8 +25,16 @@ def test_construct_with_list(tmpdir):
 
 
 def test_error_on_missing_dir():
-    with pytest.raises(Exception):
+    with pytest.raises(FileNotFoundError):
         Static("/does/not/exist")
+
+
+def test_static_construct_requires_directory(tmpdir):
+    name = "foo"
+    foo = tmpdir / name
+    foo.write('')
+    with pytest.raises(NotADirectoryError):
+        Static(str(foo))
 
 
 def test_call(static, tmpdir):
@@ -36,11 +45,11 @@ def test_call(static, tmpdir):
     f = tmpdir.mkdir('foo').mkdir('bar') / 'file.txt'
     f.write(file_contents)
 
-    file_path = pathlib.Path(str(f))
+    file_path = Path(str(f))
 
     etag = static.calculate_etag(file_path)
 
-    req.path = 'foo/bar/file.txt'
+    req.path = '/foo/bar/file.txt'
 
     static(req, res)
 
@@ -66,13 +75,13 @@ def test_call_with_etag(static, tmpdir):
 
     f = tmpdir.mkdir('foo').mkdir('bar') / 'file.txt'
     f.write(file_contents)
-    file_path = pathlib.Path(str(f))
+    file_path = Path(str(f))
 
     etag = static.calculate_etag(file_path)
 
-    req.path = 'foo/bar/file.txt'
+    req.path = '/foo/bar/file.txt'
 
-    req.headers = {'If-None-Match': etag}
+    req.headers = {'IF-NONE-MATCH': etag}
 
     static(req, res)
 

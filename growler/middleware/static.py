@@ -36,12 +36,12 @@ class Static:
 
         # store as pathlib.Path, to avoid unexpected relative
         # path redirection
-        self.path = Path(path)
+        self.path = Path(path).resolve()
 
         # ensure that path exists
         if not self.path.is_dir():
             log.error("[Static] No path exists at {}".format(self.path))
-            raise Exception("Path '{}' does not exist.".format(self.path))
+            raise NotADirectoryError("Path '{}' is not a directory.".format(self.path))
 
         log.info("%d Serving static files out of %s" % (id(self), self.path))
 
@@ -52,7 +52,7 @@ class Static:
         has a reference to the parent path, '..', the request is ignored by this
         object.
         """
-        file_path = self.path / req.path
+        file_path = self.path / req.path[1:]
 
         # ignore anything that tries to reference an invalid path, such as
         # /../spam
@@ -63,14 +63,16 @@ class Static:
             mime = mimetypes.guess_type(str(file_path))
             etag = self.calculate_etag(file_path)
             res.headers['Etag'] = etag
+            requested_etag = req.headers.get('IF-NONE-MATCH', None)
 
-            if req.headers['If-None-Match'] == etag:
+            if requested_etag == etag:
                 res.status_code = 304
                 res.end()
                 return
 
             res.set_type(mime[0])
             res.send_file(file_path)
+
             log.info("%d Sent %s (%s)" % (id(self), file_path, mime[0]))
 
     @staticmethod
