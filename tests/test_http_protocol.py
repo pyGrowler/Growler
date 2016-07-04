@@ -61,6 +61,8 @@ def mock_res():
 def mock_parser():
     parser = mock.MagicMock(spec=growler.http.Parser(mock.MagicMock()))
     parser.headers = {}
+    parser.method = mock.MagicMock()
+    parser.query = mock.MagicMock()
     return parser
 
 

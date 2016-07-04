@@ -4,7 +4,8 @@
 """
 Code containing Growler's asyncio.Protocol code for handling HTTP requests.
 """
-
+import traceback
+from sys import stderr
 from growler.protocol import GrowlerProtocol
 from growler.http.responder import GrowlerHTTPResponder
 from growler.http.response import HTTPResponse
@@ -89,15 +90,29 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
         error : Exception
             Exception thrown during code execution
         """
-
-        err_code = error.code if isinstance(error, HTTPError) else 500
-        err_msg = error.msg if isinstance(error, HTTPError) else "Server Error"
+        # This error was HTTP-related
+        if isinstance(error, HTTPError):
+            err_code = error.code
+            err_msg = error.msg
+            err_info = ''
+        else:
+            err_code = 500
+            err_msg = "Server Error"
+            err_info = "%s" % error
+            print("Unexpected Server Error", file=stderr)
+            traceback.print_tb(error.__traceback__, file=stderr)
 
         # for error_handler in self.http_application.next_error_handler(req):
-        err_str = ("<html>"
-                   "<head></head>"
-                   "<body><h1>HTTP Error : %d %s </h1></body>"
-                   "</html>") % (err_code, err_msg)
+        err_str = (
+            "<html>"
+            "<head></head>"
+            "<body><h1>HTTP Error : {code} {message}</h1><p>{info}</p></body>"
+            "</html>"
+        ).format(
+            code=err_code,
+            message=err_msg,
+            info=err_info
+        )
 
         header_info = {
             'code': err_code,

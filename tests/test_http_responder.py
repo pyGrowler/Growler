@@ -5,7 +5,7 @@
 import growler
 from growler.http.responder import GrowlerHTTPResponder
 from growler.http.methods import HTTPMethod
-
+from growler.http.errors import HTTPErrorBadRequest
 import asyncio
 import pytest
 from unittest import mock
@@ -32,6 +32,7 @@ POST = HTTPMethod.POST
 PUT = HTTPMethod.PUT
 DELETE = HTTPMethod.DELETE
 
+
 @pytest.fixture
 def app(mock_event_loop):
     app = mock.Mock(spec=growler.application.Application)
@@ -42,6 +43,7 @@ def app(mock_event_loop):
 @pytest.fixture
 def mock_protocol(app):
     protocol = mock.Mock(spec=growler.http.protocol.GrowlerHTTPProtocol)
+    protocol.socket.getpeername = mock.MagicMock()
     protocol.http_application = app
     protocol.loop = app.loop
     protocol.client_headers = None
@@ -80,7 +82,7 @@ def test_on_data_no_headers(responder, mock_parser, data):
 
 
 @pytest.mark.parametrize("data", [
-    # b'1234567',
+    b'1234567',
     # b'GET /',
     # b'GET / HTTP/1.1\n',
     # b'GET / HTTP/1.1\n\nblahh',
@@ -92,13 +94,15 @@ def test_on_data_post_headers(responder,
                               app,
                               data,
                               ):
-    mock_req.body = mock.Mock(spec=asyncio.Future)
+    # mock_req.body = mock.Mock(spec=asyncio.Future)
 
     def on_consume(d):
-        responder.parser.headers = mock.MagicMock()
-        responder.headers.__getitem__.return_value = len(data)
-        responder.content_length = 0
-        responder.body_buffer = []
+        mock_parser.method = POST
+        mock_parser.parsed_url = '/'
+        mock_parser.version = 'HTTP/1.1'
+        responder.parser.headers = {
+            'CONTENT-LENGTH': '%d' % len(data)
+        }
         return data
 
     mock_parser.consume.side_effect = on_consume
@@ -112,30 +116,55 @@ def test_on_data_post_headers(responder,
     # responder.app.handle_client_request.assert_called_with(mock_req, mock_res)
 
 
+@pytest.mark.parametrize("method", [
+    (POST),
+    (PUT),
+])
+def test_missing_thing(responder, method):
+    with pytest.raises(HTTPErrorBadRequest):
+        responder.init_body_buffer(method, {})
+
+
+@pytest.mark.parametrize("method", [
+    (GET),
+    (DELETE),
+])
+def test_missing_thang(responder, method):
+    with pytest.raises(HTTPErrorBadRequest):
+        responder.init_body_buffer(method, {'CONTENT-LENGTH': 100})
+
+
+@pytest.mark.parametrize("header", [
+])
+def test_content_length_wrong_method(responder, header):
+    print('')
+
+
 @pytest.mark.parametrize("data, length", [
-    (b' ' * 10, 100),
-    (b'_' * 99, 10),
+    # (b' ' * 10, 100),
+    (b'_' * 15, 10),
 ])
 def test_bad_content_length(responder, mock_parser, data, length):
-    mock_parser.client_headers = {'CONTENT-LENGTH': length}
-    h = responder.headers
-    responder.content_length = 500
+    headers = {'CONTENT-LENGTH': length}
+    responder.init_body_buffer(POST, headers)
 
-    with pytest.raises(growler.http.errors.HTTPErrorBadRequest) as e:
+    with pytest.raises(HTTPErrorBadRequest) as e:
         responder.validate_and_store_body_data(data)
+        assert e.value.phrase == "Unexpected body data sent"
 
-    assert e.value.phrase == "Unexpected body data sent"
 
-
-@pytest.mark.parametrize("method, request_uri, clength", [
-    (GET, '/', None),
-    (POST, '/', 0),
-    (PUT, '/', 0),
-    (DELETE, '/', None)
+@pytest.mark.parametrize("method, request_uri", [
+    (GET, '/'),
+    (POST, '/foo'),
+    (PUT, '/'),
+    (DELETE, '/')
 ])
-def test_set_request_line_content_length(responder, method, request_uri, clength):
+def test_set_request_line_content_length(responder, method, request_uri):
     responder.set_request_line(method, request_uri, "HTTP/1.1")
-    assert responder.content_length is clength
+    assert responder.parsed_request == (method, request_uri, "HTTP/1.1")
+    assert responder.request['method'] == method
+    assert responder.request['url'] == request_uri
+    assert responder.request['version'] == "HTTP/1.1"
 
 
 def test_build_req_and_res(responder, mock_req, mock_res):
@@ -149,3 +178,27 @@ def test_set_request_line(responder, mock_protocol):
     assert responder.request['method'] == 'GET'
     assert responder.request['url'] == '/'
     assert responder.request['version'] == 'HTTP/1.1'
+
+
+def test_method_property(responder, mock_parser):
+    assert responder.method is mock_parser.method
+
+
+def test_method_str_property(responder, mock_parser):
+    assert responder.method_str is mock_parser.method
+
+
+def test_pasred_query_property(responder, mock_parser):
+    assert responder.parsed_query is mock_parser.query
+
+
+def test_loop_property(responder, mock_event_loop):
+    assert responder.loop is mock_event_loop
+
+
+def test_app_property(responder, app):
+    assert responder.app is app
+
+
+def test_ip_property(responder, mock_protocol):
+    assert responder.ip is mock_protocol.socket.getpeername()[0]

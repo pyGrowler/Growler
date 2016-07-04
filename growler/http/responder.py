@@ -15,7 +15,7 @@ from .errors import (
 )
 
 
-class GrowlerHTTPResponder():
+class GrowlerHTTPResponder:
     """
     The Growler Responder for HTTP connections.
 
@@ -88,18 +88,25 @@ class GrowlerHTTPResponder():
             transport/protocol objects.
         """
         # Headers have not been read in yet
-        if len(self.headers) is 0:
+        if len(self.headers) == 0:
             # forward data to the parser
             data = self.parser.consume(data)
 
             # Headers are finished - build the request and response
             if data is not None:
+
+                # setup the request line attributes
                 self.set_request_line(self.parser.method,
                                       self.parser.parsed_url,
                                       self.parser.version)
 
+                # initialize "content_length" and "body_buffer" attributes
+                self.init_body_buffer(self.method, self.headers)
+
                 # builds request and response out of self.headers and protocol
                 self.req, self.res = self.build_req_and_res()
+
+                # add middleware chain to event loop
                 self.begin_application(self.req, self.res)
 
         # if truthy, 'data' now holds body data
@@ -107,8 +114,8 @@ class GrowlerHTTPResponder():
             self.validate_and_store_body_data(data)
 
             # if we have reached end of content - put in the request's body
-            if self.content_length == self.headers['CONTENT-LENGTH']:
-                self.req.body.set_result(b''.join(self.body_buffer))
+            if len(self.body_buffer) == self.content_length:
+                self.req.body.set_result(bytes(self.body_buffer))
 
     def begin_application(self, req, res):
         """
@@ -130,8 +137,24 @@ class GrowlerHTTPResponder():
             'url': url,
             'version': version
         }
+
+    def init_body_buffer(self, method, headers):
+        """
+        Sets up the body_buffer and content_length attributes based
+        on method and headers.
+        """
+        content_length = headers.get("CONTENT-LENGTH", None)
+
         if method in (HTTPMethod.POST, HTTPMethod.PUT):
-            self.content_length = 0
+            if content_length is None:
+                raise HTTPErrorBadRequest("HTTP Method requires a CONTENT-LENGTH header")
+            self.content_length = int(content_length)
+            self.body_buffer = bytearray(0)
+
+        elif content_length is not None:
+            raise HTTPErrorBadRequest(
+                "HTTP method %s may NOT have a CONTENT-LENGTH header"
+            )
 
     @property
     def method(self):
@@ -186,17 +209,16 @@ class GrowlerHTTPResponder():
             Raised if data is sent when not expected, or if too much data is
             sent
         """
-        try:
-            self.content_length += len(data)
-            if self.content_length > self.headers['CONTENT-LENGTH']:
-                problem = "Content length exceeds expected value (%d > %d)" % (
-                    self.content_length, self.headers['CONTENT-LENGTH']
-                )
-                raise HTTPErrorBadRequest(phrase=problem)
-        except (AttributeError, TypeError, KeyError):
-            raise HTTPErrorBadRequest(phrase="Unexpected body data sent")
 
-        self.body_buffer.append(data)
+        # add data to end of buffer
+        self.body_buffer[-1:] = data
+
+        #
+        if len(self.body_buffer) > self.content_length:
+            problem = "Content length exceeds expected value (%d > %d)" % (
+                len(self.body_buffer), self.content_length
+            )
+            raise HTTPErrorBadRequest(phrase=problem)
 
     @property
     def loop(self):
