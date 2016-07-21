@@ -10,7 +10,9 @@ import asyncio
 import pytest
 from unittest import mock
 
-from mocks import *
+from mocks import (
+    mock_event_loop,
+)
 
 from test_http_protocol import (
     mock_app,
@@ -34,18 +36,11 @@ DELETE = HTTPMethod.DELETE
 
 
 @pytest.fixture
-def app(mock_event_loop):
-    app = mock.Mock(spec=growler.application.Application)
-    app.loop = mock_event_loop
-    return app
-
-
-@pytest.fixture
-def mock_protocol(app):
+def mock_protocol(mock_app):
     protocol = mock.Mock(spec=growler.http.protocol.GrowlerHTTPProtocol)
     protocol.socket.getpeername = mock.MagicMock()
-    protocol.http_application = app
-    protocol.loop = app.loop
+    protocol.http_application = mock_app
+    protocol.loop = mock_app.loop
     protocol.client_headers = None
     return protocol
 
@@ -91,7 +86,7 @@ def test_on_data_post_headers(responder,
                               mock_parser,
                               mock_req,
                               mock_res,
-                              app,
+                              mock_app,
                               data,
                               ):
     # mock_req.body = mock.Mock(spec=asyncio.Future)
@@ -180,25 +175,33 @@ def test_set_request_line(responder, mock_protocol):
     assert responder.request['version'] == 'HTTP/1.1'
 
 
-def test_method_property(responder, mock_parser):
+def test_property_method(responder, mock_parser):
     assert responder.method is mock_parser.method
 
 
-def test_method_str_property(responder, mock_parser):
+def test_property_method_str(responder, mock_parser):
     assert responder.method_str is mock_parser.method
 
 
-def test_pasred_query_property(responder, mock_parser):
+def test_property_pasred_query(responder, mock_parser):
     assert responder.parsed_query is mock_parser.query
 
 
-def test_loop_property(responder, mock_event_loop):
+def test_property_headers(responder, mock_parser):
+    assert responder.headers is mock_parser.headers
+
+
+def test_property_loop(responder, mock_protocol, mock_event_loop):
+    assert responder.loop is mock_protocol.loop
     assert responder.loop is mock_event_loop
 
 
-def test_app_property(responder, app):
-    assert responder.app is app
+def test_property_app(responder, mock_protocol, mock_app):
+    assert responder.app is mock_protocol.http_application
+    assert responder.app is mock_app
 
 
-def test_ip_property(responder, mock_protocol):
-    assert responder.ip is mock_protocol.socket.getpeername()[0]
+def test_property_ip(responder, mock_protocol):
+    ip = '0.0.0.0'
+    mock_protocol.socket.getpeername.return_value = (ip, None)
+    assert responder.ip is ip

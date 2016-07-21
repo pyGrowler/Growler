@@ -8,7 +8,7 @@ import growler
 from unittest import mock
 
 from mocks import (
-    mock_event_loop as event_loop,
+    mock_event_loop,
     mock_transport,
     client_host,
     client_port,
@@ -26,9 +26,9 @@ def MockGrowlerHTTPProtocol(request):
 
 
 @pytest.fixture
-def mock_app(event_loop, mock_req_factory, mock_res_factory):
+def mock_app(mock_event_loop, mock_req_factory, mock_res_factory):
     return mock.Mock(spec=growler.application.Application,
-                     loop=event_loop,
+                     loop=mock_event_loop,
                      _request_class=mock_req_factory,
                      _response_class=mock_res_factory)
 
@@ -104,11 +104,11 @@ def test_mock_protocol(mock_app):
     MockGrowlerHTTPProtocol(mock_app)
 
 
-def test_constructor(mock_app, event_loop, mock_responder):
+def test_constructor(mock_app, mock_event_loop, mock_responder):
     proto = growler.http.GrowlerHTTPProtocol(mock_app)
 
     assert isinstance(proto, asyncio.Protocol)
-    assert proto.loop is event_loop
+    assert proto.loop is mock_event_loop
     assert proto.http_application is mock_app
 
 
