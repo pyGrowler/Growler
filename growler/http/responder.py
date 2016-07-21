@@ -49,7 +49,6 @@ class GrowlerHTTPResponder:
                  response_factory=HTTPResponse,
                  ):
         """
-
         Construct a Responder. This method only requires the 'parent'
         protocol object which has a link to the main Application object.
 
@@ -187,35 +186,6 @@ class GrowlerHTTPResponder:
                 "HTTP method %s may NOT have a CONTENT-LENGTH header"
             )
 
-    @property
-    def method(self):
-        """
-        The HTTP method as the growler enumerated value
-        """
-        return self.parser.method
-
-    @property
-    def method_str(self):
-        """
-        The HTTP method as an all-caps string (e.g. 'GET')
-        """
-        return self.parser.method
-
-    @property
-    def parsed_query(self):
-        """
-        The HTTP query as parsed by the standard python urllib.parse
-        library. Simply forwards the result obtained by the parser.
-        """
-        return self.parser.query
-
-    @property
-    def headers(self):
-        """
-        The dict of HTTP headers.
-        """
-        return self.parser.headers
-
     def build_req_and_res(self):
         """
         Simple method which calls the request and response factories
@@ -248,6 +218,35 @@ class GrowlerHTTPResponder:
                 len(self.body_buffer), self.content_length
             )
             raise HTTPErrorBadRequest(phrase=problem)
+
+    @property
+    def method(self):
+        """
+        The HTTP method as the growler enumerated value
+        """
+        return self.parser.method
+
+    @property
+    def method_str(self):
+        """
+        The HTTP method as an all-caps string (e.g. 'GET')
+        """
+        return self.parser.method
+
+    @property
+    def parsed_query(self):
+        """
+        The HTTP query as parsed by the standard python urllib.parse
+        library. Simply forwards the result obtained by the parser.
+        """
+        return self.parser.query
+
+    @property
+    def headers(self):
+        """
+        The dict of HTTP headers.
+        """
+        return self.parser.headers
 
     @property
     def loop(self):
