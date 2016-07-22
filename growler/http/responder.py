@@ -15,44 +15,27 @@ from .errors import (
 )
 
 
-class GrowlerHTTPResponder():
+class GrowlerHTTPResponder:
     """
     The Growler Responder for HTTP connections.
 
-    This class responds to client data by parsing the headers using the object
-    created from the parser_factory parameter (defaults to
-    growler.http.Parser). Upon completing headers the request and response
-    objects are created and passed to the 'app' object found in protocol.
+    Like *all* growler responders - this class is responsible for
+    responding to client data forwarded by a growler protocol object.
 
-    This should only be constructed from a growler protocol instance.
+    This responder has linear functionality, performing the following
+    tasks:
 
-    Parameters
-    ----------
-    protocol : GrowlerHTTPProtocol
-        The GrowlerHTTPProtocol which created the responder.
+    #) Feed client data to parser until all headers have been sent
+    #) Create req/res objects out of the headers
+    #) Start application middleware chain with headers (add task to the
+       event loop)
+    #) Store all remaining client data into the request objects "body"
+       attribute (a Future).
 
-    parser_factor : type or callable
-        Factory function (or classname) of the object responsible for
-        parsing the client's request line and headers. Default value is the
-        growler.http.parser.Parser class. The object must have a 'consume'
-        method which accepts the incoming data. If this data only has
-        partial headers, consume returns None, and the parser should expect
-        consume to be called again. When the headers have finished, the
-        consume function returns any body data past the headers.
+    The `on_data` method is the only useful method, where the responder
+    acts on the next bit of user data.
 
-    request_factory : type or callable
-        Factory function (or classname) of the request object which gets
-        passed to the applications middleware as the first parameter. The
-        default value is the class growler.http.request.HTTPRequest. This
-        function accepts two arguments: the protocol handling the
-        connection and the headers returned from the parser.
-
-    response_factory : type or callable
-        Factory function (or classname) of the response object which gets
-        passed to the applications middleware as the second parameter. The
-        default value is the class growler.http.response.HTTPResponse. This
-        function accepts one argument: the protocol handling the
-        connection.
+    This should really only be constructed from a growler protocol instance.
     """
 
     body_buffer = None
@@ -65,6 +48,43 @@ class GrowlerHTTPResponder():
                  request_factory=HTTPRequest,
                  response_factory=HTTPResponse,
                  ):
+        """
+        Construct a Responder. This method only requires the 'parent'
+        protocol object which has a link to the main Application object.
+
+        Parameters:
+            protocol (GrowlerHTTPProtocol): The owner/creator of this
+                responder. This object MUST have an `app` attribute
+                that points to the application to be called. Some
+                connection information (e.g. client's ip address) is
+                forwarded from this protocol via some properties.
+
+            parser_factor (type or callable): Factory function (or
+                classname) of the object responsible for parsing the
+                client's request line and headers. Default value is the
+                growler.http.parser.Parser class. The object must have
+                a 'consume' method which accepts the incoming data. If
+                this data only has partial headers, consume returns
+                None, and the parser should expect consume to be called
+                again. When the headers have finished, the consume
+                function returns any body data past the headers.
+
+            request_factory (type or callable): Factory function (or
+                classname) of the request object which gets passed to
+                the applications middleware as the first parameter.
+                The default value is the class growler.http.HTTPRequest.
+                When called, this object must accepts two arguments: the
+                protocol handling the connection and the headers
+                returned from the parser.
+
+            response_factory (type or callable): Factory function (or
+                classname) of the response object which gets passed to
+                the applications middleware as the second parameter.
+                The default value is the class growler.http.HTTPResponse.
+                When called, this object must accept one argument: the
+                parent protocol handling the connection.
+
+        """
         self._proto = protocol
         self.parser = parser_factory(self)
         self.build_req = request_factory
@@ -72,34 +92,44 @@ class GrowlerHTTPResponder():
 
     def on_data(self, data):
         """
-        This is the function called by the http protocol upon receipt of
-        incoming client data. The data is passed to the responder's parser
-        class (via the consume method), which digests and stores as HTTP
-        fields.
+        This is the function called by the http protocol upon receipt
+        of incoming client data.
+        The data is passed to the responder's parser class (via the
+        consume method), which digests and stores as HTTP fields.
 
-        Upon completion of parsing the HTTP headers, the responder creates the
-        request and response objects, and passes them to the begin_application
-        method, which starts the parent application's middleware chain.
+        Upon completion of parsing the HTTP headers, the responder
+        creates the request and response objects, and passes them to
+        the begin_application method, which starts the parent
+        application's middleware chain.
 
-        Parameters
-        ----------
-        data : bytes
-            HTTP data from the socket, expected to be passed directly from the
-            transport/protocol objects.
+        Parameters:
+            data (bytes): HTTP data from the socket, expected to be
+                passed directly from the transport/protocol objects.
+
+        Raises:
+            HTTPErrorBadRequest: If there is a problem parsing headers
+                or body length exceeds expectation.
         """
         # Headers have not been read in yet
-        if len(self.headers) is 0:
+        if len(self.headers) == 0:
             # forward data to the parser
             data = self.parser.consume(data)
 
             # Headers are finished - build the request and response
             if data is not None:
+
+                # setup the request line attributes
                 self.set_request_line(self.parser.method,
                                       self.parser.parsed_url,
                                       self.parser.version)
 
+                # initialize "content_length" and "body_buffer" attributes
+                self.init_body_buffer(self.method, self.headers)
+
                 # builds request and response out of self.headers and protocol
                 self.req, self.res = self.build_req_and_res()
+
+                # add middleware chain to event loop
                 self.begin_application(self.req, self.res)
 
         # if truthy, 'data' now holds body data
@@ -107,13 +137,20 @@ class GrowlerHTTPResponder():
             self.validate_and_store_body_data(data)
 
             # if we have reached end of content - put in the request's body
-            if self.content_length == self.headers['CONTENT-LENGTH']:
-                self.req.body.set_result(b''.join(self.body_buffer))
+            if len(self.body_buffer) == self.content_length:
+                self.req.body.set_result(bytes(self.body_buffer))
 
     def begin_application(self, req, res):
         """
-        Sends the given req/res objects to the application. To be called after
-        parsing the request headers.
+        Sends the given req/res objects to the application.
+
+        This method calls the target app's handle_client_request method
+        and adds this coroutine to the loop as a task.
+        This is only to be called after parsing the request headers.
+
+        Parameters:
+            req (HTTPRequest): The request
+            res (HTTPResponse): The response
         """
         # Add the middleware processing to the event loop - this *should*
         # change the call stack so any server errors do not link back to this
@@ -130,8 +167,57 @@ class GrowlerHTTPResponder():
             'url': url,
             'version': version
         }
+
+    def init_body_buffer(self, method, headers):
+        """
+        Sets up the body_buffer and content_length attributes based
+        on method and headers.
+        """
+        content_length = headers.get("CONTENT-LENGTH", None)
+
         if method in (HTTPMethod.POST, HTTPMethod.PUT):
-            self.content_length = 0
+            if content_length is None:
+                raise HTTPErrorBadRequest("HTTP Method requires a CONTENT-LENGTH header")
+            self.content_length = int(content_length)
+            self.body_buffer = bytearray(0)
+
+        elif content_length is not None:
+            raise HTTPErrorBadRequest(
+                "HTTP method %s may NOT have a CONTENT-LENGTH header"
+            )
+
+    def build_req_and_res(self):
+        """
+        Simple method which calls the request and response factories
+        the responder was given, and returns the pair.
+        """
+        req = self.build_req(self, self.headers)
+        res = self.build_res(self._proto)
+        return req, res
+
+    def validate_and_store_body_data(self, data):
+        """
+        Attempts simple body data validation by comparining incoming
+        data to the content length header.
+        If passes store the data into self._buffer.
+
+        Parameters:
+            data (bytes): Incoming client data to be added to the body
+
+        Raises:
+            HTTPErrorBadRequest: Raised if data is sent when not
+                expected, or if too much data is sent.
+        """
+
+        # add data to end of buffer
+        self.body_buffer[-1:] = data
+
+        #
+        if len(self.body_buffer) > self.content_length:
+            problem = "Content length exceeds expected value (%d > %d)" % (
+                len(self.body_buffer), self.content_length
+            )
+            raise HTTPErrorBadRequest(phrase=problem)
 
     @property
     def method(self):
@@ -150,7 +236,8 @@ class GrowlerHTTPResponder():
     @property
     def parsed_query(self):
         """
-        The HTTP query as parsed by the standard python urllib.parse library.
+        The HTTP query as parsed by the standard python urllib.parse
+        library. Simply forwards the result obtained by the parser.
         """
         return self.parser.query
 
@@ -160,43 +247,6 @@ class GrowlerHTTPResponder():
         The dict of HTTP headers.
         """
         return self.parser.headers
-
-    def build_req_and_res(self):
-        """
-        Simple method which calls the request and response factories the
-        responder was given, and returns the pair.
-        """
-        req = self.build_req(self, self.headers)
-        res = self.build_res(self._proto)
-        return req, res
-
-    def validate_and_store_body_data(self, data):
-        """
-        Attempts simple body data validation by comparining incoming data to
-        the content length header. If passes store the data into self._buffer.
-
-        Parameters
-        ----------
-        data : bytes
-            Incoming client data to be added to the body
-
-        Raises
-        ------
-        HTTPErrorBadRequest
-            Raised if data is sent when not expected, or if too much data is
-            sent
-        """
-        try:
-            self.content_length += len(data)
-            if self.content_length > self.headers['CONTENT-LENGTH']:
-                problem = "Content length exceeds expected value (%d > %d)" % (
-                    self.content_length, self.headers['CONTENT-LENGTH']
-                )
-                raise HTTPErrorBadRequest(phrase=problem)
-        except (AttributeError, TypeError, KeyError):
-            raise HTTPErrorBadRequest(phrase="Unexpected body data sent")
-
-        self.body_buffer.append(data)
 
     @property
     def loop(self):
@@ -214,4 +264,7 @@ class GrowlerHTTPResponder():
 
     @property
     def ip(self):
+        """
+        Ip address of the client. Retrieved from parent protocol object
+        """
         return self._proto.socket.getpeername()[0]

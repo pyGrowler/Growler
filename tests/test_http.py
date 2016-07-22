@@ -4,7 +4,7 @@
 
 import asyncio
 import pytest
-from tests.utils import (
+from utils import (
     setup_http_server,
     teardown_server
 )

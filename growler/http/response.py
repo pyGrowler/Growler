@@ -8,6 +8,7 @@ import json
 import time
 import growler
 
+from pathlib import Path
 from itertools import chain
 from datetime import datetime
 from collections import OrderedDict
@@ -54,8 +55,6 @@ class HTTPResponse:
     EOL = ''
     phrase = None
 
-    _events = None
-
     def __init__(self, protocol, EOL="\r\n"):
         self.protocol = protocol
         self.EOL = EOL
@@ -65,7 +64,6 @@ class HTTPResponse:
         self._events = {
             'before_headers': [],
             'after_send': [],
-            'headerstrings': []
         }
 
     def _set_default_headers(self):
@@ -86,8 +84,6 @@ class HTTPResponse:
         for func in self._events['before_headers']:
             func()
 
-        self.headerstrings = [self.status_line]
-
         self._set_default_headers()
         header_str = self.status_line + self.EOL + str(self.headers)
         self.protocol.transport.write(header_str.encode())
@@ -98,7 +94,7 @@ class HTTPResponse:
         self.protocol.transport.write(msg)
 
     def write_eof(self):
-        self.protocol.transport.write_eof()
+        self.stream.write_eof()
         self.has_ended = True
         for f in self._events['after_send']:
             f()
@@ -123,17 +119,17 @@ class HTTPResponse:
         self.write_eof()
         self.has_ended = True
 
-    def redirect(self, url, status=302):
+    def redirect(self, url, status=None):
         """
         Redirect to the specified url, optional status code defaults to 302.
         """
-        self.status_code = status
+        self.status_code = 302 if status is None else status
         self.headers = Headers([('location', url)])
         self.message = ''
         self.end()
 
     def set(self, header, value=None):
-        """Set header to the key"""
+        """Set header to the value"""
         if value is None:
             for k, v in header.items():
                 self.headers[k] = v
@@ -151,14 +147,14 @@ class HTTPResponse:
         """Get a header"""
         return self.headers[field]
 
-    def cookie(self, name, value, options={}):
-        """Set cookie name to value"""
-        self.cookies[name] = value
-
-    def clear_cookie(self, name, options={}):
-        """Removes a cookie"""
-        options.setdefault("path", "/")
-        del self.cookies[name]
+    # def cookie(self, name, value, options={}):
+    #     """Set cookie name to value"""
+    #     self.cookies[name] = value
+    #
+    # def clear_cookie(self, name, options={}):
+    #     """Removes a cookie"""
+    #     options.setdefault("path", "/")
+    #     del self.cookies[name]
 
     def location(self, location):
         """Set the location header"""
@@ -166,9 +162,8 @@ class HTTPResponse:
 
     def links(self, links):
         """Sets the Link """
-        s = []
-        for rel in links:
-            s.append("<{}>; rel=\"{}\"".format(links[rel], rel))
+        s = ['<{}>; rel="{}"'.format(link, rel)
+             for link, rel in links.items()]
         self.headers['Link'] = ','.join(s)
 
     def json(self, body, status=200):
@@ -188,7 +183,7 @@ class HTTPResponse:
         status : int, optional
             The HTTP status code, defaults to 200 (OK)
         """
-        self.headers['content-type'] = 'application/json'
+        self.headers['Content-Type'] = 'application/json'
         self.status_code = status
         message = json.dumps(obj)
         self.send_text(message)
@@ -205,7 +200,7 @@ class HTTPResponse:
         status : int, optional
             The HTTP status code, defaults to 200 (OK)
         """
-        self.headers.setdefault('content-type', 'text/html')
+        self.headers.setdefault('Content-Type', 'text/html')
         self.message = html
         self.status_code = status
         self.send_headers()
@@ -226,10 +221,9 @@ class HTTPResponse:
             The HTTP status code, defaults to 200 (OK)
         """
         self.headers.setdefault('content-type', 'text/plain')
-        if isinstance(txt, bytes):
-            self.message = txt
-        else:
-            self.message = str(txt)
+        if not isinstance(txt, bytes):
+            txt = str(txt).encode()
+        self.message = txt
         self.status_code = status
         self.end()
 
@@ -244,8 +238,11 @@ class HTTPResponse:
         status : int, optional
             The HTTP status code, defaults to 200 (OK)
         """
-        with io.FileIO(filename) as f:
-            self.message = f.read()
+        if isinstance(filename, Path) and sys.version_info >= (3, 5):
+            self.message = filename.read_bytes()
+        else:
+            with io.FileIO(str(filename)) as f:
+                self.message = f.read()
         self.status_code = status
         self.send_headers()
         self.write()
@@ -257,11 +254,9 @@ class HTTPResponse:
     def on_send_end(self, cb):
         self._events['after_send'].append(cb)
 
-    def on_headerstrings(self, cb):
-        self._events['headerstrings'].append(cb)
-
     def send(self, *args, **kwargs):
-        return self.write(*args, **kwargs)
+        raise NotImplementedError
+        # return self.write(*args, **kwargs)
 
     @property
     def info(self):
@@ -377,13 +372,15 @@ class Headers:
                 param_val = self.de_quote(self.escape(p[1]))
                 yield param_name, param_val
 
-        quoted_iter = ('%s="%s"' % p for p in quoted_params(params.items()))
+        sorted_items = sorted(params.items())
+
+        quoted_iter = ('%s="%s"' % p for p in quoted_params(sorted_items))
         param_str = ' '.join(quoted_iter)
 
         if param_str:
             value = "%s; %s" % (value, param_str)
 
-        self[ci_key] = (key, value)
+        self._header_data[ci_key] = (key, value)
 
     def stringify(self, use_bytes=False):
         """
@@ -394,11 +391,10 @@ class Headers:
             use_bytes (bool): Returns a bytes object instead of a str.
         """
         def _str_value(value):
-            if isinstance(value, list):
-                value = (self.EOL + '\t').join((_str_value(v) for v in value))
+            if isinstance(value, (list, tuple)):
+                value = (self.EOL + '\t').join(map(_str_value, value))
             elif callable(value):
                 value = _str_value(value())
-
             return value
 
         s = self.EOL.join(("{key}: {value}".format(key=key,
