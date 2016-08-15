@@ -60,7 +60,7 @@ def test_call(static, tmpdir):
 def test_call_invalid_path(static):
     req, res = mock.Mock(), mock.Mock()
 
-    req.path = 'foo/../bar'
+    req.path = '/foo/../bar'
     static(req, res)
 
     assert not res.set_type.called
