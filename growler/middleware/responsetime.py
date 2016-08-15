@@ -7,7 +7,7 @@ process
 """
 
 import time
-
+import logging
 
 class ResponseTime:
     """
@@ -24,6 +24,7 @@ class ResponseTime:
 
     def __init__(self,
                  digits=3,
+                 log=None,
                  units='ms',
                  header="X-Response-Time",
                  suffix=True,
@@ -33,7 +34,7 @@ class ResponseTime:
 
         Parameters:
             digits (int): precision
-            log (bool): Writes the time difference to the log
+            log (Logger or None): Writes the time difference to the log
             units (str): Time units (default: milliseconds 'ms')
             header (str): Name of header to send response time as
             suffix (bool): Whether to format with
@@ -41,6 +42,7 @@ class ResponseTime:
         self.units = units
         self.header_name = header
         self.digits = digits
+        self.log = log
         self.suffix = suffix
         self.clobber_header = clobber_header
 
@@ -55,6 +57,9 @@ class ResponseTime:
             dt = self.format_timediff(time.monotonic() - start_time)
             val = "{}{}".format(dt, self.units) if self.suffix else dt
             res.set(self.header_name, val)
+
+            if self.log:
+                self.log.info("-- timer %s" % val)
 
         res.on_headers(on_header_send)
 

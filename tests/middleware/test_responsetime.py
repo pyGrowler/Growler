@@ -98,3 +98,15 @@ def test_response_set_header(req, res):
     cb()
     assert res.set.called
     assert res.set.call_args_list[0][0][0] == header
+
+
+def test_response_log_out(req, res):
+    m = mock.MagicMock()
+    rt = growler.middleware.ResponseTime(log=m)
+    rt(req, res)
+    m.assert_not_called()
+    cb = res.on_headers.call_args_list[0][0][0]
+    cb()
+    # print(m.mock_calls)
+    assert m.info.called
+    assert isinstance(m.info.call_args_list[0][0][0], str)
