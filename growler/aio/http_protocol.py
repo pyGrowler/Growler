@@ -34,7 +34,7 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
     client_query = None
     client_headers = None
 
-    def __init__(self, app):
+    def __init__(self, app, loop=None):
         """
         Construct a GrowlerHTTPProtocol object. This should only be called from
         a growler.HTTPServer instance (or any asyncio.create_server function).
@@ -47,7 +47,7 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
             handle_client_request coroutine method should work.
         """
         self.http_application = app
-        super().__init__(loop=app.loop,
+        super().__init__(loop=loop,
                          responder_factory=self.http_responder_factory)
 
     @staticmethod
@@ -131,3 +131,13 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
             "{contents}")).format(**header_info)
 
         self.transport.write(response.encode())
+
+    def begin_application(self, req, res):
+        """
+        Entry point for the application middleware chain for an asyncio
+        event loop.
+        """
+        # Add the middleware processing to the event loop - this *should*
+        # change the call stack so any server errors do not link back to this
+        # function
+        self.loop.create_task(self.http_application.handle_client_request(req, res))
