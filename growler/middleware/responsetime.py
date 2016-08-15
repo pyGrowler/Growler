@@ -61,7 +61,7 @@ class ResponseTime:
             if self.log:
                 self.log.info("-- timer %s" % val)
 
-        res.on_headers(on_header_send)
+        res.events.on('before_headers', on_header_send)
 
     def format_timediff(self, td):
         factor = self.UNIT_TO_FACTOR_MAP[self.units]

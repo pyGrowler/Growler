@@ -148,3 +148,11 @@ class Events:
                 yield from cb
             else:
                 cb()
+
+    def sync_emit(self, name):
+        """
+        Add a callback to the event named 'name'.
+        Returns this object for chained 'on' calls.
+        """
+        for cb in self._event_list[name]:
+            cb()

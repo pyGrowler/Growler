@@ -40,8 +40,8 @@ def test_units_responsetime_format():
 
 def test_response(rt, req, res):
     rt(req, res)
-    assert res.on_headers.called
-    cb = res.on_headers.call_args_list[0][0][0]
+    assert res.events.on.called
+    cb = res.events.on.call_args_list[0][0][1]
 
     assert not res.set.called
     cb()
@@ -55,8 +55,8 @@ def test_response_noclobber(rt, req, res):
     res.headers = ['X-Response-Time']
     rt.clobber_header = False
     rt(req, res)
-    assert res.on_headers.called
-    cb = res.on_headers.call_args_list[0][0][0]
+    assert res.events.on.called
+    cb = res.events.on.call_args_list[0][0][1]
 
     assert not res.set.called
     cb()
@@ -67,8 +67,8 @@ def test_response_clobber(rt, req, res):
     res.headers = ['X-Response-Time']
     rt.clobber_header = True
     rt(req, res)
-    assert res.on_headers.called
-    cb = res.on_headers.call_args_list[0][0][0]
+    assert res.events.on.called
+    cb = res.events.on.call_args_list[0][0][1]
 
     assert not res.set.called
     cb()
@@ -79,8 +79,8 @@ def test_response_nosuffix(rt, req, res):
     rt.suffix = False
     rt.clobber_header = False
     rt(req, res)
-    assert res.on_headers.called
-    cb = res.on_headers.call_args_list[0][0][0]
+    assert res.events.on.called
+    cb = res.events.on.call_args_list[0][0][1]
 
     assert not res.set.called
     cb()
@@ -92,8 +92,8 @@ def test_response_set_header(req, res):
     header = 'Fooo'
     rt = growler.middleware.ResponseTime(header=header)
     rt(req, res)
-    assert res.on_headers.called
-    cb = res.on_headers.call_args_list[0][0][0]
+    assert res.events.on.called
+    cb = res.events.on.call_args_list[0][0][1]
     assert not res.set.called
     cb()
     assert res.set.called
@@ -105,7 +105,7 @@ def test_response_log_out(req, res):
     rt = growler.middleware.ResponseTime(log=m)
     rt(req, res)
     m.assert_not_called()
-    cb = res.on_headers.call_args_list[0][0][0]
+    cb = res.events.on.call_args_list[0][0][1]
     cb()
     # print(m.mock_calls)
     assert m.info.called

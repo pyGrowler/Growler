@@ -29,10 +29,7 @@ import types
 import asyncio
 import logging
 
-from growler.utils.event_manager import (
-    event_emitter,
-    emits
-)
+from growler.utils.event_manager import Events
 from growler.http import (
     HTTPRequest,
     HTTPResponse,
@@ -58,10 +55,6 @@ class GrowlerStopIteration(StopIteration):
     pass
 
 
-@event_emitter(events=('startup',
-                       'shutdown',
-                       'connection',
-                       'error'))
 class Application:
     """
     A Growler application object. You can use a 'raw' app and modify it by
@@ -153,14 +146,7 @@ class Application:
         self.enable('x-powered-by')
         self['env'] = os.getenv('GROWLER_ENV', 'development')
 
-        self._events = {
-            'startup': [],
-            'connection': [],
-            'headers': [],
-            'error': [],
-            'http_error': [],
-        }
-
+        self.events = Events()
         self.strict_router_check = False
 
         self._request_class = request_class
