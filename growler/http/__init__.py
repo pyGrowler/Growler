@@ -14,7 +14,7 @@ from .parser import Parser
 from .methods import HTTPMethod
 from .request import HTTPRequest
 from .response import HTTPResponse
-from .protocol import GrowlerHTTPProtocol
+from ..aio.http_protocol import GrowlerHTTPProtocol
 from .errors import __all__ as http_errors
 try:
     from http import HTTPStatus as HttpStatusPhrase

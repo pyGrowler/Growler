@@ -6,7 +6,7 @@ Code containing Growler's asyncio.Protocol code for handling HTTP requests.
 """
 import traceback
 from sys import stderr
-from growler.protocol import GrowlerProtocol
+from .protocol import GrowlerProtocol
 from growler.http.responder import GrowlerHTTPResponder
 from growler.http.response import HTTPResponse
 from growler.http.errors import (

@@ -7,7 +7,7 @@ Useful functions for all tests
 
 import asyncio
 import pytest
-from growler.http.protocol import GrowlerHTTPProtocol
+from growler.aio.http_protocol import GrowlerHTTPProtocol
 import growler
 
 

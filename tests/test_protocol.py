@@ -3,6 +3,7 @@
 #
 
 import growler
+from growler.aio import GrowlerProtocol
 
 import pytest
 import asyncio
@@ -13,7 +14,7 @@ from mocks import *
 
 @pytest.fixture
 def MockGrowlerProtocol():
-    return mock.create_autospec(growler.protocol.GrowlerProtocol)
+    return mock.create_autospec(GrowlerProtocol)
 
 
 @pytest.fixture
@@ -30,7 +31,7 @@ def m_make_responder(mock_responder):
 
 @pytest.fixture
 def proto(mock_event_loop, m_make_responder):
-    return growler.protocol.GrowlerProtocol(mock_event_loop, m_make_responder)
+    return GrowlerProtocol(mock_event_loop, m_make_responder)
 
 
 @pytest.fixture
@@ -44,7 +45,7 @@ def test_mock_protocol(MockGrowlerProtocol):
 
 
 def test_constructor(mock_event_loop):
-    proto = growler.protocol.GrowlerProtocol(mock_event_loop, mock_responder)
+    proto = GrowlerProtocol(mock_event_loop, mock_responder)
 
     assert isinstance(proto, asyncio.Protocol)
     assert proto.loop is mock_event_loop
@@ -99,12 +100,12 @@ def test_on_data_error(listening_proto, mock_responder):
 
 
 def test_factory():
-    proto = growler.protocol.GrowlerProtocol.factory(None, None)
-    assert isinstance(proto, growler.protocol.GrowlerProtocol)
+    proto = growler.GrowlerProtocol.factory(None, None)
+    assert isinstance(proto, GrowlerProtocol)
 
 
 def test_get_factory():
-    factory = growler.protocol.GrowlerProtocol.get_factory(None, None)
+    factory = growler.GrowlerProtocol.get_factory(None, None)
     assert callable(factory)
     proto = factory()
-    assert isinstance(proto, growler.protocol.GrowlerProtocol)
+    assert isinstance(proto, GrowlerProtocol)

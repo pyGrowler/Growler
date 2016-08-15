@@ -34,13 +34,13 @@ from .__meta__ import (
 
 import growler.application
 import growler.router
-import growler.protocol
+import growler.aio.protocol
 import growler.middleware_chain
 import growler.middleware
 
 App = growler.application.Application
 Router = growler.router.Router
-GrowlerProtocol = growler.protocol.GrowlerProtocol
+GrowlerProtocol = growler.aio.protocol.GrowlerProtocol
 MiddlewareChain = growler.middleware_chain.MiddlewareChain
 
 __all__ = [

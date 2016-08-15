@@ -6,6 +6,7 @@ import pytest
 import asyncio
 import growler
 from growler.http.request import HTTPRequest
+from growler.aio.http_protocol import GrowlerHTTPProtocol
 from collections import namedtuple
 from unittest import mock
 from urllib.parse import (
@@ -21,7 +22,7 @@ from mock_classes import (
 
 @pytest.fixture
 def mock_protocol(event_loop):
-    proto = mock.MagicMock(spec=growler.http.protocol.GrowlerHTTPProtocol)
+    proto = mock.MagicMock(spec=GrowlerHTTPProtocol)
     proto.loop = event_loop
     return proto
 
