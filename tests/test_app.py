@@ -6,7 +6,6 @@ import re
 import sys
 import types
 import pytest
-import asyncio
 import growler
 import growler.application
 
@@ -74,7 +73,6 @@ def app(app_name, mock_MiddlewareChain, use_mock_middlewarechain, mock_event_loo
 
     mw_chain = (lambda: mock_MiddlewareChain) if use_mock_middlewarechain else growler.MiddlewareChain
     result = growler.application.Application(app_name,
-                                             loop=mock_event_loop,
                                              request_class=MockRequest,
                                              response_class=MockResponse,
                                              middleware_chain_factory=mw_chain,
@@ -95,10 +93,9 @@ def test_application_constructor():
 
 
 @pytest.mark.parametrize("use_mock_middlewarechain", [True])
-def test_app_fixture(app, app_name, mock_MiddlewareChain, mock_event_loop, MockProtocol):
+def test_app_fixture(app, app_name, mock_MiddlewareChain, MockProtocol):
     assert isinstance(app, growler.application.Application)
     assert app.middleware is mock_MiddlewareChain
-    assert app.loop is mock_event_loop
     assert app._protocol_factory is MockProtocol
     assert app._request_class is MockRequest
     assert app._response_class is MockResponse
@@ -223,32 +220,32 @@ def test_use_growler_router_metaclass(app, mock_route_generator):
     assert mrouter.get_b == router.mw_list[2].func
 
 
-def test_create_server(app):
+def test_create_server(app, mock_event_loop):
     """ Test if the application creates a server coroutine """
     app._protocol_factory = mock.Mock()
-    app.create_server()
-    assert app.loop.create_server.called
+    app.create_server(loop=mock_event_loop)
+    assert mock_event_loop.create_server.called
     assert app._protocol_factory.called
 
 
-def test_create_server_as_coroutine(app):
+def test_create_server_as_coroutine(app, mock_event_loop):
     """ Test if the application creates a server coroutine """
     app._protocol_factory = mock.Mock()
-    app.create_server(gen_coroutine=True)
-    assert app.loop.create_server.called
+    app.create_server(gen_coroutine=True, loop=mock_event_loop)
+    assert mock_event_loop.create_server.called
     assert app._protocol_factory.called
 
 
-def test_create_server_and_run_forever(app):
-    app.create_server_and_run_forever()
-    assert app.loop.create_server.called
-    assert app.loop.run_forever.called
+def test_create_server_and_run_forever(app, mock_event_loop):
+    app.create_server_and_run_forever(loop=mock_event_loop)
+    assert mock_event_loop.create_server.called
+    assert mock_event_loop.run_forever.called
 
 
-def test_create_server_and_run_forever_args(app):
-    app.create_server_and_run_forever(arg1='arg1', arg2='arg2')
-    assert app.loop.create_server.called
-    assert app.loop.run_forever.called
+def test_create_server_and_run_forever_args(app, mock_event_loop):
+    app.create_server_and_run_forever(loop=mock_event_loop, arg1='arg1', arg2='arg2')
+    assert mock_event_loop.create_server.called
+    assert mock_event_loop.run_forever.called
 
 #
 # @pytest.mark.parametrize("method", [
@@ -325,7 +322,7 @@ def test_set_get_del_in_config_item(app):
 
 
 @pytest.mark.asyncio
-def test_default_error_handler_gets_called(app, req, res):
+async def test_default_error_handler_gets_called(app, req, res):
 
     ex = Exception("boom")
     m_handler = app.default_error_handler = mock.MagicMock()
@@ -334,9 +331,10 @@ def test_default_error_handler_gets_called(app, req, res):
         raise ex
 
     app.print_middleware_tree()
-    yield from app.handle_client_request(req, res)
+    await app.handle_client_request(req, res)
     assert m_handler.called
     m_handler.assert_called_with(req, res, ex)
+
 
 def test_default_error_handler_sends_res(app, req, res):
     ex = Exception("boom")
@@ -345,42 +343,41 @@ def test_default_error_handler_sends_res(app, req, res):
 
 
 @pytest.mark.asyncio
-def test_handle_client_request_coro(app, req, res):
+async def test_handle_client_request_coro(app, req, res):
     m = mock.Mock()
-    coro = asyncio.coroutine(lambda req, res: m())
+    coro = types.coroutine(lambda req, res: m())
     app.use(coro)
-    yield from app.handle_client_request(req, res)
+    await app.handle_client_request(req, res)
     assert m.called
 
 
 @pytest.mark.asyncio
-def test_handle_client_request_ex(app, req, res, mock_route_generator):
+async def test_handle_client_request_exception(app, req, res, mock_route_generator):
     generator = mock.MagicMock()
     handler = mock.MagicMock()
     middleware = mock.Mock(return_value=generator)
     app.middleware = middleware
-    app.handle_server_error = handler
+
+    async def handle_server_err(*args):
+        handler(*args)
+
+    app.handle_server_error = handle_server_err
 
     ex = Exception("boom")
     m1 = mock_route_generator()
     m1.side_effect = ex
 
-    # python3.4/mock bug
-    if sys.version_info < (3, 5):
-        def do_exception(req, res): raise ex
-        m1.side_effect = do_exception
-
     generator.__iter__.return_value = [m1]
 
-    yield from app.handle_client_request(req, res)
+    await app.handle_client_request(req, res)
 
     assert generator.throw.called
-    assert len(handler.mock_calls) is 2
+    assert len(handler.mock_calls) is 1
     handler.assert_called_with(req, res, generator, ex)
-    handler.__call__().__iter__.assert_called_with()
+
 
 @pytest.mark.asyncio
-def test_handle_client_request_nosend(app, req, res, mock_route_generator):
+async def test_handle_client_request_nosend(app, req, res, mock_route_generator):
     res.has_ended = False
 
     generator = mock.MagicMock()
@@ -388,7 +385,7 @@ def test_handle_client_request_nosend(app, req, res, mock_route_generator):
     middleware = mock.Mock(return_value=generator)
     app.middleware = middleware
 
-    yield from app.handle_client_request(req, res)
+    await app.handle_client_request(req, res)
     assert res.send_html.called
 
 
@@ -397,15 +394,15 @@ def test_handle_client_request_nosend(app, req, res, mock_route_generator):
     ('/', [], True),
     # ('/aaa', [], False),
 ])
-def test_handle_client_request_get(app, req, res, middlewares, called, mock_route_generator):
+async def test_handle_client_request_get(app, req, res, middlewares, called, mock_route_generator):
     m1 = mock_route_generator()
     app.use(m1)
-    yield from app.handle_client_request(req, res)
+    await app.handle_client_request(req, res)
     assert m1.called is called
 
 
 @pytest.mark.asyncio
-def test_middleware_stops_with_stop_iteration(app, req, res):
+async def test_middleware_stops_with_stop_iteration(app, req, res):
     def do_something(req, res):
         return None
 
@@ -422,13 +419,13 @@ def test_middleware_stops_with_stop_iteration(app, req, res):
     app.use(m1)
     app.use(m2)
 
-    yield from app.handle_client_request(req, res)
+    await app.handle_client_request(req, res)
 
     assert not m2.called
 
 
 @pytest.mark.asyncio
-def test_middleware_stops_with_res(app, req, res):
+async def test_middleware_stops_with_res(app, req, res):
     res.has_ended = False
 
     def set_has_ended(Q, S):
@@ -455,7 +452,7 @@ def test_middleware_stops_with_res(app, req, res):
     app.use(m2)
     app.use(m3)
 
-    yield from app.handle_client_request(req, res)
+    await app.handle_client_request(req, res)
 
     assert m1.called
     assert m2.called
@@ -463,7 +460,7 @@ def test_middleware_stops_with_res(app, req, res):
 
 
 @pytest.mark.asyncio
-def test_handle_server_error(app, req, res):
+async def test_handle_server_error(app, req, res):
     m1 = mock.create_autospec(lambda rq, rs, er: None)
     m2 = mock.create_autospec(lambda rq, rs, er: None)
     def set_has_ended(Q, S, E):
@@ -474,13 +471,13 @@ def test_handle_server_error(app, req, res):
     generator.__iter__.return_value = [m1, m2]
     err = mock.MagicMock()
 
-    yield from app.handle_server_error(req, res, generator, err)
+    await app.handle_server_error(req, res, generator, err)
     assert m1.called
     assert not m2.called
 
 
 @pytest.mark.asyncio
-def test_handle_server_error_sends_status_500(app, req, res):
+async def test_handle_server_error_sends_status_500(app, req, res):
     ex = Exception("Boom!")
     gen = mock.MagicMock()
 
@@ -489,7 +486,7 @@ def test_handle_server_error_sends_status_500(app, req, res):
         gen(rq, rs)
         raise ex
 
-    yield from app.handle_client_request(req, res)
+    await app.handle_client_request(req, res)
     gen.assert_called_once_with(req, res)
     args = res.send_html.call_args[0]
     assert args[1] == 500
@@ -503,20 +500,20 @@ def test_handle_server_error_sends_status_500(app, req, res):
     (Application.error_recursion_max_depth, False),
     (Application.error_recursion_max_depth+2, False),
 ])
-def test_handle_server_error_max_depth(app, req, res, count, passes):
+async def test_handle_server_error_max_depth(app, req, res, count, passes):
     generator = mock.MagicMock()
     generator.__iter__.return_value = []
     err = mock.MagicMock()
 
     if passes:
-        yield from app.handle_server_error(req, res, generator, err, count)
+        await app.handle_server_error(req, res, generator, err, count)
     else:
         with pytest.raises(Exception):
-            yield from app.handle_server_error(req, res, generator, err, count)
+            await app.handle_server_error(req, res, generator, err, count)
 
 
 @pytest.mark.asyncio
-def test_handle_server_error_in_error(app, req, res):
+async def test_handle_server_error_in_error(app, req, res):
     generator = mock.MagicMock()
     m1 = mock.create_autospec(lambda rq, rs, er: None)
     m2 = mock.create_autospec(lambda rq, rs, er: None)
@@ -531,14 +528,14 @@ def test_handle_server_error_in_error(app, req, res):
     generator.__iter__.return_value = [m1, m2]
     err = mock.MagicMock()
 
-    yield from app.handle_server_error(req, res, generator, err)
+    await app.handle_server_error(req, res, generator, err)
 
     assert m1.called
     assert not m2.called
 
 
 @pytest.mark.asyncio
-def test_response_not_sent(app, req, res):
+async def test_response_not_sent(app, req, res):
     req.method = 0b000001
     req.path = '/'
     res.has_ended = False
@@ -551,7 +548,7 @@ def test_response_not_sent(app, req, res):
     bar = mock.Mock(_is_coroutine=False, side_effect=send_req)
     app.get("/bar", bar)
     app.handle_response_not_sent = mock.Mock()
-    yield from app.handle_client_request(req, res)
+    await app.handle_client_request(req, res)
     foo.assert_not_called
     bar.assert_not_called
     app.handle_response_not_sent.assert_called_with(req, res)

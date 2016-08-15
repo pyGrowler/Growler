@@ -26,7 +26,7 @@ a class to modify the behavior of the app. (decorators explained elsewhere)
 import os
 import sys
 import types
-import asyncio
+import inspect
 import logging
 
 from growler.utils.event_manager import Events
@@ -89,7 +89,6 @@ class Application:
 
     def __init__(self,
                  name=__name__,
-                 loop=None,
                  debug=True,
                  request_class=HTTPRequest,
                  response_class=HTTPResponse,
@@ -102,7 +101,6 @@ class Application:
 
         Args:
             name (str): Does nothing right now except identify object
-            loop (asyncio.AbstractEventLoop): The event loop to run on
             debug (bool): (de)Activates the loop's debug setting
 
             request_class (type or callable): The factory of request objects, the default of
@@ -135,11 +133,7 @@ class Application:
                 app['val'] #=> VALUE
         """
         self.name = name
-
         self.config = kw
-
-        self.loop = asyncio.get_event_loop() if (loop is None) else loop
-        self.loop.set_debug(debug)
 
         self.middleware = middleware_chain_factory()
 
@@ -330,8 +324,7 @@ class Application:
             and mw.path is MiddlewareChain.ROOT_PATTERN
         )
 
-    @asyncio.coroutine
-    def handle_client_request(self, req, res):
+    async def handle_client_request(self, req, res):
         """
         Entry point for the request + response middleware chain. This is called
         by growler.HTTPResponder (the default responder) after the headers have
@@ -368,8 +361,8 @@ class Application:
 
             # try calling the function
             try:
-                if asyncio.iscoroutinefunction(mw):
-                    yield from mw(req, res)
+                if inspect.iscoroutinefunction(mw):
+                    await mw(req, res)
                 else:
                     mw(req, res)
 
@@ -381,7 +374,7 @@ class Application:
             # on an unhandled exception - notify the generator of the error
             except Exception as error:
                 mw_generator.throw(error)
-                yield from self.handle_server_error(req, res, mw_generator, error)
+                await self.handle_server_error(req, res, mw_generator, error)
                 return
 
             if res.has_ended:
@@ -394,8 +387,7 @@ class Application:
         if not res.has_ended:
             self.handle_response_not_sent(req, res)
 
-    @asyncio.coroutine
-    def handle_server_error(self, req, res, mw_generator, error, err_count=0):
+    async def handle_server_error(self, req, res, mw_generator, error, err_count=0):
         """
         Entry point for handling an exception that occured during execution of
         the middleware chain. If an
@@ -419,12 +411,12 @@ class Application:
 
         for mw in mw_generator:
             try:
-                if asyncio.iscoroutinefunction(mw):
-                    yield from mw(req, res, error)
+                if inspect.iscoroutinefunction(mw):
+                    await mw(req, res, error)
                 else:
                     mw(req, res, error)
             except Exception as new_error:
-                yield from self.handle_server_error(
+                await self.handle_server_error(
                     req,
                     res,
                     mw_generator,
@@ -574,7 +566,7 @@ class Application:
     # Helper Functions for easy server creation
     #
 
-    def create_server(self, gen_coroutine=False, **server_config):
+    def create_server(self, gen_coroutine=False, loop=None, **server_config):
         """
         Helper function which constructs a listening server, using the default
         growler.http.protocol.Protocol which responds to this app.
@@ -584,7 +576,7 @@ class Application:
 
         Args:
             gen_coroutine (bool): If True, this function only returns the
-                coroutine generator returned by self.loop.create_server, else
+                coroutine generator returned by loop.create_server, else
                 it will 'run_until_complete' the generator and return the
                 created server object.
 
@@ -601,7 +593,11 @@ class Application:
                 asyncio.Server from the provided configuration parameters. This
                 is returned if gen_coroutine is True.
         """
-        create_server = self.loop.create_server(
+        if loop is None:
+            import asyncio
+            loop = asyncio.get_event_loop()
+
+        create_server = loop.create_server(
             self._protocol_factory(self),
             **server_config
         )
@@ -609,9 +605,9 @@ class Application:
         if gen_coroutine:
             return create_server
         else:
-            return self.loop.run_until_complete(create_server)
+            return loop.run_until_complete(create_server)
 
-    def create_server_and_run_forever(self, **server_config):
+    def create_server_and_run_forever(self, loop=None, **server_config):
         """
         Helper function which constructs an HTTP server and listens the loop
         forever.
@@ -620,12 +616,18 @@ class Application:
         growler app.
 
         Args:
+            loop (asyncio.BaseEventLoop): optional parameter for specifying
+                an event loop which will handle socket setup.
             **server_config: These keyword arguments are forwarded directly to
                 the BaseEventLoop.create_server function. Consult their
                 documentation for details.
         """
-        self.create_server(**server_config)
+        if loop is None:
+            import asyncio
+            loop = asyncio.get_event_loop()
+
+        self.create_server(loop=loop, **server_config)
         try:
-            self.loop.run_forever()
+            loop.run_forever()
         except KeyboardInterrupt:
             pass
