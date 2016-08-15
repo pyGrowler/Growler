@@ -36,8 +36,11 @@ methods are implemented as expected.
 
 import uuid
 import asyncio
+import logging
+from abc import abstractmethod
 from collections.abc import MutableMapping
 
+logger = logging.getLogger(__name__)
 
 class Session(MutableMapping):
     """
@@ -108,9 +111,7 @@ class Session(MutableMapping):
 
 class SessionStorage:
 
-    def __init__(self, **kwargs):
-        print("[SessionStorage]")
-
+    @abstractmethod
     def save(self, sess):
         raise NotImplementedError
 
@@ -121,13 +122,15 @@ class DefaultSessionStorage(SessionStorage):
     all sessions ids and variables. The application must use a cookie parser
     (for example, growler.middleware.CookieParser()) BEFORE using the
     DefaultSessionStorage.
-    .. code: python
-        app.use(CookieParser())
-        app.use(DefaultSessionStorage())
+
+    >>> app.use(CookieParser())
+    >>> app.use(DefaultSessionStorage())
     """
+
     def __init__(self, session_id_name='qid'):
         """
-
+        Construct a session storage object using the parameter as the
+        unique session key.
         """
         super().__init__()
         self.session_id_name = session_id_name
@@ -135,8 +138,8 @@ class DefaultSessionStorage(SessionStorage):
 
     def __call__(self, req, res):
         """
-        The middleware action. Adds a session member to the req object and the
-        session id to the response object.
+        The middleware action. Adds a session member to the req object
+        and the session id to the response object.
         """
         qid = self.session_id_name
         try:
@@ -146,11 +149,11 @@ class DefaultSessionStorage(SessionStorage):
 
         res.cookies[qid] = sid
 
-        print("[DefaultSessionStorage] ", sid)
+        logger.debug("[DefaultSessionStorage] %s" % sid)
         if sid not in self._sessions:
             self._sessions[sid] = {'id': sid}
         req.session = Session(self, self._sessions[sid])
 
     def save(self, sess):
-        # print ("[DefaultSessionStorage::save] saving", sess.id)
+        logger.debug("[DefaultSessionStorage::save] saving %s" % sess.id)
         self._sessions[sess.id] = sess._data
