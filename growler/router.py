@@ -189,6 +189,30 @@ class RouterMeta(type):
         return child_class
 
 
+def _find_routeable_attributes(obj, keys):
+    """
+    From the set of provided `keys`, this function yields the attributes
+    of `obj` that fulfill the requirements of 'routeable':
+    * callable
+    * matched by ROUTABLE_NAME_REGEX
+    * has docstring
+
+    """
+    for attr in keys:
+        matches = ROUTABLE_NAME_REGEX.match(attr)
+        if matches is None:
+            continue
+        try:
+            val = getattr(obj, attr)
+        except AttributeError:
+            continue
+
+        if not callable(val) or val.__doc__ is None:
+            continue
+
+        yield val, matches.group(1).upper()
+
+
 def get_routing_attributes(obj, modify_doc=False, keys=None):
     """
     Loops through the provided object (using the dir() function) and finds any
@@ -204,32 +228,21 @@ def get_routing_attributes(obj, modify_doc=False, keys=None):
     if keys is None:
         keys = dir(obj)
 
-    for attr in keys:
-        matches = ROUTABLE_NAME_REGEX.match(attr)
-        if matches is None:
-            continue
+    for val, name in _find_routeable_attributes(obj, keys):
 
-        try:
-            val = getattr(obj, attr)
-            if not callable(val):
-                continue
-
-            split_doc = val.__doc__.split(maxsplit=1) or ('', '')
-        except AttributeError:
-            continue
-
-        path = split_doc[0]
+        path, *doc = val.__doc__.split(maxsplit=1) or ('', '')
 
         if not path:
             continue
 
         if modify_doc:
             try:
-                val.__doc__ = split_doc[1]
+                val.__doc__ = ''.join(doc)
             except IndexError:
                 val.__doc__ = ''
 
-        method = StringToHTTPMethod[matches.group(1).upper()]
+        method = StringToHTTPMethod[name]
+
         yield method, path, val
 
 
