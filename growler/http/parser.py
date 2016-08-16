@@ -109,21 +109,18 @@ class Parser:
                 parser.headers) and should no longer be sent any data.
         """
         # first, find first EOL (i.e. get request line)
-        yield from self._determine_eol_token()
+        yield from self._receive_eol_token()
 
         # split the request line and headers (modifies buffer)
-        req_line, header_lines = self._split_req_headers()
-
-        # save raw_request_line (as str)
-        self._store_request_line(req_line)
+        yield from self._parse_and_store_req_line(self.EOL_TOKEN)
 
         # completes when all headers have been processed and stored
-        yield from self._parse_and_store_headers(header_lines)
+        yield from self._parse_and_store_headers()
 
         # we send back the rest of the body
         yield self._buffer
 
-    def _determine_eol_token(self):
+    def _receive_eol_token(self):
         """
         A simple coroutine that is sent data until the first end of line
         (EOL) token is found. This sets the EOL_TOKEN member of the parser
@@ -136,26 +133,17 @@ class Parser:
                 raise HTTPErrorBadRequest("Max request length exceeded")
             self.EOL_TOKEN = self.determine_newline(self._buffer)
 
-    def _split_req_headers(self):
+    def _parse_and_store_req_line(self, eol):
         """
-        Splits the buffer from the
         """
-        # attempt to separate header from body
-        headers, sep, self._buffer = self._buffer.partition(self.EOL_TOKEN * 2)
+        yield from self._receive_eol_token()
+        req_line, _, self._buffer = self._buffer.partition(eol)
+        # req_line, header_lines = self._split_req_headers()
+        # save raw_request_line (as str)
+        self._store_request_line(req_line)
+        # return; yield
 
-        # split request line from header lines
-        req_line, *header_lines = headers.split(self.EOL_TOKEN)
-
-        if sep:
-            # full header separation - signify end of header_lines by
-            # pushing empty bytes
-            header_lines.append(b'')
-        else:
-            # incomplete separation - move last header back to buffer
-            self._buffer += header_lines.pop(-1)
-        return req_line, header_lines
-
-    def _parse_and_store_headers(self, header_lines):
+    def _parse_and_store_headers(self):
         """
         Coroutine used retrieve header data and parse each header until
         the body is found.
@@ -163,78 +151,80 @@ class Parser:
 
         HEADER_END = self.EOL_TOKEN * 2
 
-        header_parser = self._header_parser_lines()
-        header_parser.send(None)
+        header_storage = self._store_header()
+        header_storage.send(None)
+        headers = []
 
-        # loop through sent headers
-        if len(header_lines):
-            for hkey, hval in header_parser.send(header_lines):
-                # we have finished the headers
-                if hkey is None:
-                    self._buffer = self.EOL_TOKEN.join(hval) + self._buffer
-                    return
-                self.headers[hkey] = hval
-
-        # loop until finished
-        while True:
-            # get next batch of data
-            self._buffer += yield
-            # split at end of headers
-            headers, sep, self._buffer = self._buffer.partition(HEADER_END)
-            if not sep:
-                self._buffer = headers
+        for header_line in self._next_header_line():
+            if header_line is None:
+                self._buffer += yield
                 continue
-            header_lines = (headers + sep).split(self.EOL_TOKEN)
+            else:
+                header_storage.send(header_line)
 
-            for hkey, hval in header_parser.send(header_lines):
-                # we have finished the headers
-                if hkey is None:
-                    self._buffer = self.EOL_TOKEN.join(hval) + self._buffer
-                    return
-                self.headers[hkey] = hval
+        self.headers = header_storage.send(None)
 
-    def _header_parser_lines(self):
+    def _store_header(self):
         """
-        Same behavior as _header_parser, but accepts a list of lines,
-        rather than one line at a time.
+        Logic & state behind storing headers. This is a coroutine that
+        should be sent header lines in the usual fashion. Sending it
+        None will indicate there are no more lines, and the dictionary
+        of headers will be returned.
         """
+        key, value = None, None
+        headers = []
+        header_line = yield
+        while header_line is not None:
+            if not header_line.startswith((b' ', b'\t')):
+                if key:
+                    headers.append((key, value))
+                key, value = self.split_header_key_value(header_line)
+                key = key.upper()
+            else:
+                next_val = header_line.strip().decode()
+                if isinstance(value, list):
+                    value.append(next_val)
+                else:
+                    value = [value, next_val]
+            header_line = yield
 
-        outgoing_list, lines = [], []
+        if key is not None:
+            headers.append((key, value))
 
-        # init loop - get sent a non-empty list of lines
-        while len(lines) == 0:
-            lines = yield outgoing_list
+        yield dict(headers)
 
-        line = lines.pop(0)
 
-        while line != b'':
+    def _next_header_line(self):
+        """
+        Non-destructive buffer processor returning all lines (defined
+        by self.EOL_TOKEN) in self._buffer. If end of buffer is reached,
+        None is yielded and it is expected that more bytes will be
+        appended to the buffer by the caller.
 
-            # get key-value from line
-            key, value = self.header_key_value(line)
-            key = key.upper()
+        Upon finding an empty header, this method trims the buffer to
+        the start of the body
+        """
+        eol = self.EOL_TOKEN
+        eol_length = len(eol)
+        start = 0
+        end = self._buffer.find(eol)
 
-            # ensure there is a following line
-            while len(lines) == 0:
-                lines = yield outgoing_list
-                outgoing_list = []
+        # if start == end, foudn empty header - stop iterating
+        while start != end:
 
-            # if next line is a continuation - do stuff
-            if lines[0].startswith((b' ', b'\t')):
-                value = [value]
-                while lines[0].startswith((b' ', b'\t')):
-                    value += [lines.pop(0).strip().decode()]
+            # end of line was found
+            if end != -1:
+                yield self._buffer[start:end]
+                start = end + eol_length
+            # end of line was not found - request more buffer data
+            else:
+                yield None
 
-                    while len(lines) == 0:
-                        lines = yield outgoing_list
-                        outgoing_list = []
+            # find next end of line
+            end = self._buffer.find(eol, start)
 
-            # at this point we know next line is NOT continuation line, so we
-            # can add key/value to next result
-            outgoing_list.append((key, value))
-            line = lines.pop(0)
-
-        outgoing_list.append((None, lines))
-        yield outgoing_list
+        # trim buffer
+        del self._buffer[:end + eol_length]
 
     def _store_request_line(self, req_line):
         """
@@ -322,7 +312,7 @@ class Parser:
 
         return b'\r\n' if (prev_char is b'\r'[0]) else b'\n'
 
-    def header_key_value(self, line):
+    def split_header_key_value(self, line):
         """
         Takes a byte string and attempts to decode and build a key-value
         pair for the header. Header names are checked for validity. In

@@ -110,8 +110,8 @@ def notest_consume_request_line(parser, data, method, parsed, version):
 @pytest.mark.parametrize("header_line, expected", [
     (b'the-key: one', ('the-key', 'one')),
 ])
-def test_header_key_value(parser, header_line, expected):
-    assert parser.header_key_value(header_line) == expected
+def test_split_header_key_value(parser, header_line, expected):
+    assert parser.split_header_key_value(header_line) == expected
 
 
 @pytest.mark.parametrize("header_line", [
@@ -132,7 +132,7 @@ def test_header_key_value(parser, header_line, expected):
 ])
 def test_bad_header_key_value(parser, header_line):
     with pytest.raises(HTTPErrorInvalidHeader):
-        parser.header_key_value(header_line)
+        parser.split_header_key_value(header_line)
 
 
 @pytest.mark.parametrize("fullreq, expected", [
@@ -173,22 +173,6 @@ def test_request_too_long(parser):
     req_str = b'GET /path HTTP/1.1\n\n' + b'X' * (growler.http.parser.MAX_REQUEST_LENGTH + 4)
     with pytest.raises(HTTPErrorBadRequest):
         parser.consume(req_str)
-
-
-@pytest.mark.parametrize("header_list, expected", [
-    # ([b''], [(None, b'')]),
-    ([b'a:b', b''], [('A', 'b'), (None, [])]),
-    ([b'a:b', b'x:z', b''], [('A', 'b'), ('X', 'z'), (None, [])]),
-    ([b'a:b', b' xz', b'', b'123', b'45'], [('A', ['b', 'xz']), (None, [b'123', b'45'])]),
-    ([b'a:b', b' xz', b'q:w b z ', b'', b'x'], [('A', ['b', 'xz']), ('Q', 'w b z'), (None, [b'x'])]),
-    ([b'host: nowhere.com', b'x:y', b' z', b''],  [('HOST', 'nowhere.com'), ('X', ['y', 'z']), (None, [])]),
-])
-def test_header_parser_lines(parser, header_list, expected):
-    header_parser = parser._header_parser_lines()
-    header_parser.send(None)
-    # ret = list(filter(bool, map(header_parser.send, header_list + [None])))
-    for a, b in zip_longest(header_parser.send(header_list), expected):
-        assert a == b
 
 
 @pytest.mark.parametrize("header, header_dict", [
