@@ -77,8 +77,8 @@ def test_aquire_newline_byte_by_byte(line, value, parser):
     ("GET /path HTTP/1.0", GET, '/path', '', 'HTTP/1.0'),
     ("GET /path?tst=T&q=1 HTTP/1.1", GET, '/path', 'tst=T&q=1', 'HTTP/1.1'),
 ])
-def test_parse_request_line(data, method, path, query, version, parser):
-    m, u, v = parser.parse_request_line(data)
+def test_store_request_line(data, method, path, query, version, parser):
+    m, u, v = parser._store_request_line(data)
     assert m == method
     assert u.path == path
     assert u.query == query
@@ -90,9 +90,9 @@ def test_parse_request_line(data, method, path, query, version, parser):
     ("GET /path HTTP/1.2", HTTPErrorVersionNotSupported),
     ("FOO /path HTTP/1.1", HTTPErrorNotImplemented),
 ])
-def test_bad_parse_request_line(parser, data, error_type):
+def test_bad_store_request_line(parser, data, error_type):
     with pytest.raises(error_type):
-        parser.parse_request_line(data)
+        parser._store_request_line(data)
 
 
 @pytest.mark.parametrize("data, method, parsed, version", [
@@ -289,4 +289,4 @@ def test_process_post_headers(parser, data):
 
 if __name__ == "__main__":
     test_find_newline()
-    # test_parse_request_line()
+    # test_store_request_line()

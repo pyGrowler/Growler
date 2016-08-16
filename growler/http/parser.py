@@ -46,27 +46,24 @@ class Parser:
 
     Upon finding an error the Parser will throw a 'BadHTTPRequest'
     exception.
-
-    Parameters:
-        parent (growler.HTTPResponder): The 'parent' responder which
-            will forward client data to the parser, and the parser will
-            send parsed data back to this object.
     """
+    EOL_TOKEN = None
+    HTTP_VERSION = None
 
     def __init__(self, parent):
+        """
+        Construct HTTP parser.
+
+        Parameters:
+            parent (growler.HTTPResponder): The 'parent' responder which
+                will forward client data to the parser, and the parser will
+                send parsed data back to this object.
+        """
         self.parent = parent
-        self.EOL_TOKEN = None
-        self._buffer = []
+        self._buffer = bytearray()
+
         self.encoding = 'utf-8'
-        self.HTTP_VERSION = None
-        self._header_buffer = None
         self.headers = dict()
-
-        self.needs_request_line = True
-        self.needs_headers = True
-
-        self.request_length = 0
-        self.body_buffer = None
 
         # create the parser generator 'object'
         self._http_parser = self._http_parser()
@@ -110,21 +107,41 @@ class Parser:
             bytes: The (potentially incomplete) body data. This signifies
                 the parser has completed parsing HTTP headers (stored in
                 parser.headers) and should no longer be sent any data.
-         """
-
-        buffer = bytearray()
-
+        """
         # first, find first EOL (i.e. get request line)
+        yield from self._determine_eol_token()
+
+        # split the request line and headers (modifies buffer)
+        req_line, header_lines = self._split_req_headers()
+
+        # save raw_request_line (as str)
+        self._store_request_line(req_line)
+
+        # completes when all headers have been processed and stored
+        yield from self._parse_and_store_headers(header_lines)
+
+        # we send back the rest of the body
+        yield self._buffer
+
+    def _determine_eol_token(self):
+        """
+        A simple coroutine that is sent data until the first end of line
+        (EOL) token is found. This sets the EOL_TOKEN member of the parser
+        and pushes all data into the buffer.
+        """
         while self.EOL_TOKEN is None:
-
             # use yield to have data sent to us - store in buffer
-            buffer += yield
-            if len(buffer) > MAX_REQUEST_LENGTH:
+            self._buffer += yield
+            if len(self._buffer) > MAX_REQUEST_LENGTH:
                 raise HTTPErrorBadRequest("Max request length exceeded")
-            self.EOL_TOKEN = self.determine_newline(buffer)
+            self.EOL_TOKEN = self.determine_newline(self._buffer)
 
+    def _split_req_headers(self):
+        """
+        Splits the buffer from the
+        """
         # attempt to separate header from body
-        headers, sep, buffer = buffer.partition(self.EOL_TOKEN * 2)
+        headers, sep, self._buffer = self._buffer.partition(self.EOL_TOKEN * 2)
 
         # split request line from header lines
         req_line, *header_lines = headers.split(self.EOL_TOKEN)
@@ -135,33 +152,46 @@ class Parser:
             header_lines.append(b'')
         else:
             # incomplete separation - move last header back to buffer
-            buffer = header_lines.pop(-1) + buffer
+            self._buffer += header_lines.pop(-1)
+        return req_line, header_lines
 
-        # save raw_request_line (as str)
-        try:
-            self.raw_request_line = req_line.decode()
-        except UnicodeDecodeError:
-            raise HTTPErrorBadRequest
+    def _parse_and_store_headers(self, header_lines):
+        """
+        Coroutine used retrieve header data and parse each header until
+        the body is found.
+        """
 
-        self.parse_request_line(self.raw_request_line)
+        HEADER_END = self.EOL_TOKEN * 2
 
-        # header parser is the algorithm for parsing... headers
         header_parser = self._header_parser_lines()
         header_parser.send(None)
 
-        body_data = None
-
-        while body_data is None:
-            # send header lines to header_parser generator
+        # loop through sent headers
+        if len(header_lines):
             for hkey, hval in header_parser.send(header_lines):
+                # we have finished the headers
                 if hkey is None:
-                    body_data = self.EOL_TOKEN.join(hval) + buffer
-                    break
+                    self._buffer = self.EOL_TOKEN.join(hval) + self._buffer
+                    return
                 self.headers[hkey] = hval
-            else:  # if no break
-                buffer += yield
-                *header_lines, buffer = buffer.split(self.EOL_TOKEN)
-        yield body_data
+
+        # loop until finished
+        while True:
+            # get next batch of data
+            self._buffer += yield
+            # split at end of headers
+            headers, sep, self._buffer = self._buffer.partition(HEADER_END)
+            if not sep:
+                self._buffer = headers
+                continue
+            header_lines = (headers + sep).split(self.EOL_TOKEN)
+
+            for hkey, hval in header_parser.send(header_lines):
+                # we have finished the headers
+                if hkey is None:
+                    self._buffer = self.EOL_TOKEN.join(hval) + self._buffer
+                    return
+                self.headers[hkey] = hval
 
     def _header_parser_lines(self):
         """
@@ -206,7 +236,7 @@ class Parser:
         outgoing_list.append((None, lines))
         yield outgoing_list
 
-    def parse_request_line(self, req_line):
+    def _store_request_line(self, req_line):
         """
         Splits the request line given into three components.
         Ensures that the version and method are valid for this server,
@@ -226,13 +256,19 @@ class Parser:
             HTTPErrorVersionNotSupported: If HTTP version is not
                 recognized.
         """
+        if not isinstance(req_line, str):
+            try:
+                req_line = self.raw_request_line = req_line.decode()
+            except UnicodeDecodeError:
+                raise HTTPErrorBadRequest
+
         try:
             self.method_str, self.original_url, self.version = req_line.split()
         except ValueError:
             raise HTTPErrorBadRequest()
 
         if self.version not in ('HTTP/1.1', 'HTTP/1.0'):
-            raise HTTPErrorVersionNotSupported()
+            raise HTTPErrorVersionNotSupported(self.version)
 
         # allow lowercase methodname?
         # self.method_str = self.method_str.upper()
