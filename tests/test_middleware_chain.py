@@ -22,11 +22,11 @@ def mock_chain():
     return mock.create_autospec(MiddlewareChain)
 
 
-def test_constructor(chain):
+def test_chain_fixture(chain):
     assert isinstance(chain, MiddlewareChain)
 
 
-def test_add(chain):
+def test_chain_add_middleware(chain):
     func = mock.Mock()
     chain.add(0x1, '/', func)
     assert func in chain
@@ -95,6 +95,103 @@ def test_matching_paths(chain, mw_path, req_match):
         mw.reset_mock()
 
 
+def test_chain_calls_iterate_subchain(chain):
+    mw0 = lambda x, y: None
+    mw1 = lambda x, y: None
+    mw2 = lambda x, y: None
+    chain.add(1, '/', mw0)
+    chain.add(1, '/', mw1)
+    chain.add(1, '/', mw2)
+    gen = chain(1, '/')
+    assert next(gen) is mw0
+    assert next(gen) is mw1
+    assert next(gen) is mw2
+
+
+def test_chain_calls_iterate_subchain(chain):
+    mw = lambda x, y: None
+    mw0 = lambda x, y: None
+    mw1 = lambda x, y: None
+    mw2 = lambda x, y: None
+    mw3 = lambda x, y: None
+    mock_chain0 = mock.MagicMock(spec=chain, return_value=[mw0])
+    mock_chain1 = mock.MagicMock(spec=chain, return_value=[mw2])
+    mock_chain2 = mock.MagicMock(spec=chain, return_value=[mw3])
+    chain.add(1, '/', mw)
+    chain.add(1, '/', mock_chain0)
+    chain.add(2, '/', mock_chain1)
+    chain.add(1, '/foo', mock_chain2)
+    chain.add(1, '/', mw3)
+
+    gen = chain(1, '/')
+    assert next(gen) is mw
+    assert next(gen) is mw0
+    assert next(gen) is mw3
+
+    mock_chain0.assert_called_once_with(1, '/')
+    mock_chain1.assert_not_called
+    mock_chain2.assert_not_called
+
+
+def test_chain_adds_error_handler(chain):
+    eh = lambda x, y, z: None
+    chain.add('', '/', eh)
+    last_mw = chain.mw_list[-1]
+
+    assert last_mw.func is eh
+    assert last_mw.is_errorhandler
+
+
+def test_chain_calls_error_handler(chain):
+    ex = Exception("boom")
+    e_mw = mock.MagicMock(side_effect=ex)
+
+    m = mock.MagicMock()
+    eh0 = lambda x, y, z: m(x, y, z)
+    eh1 = lambda x, y, z: m(x, y, z)
+
+    chain.add(0x1, '/', eh0)
+    chain.add(0x1, '/', eh1)
+    chain.add(0x1, '/', e_mw)
+
+    gen = chain(0x1, '/')
+    gen_mw = next(gen)
+    assert gen_mw is e_mw
+
+    gen.throw(ex)
+    err_handler = next(gen)
+    assert err_handler is eh1
+
+    err_handler = next(gen)
+    assert err_handler is eh0
+
+    with pytest.raises(StopIteration):
+        next(gen)
+
+
+def test_chain_handles_error_in_error(chain):
+
+    handler = chain.handle_error(None, [None])
+    next(handler)
+    assert handler.throw(Exception("boom")) is None
+
+
+def test_terate_subchain_handles_error(chain):
+    m = mock.MagicMock()
+    e = Exception("boom")
+
+    def sub_chain():
+        try:
+            yield m
+        except Exception as err:
+            assert err is e
+            yield
+
+    gen = chain.iterate_subchain(sub_chain())
+    assert next(gen) is m
+    gen.throw(e)
+
+
 @pytest.mark.parametrize('mw_path, req_uris', [
     ('/', ['/']),
     ('/a', ['/a/', '/a', '/a/b'],),
@@ -130,3 +227,32 @@ def test_subchain_not_matching_paths(chain, mw_path, req_uris):
             m()
         assert not mw.called, req_uri
         mw.reset_mock()
+
+
+def test_count_all(chain):
+    m = MiddlewareChain()
+    m.add(0, 0, mock.MagicMock())
+    m.add(0, 0, mock.MagicMock())
+    m.add(0, 0, mock.MagicMock())
+
+    n = MiddlewareChain()
+    n.add(0, 0, mock.MagicMock())
+    n.add(0, 0, mock.MagicMock())
+
+    chain.add(0, '/', m)
+    chain.add(0, 0, mock.MagicMock())
+    chain.add(0, 0, n)
+
+    assert chain.count_all() == 6
+
+
+def test_chain_reversed(chain):
+    # build middleware from path - add to chain
+    mw0 = mock.MagicMock() # path=mw_path, spec=MiddlewareChain())
+    mw1 = mock.MagicMock()
+    chain.add(0x1, '/', mw0)
+    chain.add(0x1, '/', mw1)
+
+    rev = reversed(chain)
+    assert next(rev).func is mw1
+    assert next(rev).func is mw0
