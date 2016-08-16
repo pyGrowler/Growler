@@ -5,6 +5,7 @@
 import sys
 import pytest
 from unittest import mock
+import growler.mw
 
 
 @pytest.fixture

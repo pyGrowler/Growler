@@ -8,6 +8,10 @@ namespace_packages keyword in their setup.py's setup() function.
 """
 
 import sys
-from growler.ext import GrowlerExtensionImporter
+import growler.ext
 
-sys.modules[__name__] = GrowlerExtensionImporter(__name__)
+importer = growler.ext.__class__()
+importer.__path__ = 'growler.mw'
+importer.__mods__ = {}
+
+sys.modules[__name__] = importer
