@@ -123,7 +123,11 @@ class Router(MiddlewareChain):
 
     @property
     def subrouters(self):
-        return tuple(mw for mw in self.mw_list if isinstance(mw.func, Router))
+        """
+        Generator of sub-routers (middleware inheriting from Router)
+        contained within this router.
+        """
+        yield from filter(lambda mw: isinstance(mw.func, Router), self.mw_list)
 
     @classmethod
     def sinatra_path_to_regex(cls, path):
@@ -210,7 +214,8 @@ def _find_routeable_attributes(obj, keys):
         if not callable(val) or val.__doc__ is None:
             continue
 
-        yield val, matches.group(1).upper()
+        method_name = matches.group(1).upper()
+        yield val, method_name
 
 
 def get_routing_attributes(obj, modify_doc=False, keys=None):
@@ -228,7 +233,7 @@ def get_routing_attributes(obj, modify_doc=False, keys=None):
     if keys is None:
         keys = dir(obj)
 
-    for val, name in _find_routeable_attributes(obj, keys):
+    for val, method_str in _find_routeable_attributes(obj, keys):
 
         path, *doc = val.__doc__.split(maxsplit=1) or ('', '')
 
@@ -236,12 +241,9 @@ def get_routing_attributes(obj, modify_doc=False, keys=None):
             continue
 
         if modify_doc:
-            try:
-                val.__doc__ = ''.join(doc)
-            except IndexError:
-                val.__doc__ = ''
+            val.__doc__ = ''.join(doc)
 
-        method = StringToHTTPMethod[name]
+        method = StringToHTTPMethod[method_str]
 
         yield method, path, val
 

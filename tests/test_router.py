@@ -258,6 +258,7 @@ def test_router_metaclass(router):
     assert new_router.first().func.__func__ is MyRouter.get_foo
     assert new_router.last().func.__func__ is MyRouter.get_bar
 
+
 @pytest.mark.parametrize("attrs", [
     [('get_a', '/a'), ('get_b', '/b')]
 ])
@@ -269,6 +270,7 @@ def test_get_routing_attributes(attrs):
         mounts.append(doc.split()[0])
     rets = tuple(i[1] for i in get_routing_attributes(m))
     assert all(a == b for a, b in zip(rets, mounts))
+
 
 @pytest.mark.parametrize("attrs", [
     [('get_a', '/a blah blah blah', '/a', 'blah blah blah'),
@@ -287,3 +289,33 @@ def test_get_routing_attributes_modify_doc(attrs):
     for a, b, c in zip(rets, paths, docs):
         assert a[1] == b
         assert a[2].__doc__ == c
+
+
+def test_property_subrouter(router):
+    subrouter = Router()
+    router.add(0, '/', subrouter)
+    subrouters = list(router.subrouters)
+    assert len(subrouters) == 1
+    assert subrouters[0].func is subrouter
+
+
+def test_find_routable_attributes(router):
+    class TestMe:
+        def get_something():
+            "/should/work"
+            pass
+        def get_nothing():
+            pass
+        get_something_else = 'not callable'
+
+    keys = [
+        'get_something', # should work
+        'get_nothing', # should not work - no docstring
+        'post_skip', # should not work - doesn't actually exist in object
+        'get_something_else', # should not work - not callable
+    ]
+
+    obj = TestMe()
+    for x, y in growler.router._find_routeable_attributes(obj, keys):
+        assert y == 'GET'
+        assert x == obj.get_something
