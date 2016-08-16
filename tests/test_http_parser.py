@@ -143,6 +143,10 @@ def test_bad_header_key_value(parser, header_line):
     (b'POST / HTTP/1.1\r\nhost: a\r\nm: a\r\n b\r\n   c\r\n\r\n',
      dict(path='/', method='/', version=('1', '1'), EOL=b'\r\n', body=b'',
           headers={'HOST': 'a', 'M': ['a', 'b', 'c']})),
+
+    (b'POST / HTTP/1.1\r\nhost: a\r\nm: a\r\n b\r\n   c\r\n\r\nThis is some body text\r\nWith newlines!!',
+     dict(path='/', method='/', version=('1', '1'), EOL=b'\r\n', body=b'This is some body text\r\nWith newlines!!',
+          headers={'HOST': 'a', 'M': ['a', 'b', 'c']})),
 ])
 def test_good_request(parser, fullreq, expected):
     body = parser.consume(fullreq)
@@ -204,6 +208,7 @@ def test_header_parser_lines(parser, header_list, expected):
 def test_good_header_all(parser, mock_responder, header, header_dict):
     parser.consume(header)
     assert parser.headers == header_dict
+
 
 @pytest.mark.timeout(3)
 @pytest.mark.parametrize("req_pieces, expected_header", [

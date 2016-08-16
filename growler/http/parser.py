@@ -25,32 +25,32 @@ MAX_REQUEST_LINE_LENGTH = 8 * 1024  # 8 KB
 
 class Parser:
     """
+    Class responsible for interpreting the reqests made by the client.
+    This is where the actual implementation of the HTTP occurs.
 
-    Class responsible for interpreting the reqests made by the client. This is
-    where the actual implementation of the HTTP occurs.
+    The parser object is created by the client's GrowlerHTTPResponder
+    upon construction. When data is passed to the responder's on_data
+    method, the consume method of the parser is called. If the data
+    does not contain the complete header, nor finishes the header,
+    consume returns None, otherwise the remaining data (the body or
+    beginning of body) is returned as encoded bytes.
 
-    The parser object is created by the client's GrowlerHTTPResponder upon
-    construction. When data is passed to the responder's on_data method, the
-    consume method of the parser is called. If the data does not contain the
-    complete header, nor finishes the header, consume returns None, otherwise
-    the remaining data (the body/beginning of body) is returned as encoded
-    bytes.
+    Most users do not need to interact with the parser. The default
+    respnoder class (GrowlerHTTPResponder) accepts a parser_factor
+    method which is called to create the parser. This should make it
+    easy to use a custom parser.
 
-    Most users do not need to interact with the parser. The default respnoder
-    class (GrowlerHTTPResponder) accepts a parser_factor method which is called
-    to create the parser. This should make it easy to use a custom parser.
+    Current implementation accepts both LF and CRLF line endings,
+    discovered while processing the first line. Each header is read in
+    one at a time, as they come in over the wire.
 
-    Current implementation accepts both LF and CRLF line endings, discovered
-    while processing the first line. Each header is read in one at a time, as
-    they come in over the wire.
+    Upon finding an error the Parser will throw a 'BadHTTPRequest'
+    exception.
 
-    Upon finding an error the Parser will throw a 'BadHTTPRequest' exception.
-
-    Parameters
-    ----------
-    parent : growler.HTTPResponder
-        The 'parent' responder which will forward client data to the parser,
-        and the parser will send parsed data back.
+    Parameters:
+        parent (growler.HTTPResponder): The 'parent' responder which
+            will forward client data to the parser, and the parser will
+            send parsed data back to this object.
     """
 
     def __init__(self, parent):
@@ -76,34 +76,41 @@ class Parser:
         """
         Consumes data provided by the responder.
 
-        If headers have finished being read in, the buffer containing the
-        avaiable body is returned (as bytes); note that the body might be
-        incomplete and more data will come in via the asynchronous transport.
+        If headers have finished being read in, the buffer containing
+        the avaiable body is returned (as bytes); note that the body
+        might be incomplete and more data will come in via the
+        asynchronous transport.
         If there is no body, the empty bytes object is returned (b'').
 
         If headers have NOT finished, None is returned.
 
-        Parameters
-        ----------
-        data : bytes
-            data to be parsed
+        Parameters:
+            data (bytes): Data to be parsed
 
-        Raises
-        ------
-        BadHTTPRequest
-            When any unexpected values are encountered in the data
+        Raises:
+            BadHTTPRequest: When any unexpected values are encountered
+                in the data
         """
         body = self._http_parser.send(data)
         return body
 
     def _http_parser(self):
         """
-        Meat of the parsing algorithm. This is a generator that data is 'sent'
-        to by the consume method. Using the generator type allows state to be
-        maintained despite not having all data. It is assumed that this is more
-        efficient than checking state (headers parsed, EOL found, etc) on every
-        consume call, but I'm not going to check this.
-        """
+        Meat of the parsing algorithm. This is a generator that data is
+        'sent' to by the consume method. Using the generator type allows
+        state to be maintained despite not having all data. It is assumed
+        that this is more efficient than checking state (headers parsed,
+        EOL found, etc) on every consume call, but I'm not going to check
+        this.
+
+        Yields:
+            None: Indicates headers have not been completed and the
+                parser is expecting more bytes to be sent to it (via
+                'send()')
+            bytes: The (potentially incomplete) body data. This signifies
+                the parser has completed parsing HTTP headers (stored in
+                parser.headers) and should no longer be sent any data.
+         """
 
         buffer = bytearray()
 
@@ -116,9 +123,19 @@ class Parser:
                 raise HTTPErrorBadRequest("Max request length exceeded")
             self.EOL_TOKEN = self.determine_newline(buffer)
 
-        # we now have the newline character - get request line + any header
-        # lines, last element remains the buffer
-        req_line, *header_lines, buffer = buffer.split(self.EOL_TOKEN)
+        # attempt to separate header from body
+        headers, sep, buffer = buffer.partition(self.EOL_TOKEN * 2)
+
+        # split request line from header lines
+        req_line, *header_lines = headers.split(self.EOL_TOKEN)
+
+        if sep:
+            # full header separation - signify end of header_lines by
+            # pushing empty bytes
+            header_lines.append(b'')
+        else:
+            # incomplete separation - move last header back to buffer
+            buffer = header_lines.pop(-1) + buffer
 
         # save raw_request_line (as str)
         try:
@@ -148,8 +165,8 @@ class Parser:
 
     def _header_parser_lines(self):
         """
-        Same behavior as _header_parser, but accepts a list of lines, rather
-        than one line at a time.
+        Same behavior as _header_parser, but accepts a list of lines,
+        rather than one line at a time.
         """
 
         outgoing_list, lines = [], []
@@ -191,28 +208,23 @@ class Parser:
 
     def parse_request_line(self, req_line):
         """
-        Splits the request line given into three components. Ensures that the
-        version and method are valid for this server, and uses the urllib.parse
-        function to parse the request URI.
+        Splits the request line given into three components.
+        Ensures that the version and method are valid for this server,
+        and uses the urllib.parse function to parse the request URI.
 
-        Note
-        ----
-        This method has the additional side effect of updating all request line
-        related attributes of the parser.
+        Note:
+            This method has the additional side effect of updating all
+            request line related attributes of the parser.
 
-        Returns
-        -------
-        request_tuple : tuple
-            Tuple containing the parsed (method, parsed_url, version)
+        Returns:
+            tuple: Tuple containing the parsed (method, parsed_url,
+                version)
 
-        Raises
-        ------
-        HTTPErrorBadRequest
-            If request line is invalid
-        HTTPErrorNotImplemented
-            If HTTP method is not recognized
-        HTTPErrorVersionNotSupported
-            If HTTP version is not recognized
+        Raises:
+            HTTPErrorBadRequest: If request line is invalid
+            HTTPErrorNotImplemented: If HTTP method is not recognized
+            HTTPErrorVersionNotSupported: If HTTP version is not
+                recognized.
         """
         try:
             self.method_str, self.original_url, self.version = req_line.split()
@@ -250,20 +262,18 @@ class Parser:
 
     @staticmethod
     def determine_newline(data):
-        r"""
+        """
         Looks for a newline character in bytestring parameter 'data'.
-        Currently only looks for strings '\r\n', '\n'. If '\n' is found at the
-        first position of the string, this raises an exception.
+        Currently only looks for strings '\r\n', '\n'. If '\n' is
+        found at the first position of the string, this raises an
+        exception.
 
-        Parameters
-        ----------
-        data : bytes
-            The data to be searched
+        Parameters:
+            data (bytes): The data to be searched
 
-        Returns
-        -------
-        None : If no-newline is found
-        One of '\n', '\r\n', whichever is found first
+        Returns:
+            None: If no-newline is found
+            One of '\n', '\r\n': whichever is found first
         """
         line_end_pos = data.find(b'\n')
 
@@ -278,10 +288,22 @@ class Parser:
 
     def header_key_value(self, line):
         """
-        Takes a byte string and attempts to decode and build a key-value pair
-        for the header. Header names are checked for validity. In the event
-        that the string can not be split on a ':' char, an
+        Takes a byte string and attempts to decode and build a key-value
+        pair for the header. Header names are checked for validity. In
+        the event that the string can not be split on a ':' char, an
         HTTPErrorInvalidHeader exception is raised.
+
+        Parameters:
+            line (bytes): header bytes which will be automatically
+                decoded and split between key + value.
+
+        Returns:
+            tuple of 2 strs: key + value
+
+        Raises:
+            HTTPErrorInvalidHeader: The string cannot be split on a ':'
+                character or the header key is an invalid HTTP header
+                name.
         """
         try:
             line = line.decode()
@@ -298,20 +320,26 @@ class Parser:
     def is_invalid_header_name(header):
         """
         Returns true if the string passes the regex checking for invalid
-        header-key characters
+        header-key characters.
+
+        Returns:
+            bool: True if header is empty or matches the module's
+                INVALID_CHAR_REGEX regex objec.
         """
         return header == '' or bool(INVALID_CHAR_REGEX.search(header))
 
     def process_get_headers(self, data):
         """
-        Called upon receiving a GET HTTP request to do specific 'GET' things to
-        the list of headers.
+        Called upon receiving a GET HTTP request to do specific 'GET'
+        things to the list of headers.
+        Currently does nothing.
         """
         pass
 
     def process_post_headers(self, data):
         """
-        Called upon receiving a POST HTTP request to do specific 'POST' things
-        to the headers.
+        Called upon receiving a POST HTTP request to do specific 'POST'
+        things to the headers.
+        Currently does nothing.
         """
         pass
