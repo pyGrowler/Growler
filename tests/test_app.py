@@ -389,7 +389,7 @@ def test_handle_client_request_nosend(app, req, res, mock_route_generator):
     app.middleware = middleware
 
     yield from app.handle_client_request(req, res)
-    assert res.send_text.called
+    assert res.send_html.called
 
 
 @pytest.mark.asyncio
@@ -461,6 +461,7 @@ def test_middleware_stops_with_res(app, req, res):
     assert m2.called
     assert not m3.called
 
+
 @pytest.mark.asyncio
 def test_handle_server_error(app, req, res):
     m1 = mock.create_autospec(lambda rq, rs, er: None)
@@ -476,6 +477,23 @@ def test_handle_server_error(app, req, res):
     yield from app.handle_server_error(req, res, generator, err)
     assert m1.called
     assert not m2.called
+
+
+@pytest.mark.asyncio
+def test_handle_server_error_sends_status_500(app, req, res):
+    ex = Exception("Boom!")
+    gen = mock.MagicMock()
+
+    @app.use
+    def raises_err(rq, rs):
+        gen(rq, rs)
+        raise ex
+
+    yield from app.handle_client_request(req, res)
+    gen.assert_called_once_with(req, res)
+    args = res.send_html.call_args[0]
+    assert args[1] == 500
+    assert '500 -' in args[0]
 
 
 @pytest.mark.asyncio

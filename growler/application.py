@@ -153,6 +153,8 @@ class Application:
         self._response_class = response_class
         self._protocol_factory = protocol_factory
 
+        self.handle_404 = self.default_404_handler
+
     #
     # Middleware adding functions
     #
@@ -443,7 +445,8 @@ class Application:
         Method called upon reaching the end of the middleware chain with no request being sent.
         Default implementation is to simply respond with a 404 error with a text message.
         """
-        res.send_text("404 - Not Found", 404)
+        # res.send_text("404 - Not Found", 404)
+        self.handle_404(req, res)
 
     def print_middleware_tree(self, *, EOL=os.linesep, **kwargs):  # noqa pragma: no cover
         """
@@ -489,13 +492,27 @@ class Application:
         print(EOL.join(lines), **kwargs)
 
     @staticmethod
-    def default_error_handler(req, res, error):
+    def default_error_handler(req, res, error:Exception):
+        from io import StringIO
+        import traceback
+
+        trace = StringIO()
+        traceback.print_exc(file=trace)
+        html = ("<html><head><title>500 - Server Error</title></head><body>"
+                "<h1>500 - Server Error</h1><hr>"
+                "<p style='font-family:monospace;'>"
+                "The server encountered an error while processing your request to %s"
+                "</p><pre>" + trace.getvalue() + "</pre></body></html")
+        res.send_html(html % req.path, 500)
+
+    @staticmethod
+    def default_404_handler(req, res, error=None):
         html = ("<html><head><title>404 - Not Found</title></head><body>"
                 "<h1>404 - Not Found</h1><hr>"
                 "<p style='font-family:monospace;'>"
                 "The page you requested: '%s', could not be found"
                 "</p></body></html")
-        res.send_html(html % req.path)
+        res.send_html(html % req.path, 404)
 
     #
     # Configuration functions
