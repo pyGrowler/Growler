@@ -501,18 +501,18 @@ class Application:
         html = ("<html><head><title>500 - Server Error</title></head><body>"
                 "<h1>500 - Server Error</h1><hr>"
                 "<p style='font-family:monospace;'>"
-                "The server encountered an error while processing your request to %s"
-                "</p><pre>" + trace.getvalue() + "</pre></body></html")
-        res.send_html(html % req.path, 500)
+                "The server encountered an error while processing your request to {path}"
+                "</p><pre>{trace}</pre></body></html")
+        res.send_html(html.format(path=req.path, trace=trace.getvalue()), 500)
 
     @staticmethod
     def default_404_handler(req, res, error=None):
         html = ("<html><head><title>404 - Not Found</title></head><body>"
                 "<h1>404 - Not Found</h1><hr>"
                 "<p style='font-family:monospace;'>"
-                "The page you requested: '%s', could not be found"
-                "</p></body></html")
-        res.send_html(html % req.path, 404)
+                "The page you requested: '{path}', could not be found"
+                "</p></body></html>")
+        res.send_html(html.format(path=req.path), 404)
 
     #
     # Configuration functions
