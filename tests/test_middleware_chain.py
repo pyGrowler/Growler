@@ -129,8 +129,8 @@ def test_chain_calls_iterate_subchain(chain):
     assert next(gen) is mw3
 
     mock_chain0.assert_called_once_with(1, '/')
-    mock_chain1.assert_not_called
-    mock_chain2.assert_not_called
+    assert not mock_chain1.called
+    assert not mock_chain2.called
 
 
 def test_chain_adds_error_handler(chain):

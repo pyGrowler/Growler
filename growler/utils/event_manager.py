@@ -3,12 +3,12 @@
 #
 
 import asyncio
+from collections import defaultdict
 try:
     from types import CoroutineType, GeneratorType
 except ImportError: # shim until python3.4 support is dropped
-    from types import FunctionType as CoroutineType, GeneratorType
-
-from collections import defaultdict
+    from types import GeneratorType
+    CoroutineType = type(None)
 
 
 def event_emitter(cls_=None, *, events=('*',), loop=None):

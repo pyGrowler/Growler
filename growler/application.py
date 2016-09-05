@@ -497,7 +497,10 @@ class Application:
         import traceback
 
         trace = StringIO()
-        traceback.print_exc(file=trace)
+        try: # fixes anomalous error with python3.4
+            traceback.print_exc(file=trace)
+        except AttributeError:
+            pass
         html = ("<html><head><title>500 - Server Error</title></head><body>"
                 "<h1>500 - Server Error</h1><hr>"
                 "<p style='font-family:monospace;'>"
