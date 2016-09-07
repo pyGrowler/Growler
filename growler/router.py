@@ -123,7 +123,11 @@ class Router(MiddlewareChain):
 
     @property
     def subrouters(self):
-        return tuple(mw for mw in self.mw_list if isinstance(mw.func, Router))
+        """
+        Generator of sub-routers (middleware inheriting from Router)
+        contained within this router.
+        """
+        yield from filter(lambda mw: isinstance(mw.func, Router), self.mw_list)
 
     @classmethod
     def sinatra_path_to_regex(cls, path):
@@ -189,6 +193,31 @@ class RouterMeta(type):
         return child_class
 
 
+def _find_routeable_attributes(obj, keys):
+    """
+    From the set of provided `keys`, this function yields the attributes
+    of `obj` that fulfill the requirements of 'routeable':
+    * callable
+    * matched by ROUTABLE_NAME_REGEX
+    * has docstring
+
+    """
+    for attr in keys:
+        matches = ROUTABLE_NAME_REGEX.match(attr)
+        if matches is None:
+            continue
+        try:
+            val = getattr(obj, attr)
+        except AttributeError:
+            continue
+
+        if not callable(val) or val.__doc__ is None:
+            continue
+
+        method_name = matches.group(1).upper()
+        yield val, method_name
+
+
 def get_routing_attributes(obj, modify_doc=False, keys=None):
     """
     Loops through the provided object (using the dir() function) and finds any
@@ -204,32 +233,18 @@ def get_routing_attributes(obj, modify_doc=False, keys=None):
     if keys is None:
         keys = dir(obj)
 
-    for attr in keys:
-        matches = ROUTABLE_NAME_REGEX.match(attr)
-        if matches is None:
-            continue
+    for val, method_str in _find_routeable_attributes(obj, keys):
 
-        try:
-            val = getattr(obj, attr)
-            if not callable(val):
-                continue
-
-            split_doc = val.__doc__.split(maxsplit=1) or ('', '')
-        except AttributeError:
-            continue
-
-        path = split_doc[0]
+        path, *doc = val.__doc__.split(maxsplit=1) or ('', '')
 
         if not path:
             continue
 
         if modify_doc:
-            try:
-                val.__doc__ = split_doc[1]
-            except IndexError:
-                val.__doc__ = ''
+            val.__doc__ = ''.join(doc)
 
-        method = StringToHTTPMethod[matches.group(1).upper()]
+        method = StringToHTTPMethod[method_str]
+
         yield method, path, val
 
 

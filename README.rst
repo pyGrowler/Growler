@@ -3,10 +3,10 @@ Growler
 =======
 
 master
-   |travis-master| |coveralls-master| : |version-master|
+  |travis-master| |coveralls-master| ' |version-master|
 
 dev
-   |travis-dev| |coveralls-dev|
+  |travis-dev| |coveralls-dev|
 
 Growler is a web framework built atop asyncio, the asynchronous library described in `PEP
 3156`_ and added to the standard library in python 3.4.
@@ -218,22 +218,22 @@ Growler is licensed under `Apache 2.0`_.
 
 
 .. |version-master| image:: https://img.shields.io/pypi/v/growler.svg
-                   :target: https://pypi.python.org/pypi/growler/
-                      :alt: Latest PyPI version
+                    :target: https://pypi.python.org/pypi/growler/
+                    :alt: Latest PyPI version
 
 
 .. |travis-master| image:: https://travis-ci.org/pyGrowler/Growler.svg?branch=master
-                  :target: https://travis-ci.org/pyGrowler/Growler?branch=master
-                     :alt: Testing Report (Master Branch)
+                   :target: https://travis-ci.org/pyGrowler/Growler/branches?branch=master
+                   :alt: Testing Report (Master Branch)
 
 .. |travis-dev| image:: https://travis-ci.org/pyGrowler/Growler.svg?branch=dev
-               :target: https://travis-ci.org/pyGrowler/Growler?branch=dev
-                  :alt: Testing Report (Development Branch)
+                :target: https://travis-ci.org/pyGrowler/Growler/branches?branch=dev
+                :alt: Testing Report (Development Branch)
 
 .. |coveralls-master| image:: https://coveralls.io/repos/github/pyGrowler/Growler/badge.svg?branch=master
-                     :target: https://coveralls.io/github/pyGrowler/Growler?branch=master
-                        :alt: Coverage Report (Master Branch)
+                      :target: https://coveralls.io/github/pyGrowler/Growler?branch=master
+                      :alt: Coverage Report (Master Branch)
 
 .. |coveralls-dev| image:: https://coveralls.io/repos/github/pyGrowler/Growler/badge.svg?branch=dev
-                  :target: https://coveralls.io/github/pyGrowler/Growler?branch=dev
-                     :alt: Coverage Report (Development Branch)
+                   :target: https://coveralls.io/github/pyGrowler/Growler?branch=dev
+                   :alt: Coverage Report (Development Branch)

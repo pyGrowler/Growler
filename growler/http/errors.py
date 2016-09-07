@@ -6,9 +6,10 @@ Custom Exception subclasses relating to specific http errors.
 """
 
 import sys
+from urllib.error import HTTPError as UrllibHttpError
 
 
-class HTTPError(Exception):
+class HTTPError(UrllibHttpError):
     """
     Generic HTTP Exception.
 
@@ -23,13 +24,12 @@ class HTTPError(Exception):
     code = 0
     code_to_error = dict()
 
-    def __init__(self, code=None, phrase=None, ex=None):
+    def __init__(self, url=None, code=None, phrase=None, msg=None, ex=None):
         """
         Construct an http error, if code or phrase not defined, use default.
         """
+        super().__init__(url, code or self.code, msg or self.msg, None, None)
         self.phrase = phrase or self.msg
-        self.code = code or self.code
-        Exception.__init__(self, self.phrase)
         self.sys_exception = ex
         self.traceback = sys.exc_info()[2]
 

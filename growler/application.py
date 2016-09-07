@@ -28,6 +28,8 @@ import sys
 import types
 import asyncio
 import logging
+
+from growler.utils.event_manager import Events
 from growler.http import (
     HTTPRequest,
     HTTPResponse,
@@ -136,7 +138,7 @@ class Application:
 
         self.config = kw
 
-        self.loop = asyncio.get_event_loop() if loop is None else loop
+        self.loop = asyncio.get_event_loop() if (loop is None) else loop
         self.loop.set_debug(debug)
 
         self.middleware = middleware_chain_factory()
@@ -144,19 +146,14 @@ class Application:
         self.enable('x-powered-by')
         self['env'] = os.getenv('GROWLER_ENV', 'development')
 
-        self._events = {
-            'startup': [],
-            'connection': [],
-            'headers': [],
-            'error': [],
-            'http_error': [],
-        }
-
+        self.events = Events()
         self.strict_router_check = False
 
         self._request_class = request_class
         self._response_class = response_class
         self._protocol_factory = protocol_factory
+
+        self.handle_404 = self.default_404_handler
 
     #
     # Middleware adding functions
@@ -448,7 +445,8 @@ class Application:
         Method called upon reaching the end of the middleware chain with no request being sent.
         Default implementation is to simply respond with a 404 error with a text message.
         """
-        res.send_text("404 - Not Found", 404)
+        # res.send_text("404 - Not Found", 404)
+        self.handle_404(req, res)
 
     def print_middleware_tree(self, *, EOL=os.linesep, **kwargs):  # noqa pragma: no cover
         """
@@ -494,13 +492,30 @@ class Application:
         print(EOL.join(lines), **kwargs)
 
     @staticmethod
-    def default_error_handler(req, res, error):
+    def default_error_handler(req, res, error:Exception):
+        from io import StringIO
+        import traceback
+
+        trace = StringIO()
+        try: # fixes anomalous error with python3.4
+            traceback.print_exc(file=trace)
+        except AttributeError:
+            pass
+        html = ("<html><head><title>500 - Server Error</title></head><body>"
+                "<h1>500 - Server Error</h1><hr>"
+                "<p style='font-family:monospace;'>"
+                "The server encountered an error while processing your request to {path}"
+                "</p><pre>{trace}</pre></body></html")
+        res.send_html(html.format(path=req.path, trace=trace.getvalue()), 500)
+
+    @staticmethod
+    def default_404_handler(req, res, error=None):
         html = ("<html><head><title>404 - Not Found</title></head><body>"
                 "<h1>404 - Not Found</h1><hr>"
                 "<p style='font-family:monospace;'>"
-                "The page you requested: '%s', could not be found"
-                "</p></body></html")
-        res.send_html(html % req.path)
+                "The page you requested: '{path}', could not be found"
+                "</p></body></html>")
+        res.send_html(html.format(path=req.path), 404)
 
     #
     # Configuration functions

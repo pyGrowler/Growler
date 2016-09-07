@@ -34,10 +34,6 @@ PACKAGES = find_packages(
     exclude=["*.tests", "*.tests.*", "tests.*", "tests"]
 )
 
-NAMESPACES = [
-    'growler_ext',
-]
-
 CLASSIFIERS = [
     "Development Status :: 3 - Alpha",
     "Environment :: Web Environment",
@@ -68,7 +64,6 @@ setup(
     extras_require=OPTIONAL_REQUIRES,
     tests_require=TESTS_REQUIRE,
     packages=PACKAGES,
-    namespace_packages=NAMESPACES,
     setup_requires=SETUP_REQUIRES,
     platforms='all',
     scripts=glob('scripts/*')

@@ -143,26 +143,13 @@ class MiddlewareChain:
             What to do when the error handler raises a new error?
         """
         error_handler_stack = []
-        error = None
 
-        # loop through this chain's middleware list
-        for mw in self.mw_list:
-
-            # skip if method does not match
-            if not mw.matches_method(method):
-                continue
-
-            # get the path matching this middleware and the 'rest' of the url
-            # (i.e. the part that comes AFTER the match) to be potentially
-            # matched later by a subchain
-            path_match, rest_url = mw.path_split(path)
-
-            # skip if not a match
-            if self.should_skip_middleware(mw, path_match, rest_url):
-                continue
+        # loop through all middleware matching the request
+        matching_middleware = self.find_matching_middleware(method, path)
+        for mw, path_match, rest_url in matching_middleware:
 
             # If a subchain - loop through middleware
-            elif mw.is_subchain:
+            if mw.is_subchain:
 
                 # We need to call sub middleware with only the URL past the
                 # matching string
@@ -172,44 +159,63 @@ class MiddlewareChain:
                 subchain = mw.func(method, subpath)
 
                 # loop through subchain
-                for sub_mw in subchain:
+                yield from self.iterate_subchain(subchain)
 
-                    # Yield the middleware function
-                    try:
-                        yield sub_mw
-                    except Exception as err:
-                        # the subchain had an error - forward error to subchain
-                        yield subchain.throw(err)
-                        error = err
-
-                if error:
-                    break
-
-            # add to list of error handler
+            # add to list of error handlers
             elif mw.is_errorhandler:
                 error_handler_stack.append(mw.func)
 
-            # matching request! yield result function
+            # Found a matching request! yield result function
             else:
-                # Yield the middleware function
                 try:
+                    # Yield the middleware function back to application
                     yield mw.func
+
+                # exception means application threw something back at us
                 except Exception as err:
-                    error = err
                     # Yielding None here returns execution to the caller,
                     # allowing it to request error handling middleware from us
                     yield None
+                    # redirect all other requests to the handle_error loop
+                    yield from self.handle_error(err, error_handler_stack)
                     break
 
-        if error:
-            self.log.error(error)
-            for errhandler in reversed(error_handler_stack):
-                try:
-                    yield errhandler
-                except Exception:  # except Exception as new_error:
-                    yield None
-                    pass
-            return
+    def find_matching_middleware(self, method, path):
+        """
+        Iterator handling the matching of middleware against a method+path
+        pair. Yields the middleware, and the
+        """
+        for mw in self.mw_list:
+            if not mw.matches_method(method):
+                continue
+
+            # get the path matching this middleware and the 'rest' of the url
+            # (i.e. the part that comes AFTER the match) to be potentially
+            # matched later by a subchain
+            path_match, rest_url = mw.path_split(path)
+            if self.should_skip_middleware(mw, path_match, rest_url):
+                continue
+
+            yield mw, path_match, rest_url
+
+    def iterate_subchain(self, chain):
+        """
+        A coroutine used by __call__ to forward all requests to a
+        subchain.
+        """
+        for mw in chain:
+            try:
+                yield mw
+            except Exception as err:
+                yield chain.throw(err)
+
+    def handle_error(self, error, err_handlers):
+        self.log.error(error)
+        for errhandler in reversed(err_handlers):
+            try:
+                yield errhandler
+            except Exception:  # except Exception as new_error:
+                yield None
 
     def should_skip_middleware(self, middleware, matching, rest):
         """

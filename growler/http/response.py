@@ -12,6 +12,7 @@ from pathlib import Path
 from itertools import chain
 from datetime import datetime
 from collections import OrderedDict
+from growler.utils.event_manager import Events
 from wsgiref.handlers import format_date_time as format_RFC_1123
 
 from .status import Status
@@ -60,11 +61,7 @@ class HTTPResponse:
         self.EOL = EOL
 
         self.headers = Headers()
-
-        self._events = {
-            'before_headers': [],
-            'after_send': [],
-        }
+        self.events = Events()
 
     def _set_default_headers(self):
         """
@@ -81,12 +78,11 @@ class HTTPResponse:
         """
         Sends the headers to the client
         """
-        for func in self._events['before_headers']:
-            func()
-
+        self.events.sync_emit('headers')
         self._set_default_headers()
         header_str = self.status_line + self.EOL + str(self.headers)
         self.protocol.transport.write(header_str.encode())
+        self.events.sync_emit('after_headers')
 
     def write(self, msg=None):
         msg = self.message if msg is None else msg
@@ -96,8 +92,7 @@ class HTTPResponse:
     def write_eof(self):
         self.stream.write_eof()
         self.has_ended = True
-        for f in self._events['after_send']:
-            f()
+        self.events.sync_emit('after_send')
 
     @property
     def status_line(self):
@@ -247,12 +242,6 @@ class HTTPResponse:
         self.send_headers()
         self.write()
         self.write_eof()
-
-    def on_headers(self, cb):
-        self._events['before_headers'].append(cb)
-
-    def on_send_end(self, cb):
-        self._events['after_send'].append(cb)
 
     def send(self, *args, **kwargs):
         raise NotImplementedError

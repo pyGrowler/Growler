@@ -128,7 +128,7 @@ def test_response_info_propery(res):
 def test_send_headers_with_callback_event(res):
     h = mock.Mock()
     w = mock.Mock()
-    res.on_headers(h)
+    res.events.on('headers', h)
     res.send_headers()
     assert h.called
     assert not w.called
@@ -155,7 +155,7 @@ def test_write_eof(res, mock_protocol):
 def test_write_eof_with_callback_event(res, mock_protocol):
     h = mock.Mock()
     w = mock.Mock()
-    res.on_send_end(w)
+    res.events.on('after_send', w)
     res.write_eof()
     assert not h.called
     assert w.called
