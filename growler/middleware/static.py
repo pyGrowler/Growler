@@ -13,12 +13,12 @@ log = logging.getLogger(__name__)
 
 class Static:
     """
-    Static middleware catches any URI paths which match a filesystem file and
-    serves that file.
+    Static middleware catches any URI paths which match a filesystem
+    file and serves that file.
 
-    This middleware uses the HTTPResponse object's send_file method to
-    determine mime type. At this time there is no way to change this without
-    subclassing.
+    This middleware uses the HTTPResponse object's send_file method
+    to determine mime type.
+    At this time there is no way to change this without subclassing.
     """
 
     INVALID_PATH = re.compile(r"(:?\.\.)")
@@ -27,8 +27,9 @@ class Static:
         """
         Construct Static method.
         Args:
-            path (str or list): The directory path to search for files. If
-                this is a list, the paths will be path-joined automatically.
+            path (str or list): The directory path to search for files.
+                If this is a list, the paths will be path-joined
+                automatically.
         """
         # if list, do a pathjoin
         if isinstance(path, list):
@@ -40,17 +41,18 @@ class Static:
 
         # ensure that path exists
         if not self.path.is_dir():
-            log.error("[Static] No path exists at {}".format(self.path))
-            raise NotADirectoryError("Path '{}' is not a directory.".format(self.path))
+            log.error("No path exists at {}".format(self.path))
+            err_msg = "Path '{}' is not a directory.".format(self.path)
+            raise NotADirectoryError(err_msg)
 
         log.info("%d Serving static files out of %s" % (id(self), self.path))
 
     def __call__(self, req, res):
         """
-        Middleware handle function. Simply checks if matching path is a file,
-        attempts to guess the file type, and sends the file. If the request
-        has a reference to the parent path, '..', the request is ignored by this
-        object.
+        Middleware handle function. Simply checks if matching path
+        is a file, attempts to guess the file type, and sends the file.
+        If the request has a reference to the parent path, '..', the
+        request is ignored by this object.
         """
         file_path = self.path / req.path[1:]
 
