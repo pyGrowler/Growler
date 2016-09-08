@@ -145,7 +145,12 @@ class Application:
                     app['val'] #=> VALUE
         """
         self.name = name
-        self.config = kw
+
+        self.config = {
+            'x-powered-by': True,
+            'env': os.getenv('GROWLER_ENV', 'development')
+        }
+        self.config.update(kw)
 
         if middleware_chain is None:
             middleware_chain = MiddlewareChain()
@@ -153,9 +158,6 @@ class Application:
             middleware_chain = middleware_chain()
 
         self.middleware = middleware_chain
-
-        self.enable('x-powered-by')
-        self['env'] = os.getenv('GROWLER_ENV', 'development')
 
         self.events = Events()
         self.strict_router_check = False
