@@ -37,8 +37,8 @@ from growler.http import (
 )
 import growler.http.methods
 from growler.http.methods import HTTPMethod
-from growler.router import Router, RouterMeta
-from growler.middleware_chain import MiddlewareChain
+from .router import Router, RouterMeta
+from .middleware_chain import MiddlewareChain
 
 log = logging.getLogger(__name__)
 

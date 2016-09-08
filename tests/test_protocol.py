@@ -100,12 +100,12 @@ def test_on_data_error(listening_proto, mock_responder):
 
 
 def test_factory():
-    proto = growler.GrowlerProtocol.factory(None, None)
+    proto = GrowlerProtocol.factory(None, None)
     assert isinstance(proto, GrowlerProtocol)
 
 
 def test_get_factory():
-    factory = growler.GrowlerProtocol.get_factory(None, None)
+    factory = GrowlerProtocol.get_factory(None, None)
     assert callable(factory)
     proto = factory()
     assert isinstance(proto, GrowlerProtocol)

@@ -26,8 +26,8 @@ def MockGrowlerHTTPProtocol(request):
 
 
 @pytest.fixture
-def mock_app(mock_event_loop, mock_req_factory, mock_res_factory):
-    return mock.Mock(spec=growler.application.Application,
+def mock_app(mock_req_factory, mock_res_factory):
+    return mock.Mock(spec=growler.Application,
                      _request_class=mock_req_factory,
                      _response_class=mock_res_factory)
 

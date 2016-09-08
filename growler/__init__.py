@@ -32,16 +32,20 @@ from .__meta__ import (
     license as __license__,
 )
 
-import growler.application
-import growler.router
-import growler.aio.protocol
-import growler.middleware_chain
-import growler.middleware
-
-App = growler.application.Application
-Router = growler.router.Router
-GrowlerProtocol = growler.aio.protocol.GrowlerProtocol
-MiddlewareChain = growler.middleware_chain.MiddlewareChain
+from .core.application import (
+    Application,
+    GrowlerStopIteration,
+)
+from .core.router import (
+    Router,
+    RouterMeta,
+    routerclass,
+    get_routing_attributes
+)
+from .core.middleware_chain import (
+    MiddlewareChain,
+)
+App = Application
 
 __all__ = [
     "App",
@@ -50,4 +54,4 @@ __all__ = [
 ]
 
 # remove growler as a child
-del growler
+# del growler

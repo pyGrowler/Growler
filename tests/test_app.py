@@ -7,12 +7,10 @@ import sys
 import types
 import pytest
 import growler
-import growler.application
 
 from mocks import *                                                      # noqa
 from unittest import mock
-from growler.application import Application
-from growler.application import GrowlerStopIteration
+from growler import Application, GrowlerStopIteration
 
 
 from mock_classes import (
@@ -33,7 +31,7 @@ def app_name():
 
 @pytest.fixture
 def router():
-    return mock.Mock(spec=growler.router.Router,
+    return mock.Mock(spec=growler.Router,
                      middleware_chain=lambda req: (yield from ()),
                      get=mock.Mock(lambda *args: route_list.append(args)))
 
@@ -44,7 +42,7 @@ def MockProtocol(proto):
 
 @pytest.fixture
 def mock_MiddlewareChain():
-    return mock.create_autospec(growler.application.MiddlewareChain)
+    return mock.create_autospec(growler.MiddlewareChain)
 
 @pytest.fixture
 def use_mock_middlewarechain():
@@ -72,12 +70,12 @@ def req(req_uri):
 def app(app_name, mock_MiddlewareChain, use_mock_middlewarechain, mock_event_loop, MockProtocol):
 
     mw_chain = (lambda: mock_MiddlewareChain) if use_mock_middlewarechain else growler.MiddlewareChain
-    result = growler.application.Application(app_name,
-                                             request_class=MockRequest,
-                                             response_class=MockResponse,
-                                             middleware_chain_factory=mw_chain,
-                                             protocol_factory=MockProtocol,
-                                             )
+    result = Application(app_name,
+                         request_class=MockRequest,
+                         response_class=MockResponse,
+                         middleware_chain_factory=mw_chain,
+                         protocol_factory=MockProtocol,
+                         )
     return result
 
 
@@ -88,13 +86,13 @@ def app_with_router(app, router):
 
 
 def test_application_constructor():
-    app = growler.application.Application('Test')
+    app = growler.Application('Test')
     assert app.name == 'Test'
 
 
 @pytest.mark.parametrize("use_mock_middlewarechain", [True])
 def test_app_fixture(app, app_name, mock_MiddlewareChain, MockProtocol):
-    assert isinstance(app, growler.application.Application)
+    assert isinstance(app, growler.Application)
     assert app.middleware is mock_MiddlewareChain
     assert app._protocol_factory is MockProtocol
     assert app._request_class is MockRequest
@@ -103,7 +101,7 @@ def test_app_fixture(app, app_name, mock_MiddlewareChain, MockProtocol):
 
 def test_application_saves_config():
     val = 'B'
-    app = growler.application.Application('Test', A=val)
+    app = growler.Application('Test', A=val)
     assert app.config['A'] is val
 
 
@@ -204,7 +202,7 @@ def test_ignore_add_bad_router(app):
 
 def test_use_growler_router_metaclass(app, mock_route_generator):
 
-    class TestMeta(metaclass=growler.router.RouterMeta):
+    class TestMeta(metaclass=growler.RouterMeta):
 
         def get_z(self, req, res): '''/'''
         def get_a(self, req, res): '''/a/a'''
@@ -214,7 +212,7 @@ def test_use_growler_router_metaclass(app, mock_route_generator):
     app.use(mrouter)
     router = app.middleware.mw_list[0].func
 
-    assert isinstance(router, growler.router.Router)
+    assert isinstance(router, growler.Router)
     assert mrouter.get_z == router.mw_list[0].func
     assert mrouter.get_a == router.mw_list[1].func
     assert mrouter.get_b == router.mw_list[2].func

@@ -3,7 +3,7 @@
 #
 
 import growler
-from growler.middleware_chain import MiddlewareChain, MiddlewareNode
+from growler.core.middleware_chain import MiddlewareChain, MiddlewareNode
 import pytest
 from unittest import mock
 
@@ -33,7 +33,7 @@ def test_chain_add_middleware(chain):
 
 
 def test_add_router(chain):
-    router = mock.Mock(spec=growler.router.Router)
+    router = mock.Mock(spec=growler.Router)
     chain.add(0x1, '/', router)
     assert router in chain
 

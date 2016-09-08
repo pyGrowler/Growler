@@ -3,9 +3,10 @@
 #
 
 import growler
-from growler.router import (
+from growler.http.methods import HTTPMethod
+from growler import (
     Router,
-    HTTPMethod,
+    RouterMeta,
     get_routing_attributes,
 )
 from unittest import mock
@@ -39,14 +40,14 @@ def mock_req(req_path, req_method):
 
 @pytest.fixture
 def router():
-    router = growler.router.Router()
+    router = growler.Router()
     return router
 
 
 @pytest.fixture
 def mock_router():
-    return mock.Mock(spec=growler.router.Router,
-                     __class__=growler.router.Router,
+    return mock.Mock(spec=growler.Router,
+                     __class__=growler.Router,
                      return_value=[])
 
 
@@ -185,7 +186,7 @@ def test_sinatra_passes_regex():
 
 
 def test_routerify():
-    from growler.router import routerify
+    from growler.core.router import routerify
 
     foo = Foo('1')
     routerify(foo)
@@ -197,7 +198,7 @@ def test_routerify():
 
 
 def test_mock_routerclass():
-    cls = growler.router.routerclass(mock.MagicMock())
+    cls = growler.routerclass(mock.MagicMock())
     assert isinstance(cls.__growler_router, types.FunctionType)
     # obj = cls()
     # print(dir(obj))
@@ -207,7 +208,7 @@ def test_mock_routerclass():
 
 
 def test_routerclass():
-    from growler.router import routerclass
+    from growler import routerclass
 
     @routerclass
     class SubFoo(Foo):
@@ -233,7 +234,6 @@ def test_routerclass():
 
 
 def test_router_metaclass(router):
-    from growler.router import RouterMeta
 
     class MyRouter(metaclass=RouterMeta):
 
@@ -300,6 +300,8 @@ def test_property_subrouter(router):
 
 
 def test_find_routable_attributes(router):
+    from growler.core.router import _find_routeable_attributes
+
     class TestMe:
         def get_something():
             "/should/work"
@@ -316,6 +318,6 @@ def test_find_routable_attributes(router):
     ]
 
     obj = TestMe()
-    for x, y in growler.router._find_routeable_attributes(obj, keys):
+    for x, y in _find_routeable_attributes(obj, keys):
         assert y == 'GET'
         assert x == obj.get_something

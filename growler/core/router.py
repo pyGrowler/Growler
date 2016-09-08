@@ -10,7 +10,7 @@ from growler.http.methods import (
     HTTPMethod,
     string_to_method as StringToHTTPMethod,
 )
-from growler.middleware_chain import (
+from .middleware_chain import (
     MiddlewareChain,
 )
 
