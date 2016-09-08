@@ -3,7 +3,7 @@
 #
 # flake8: noqa
 #
-#   Copyright (c) 2015 Andrew Kubera <andrew.kubera@gmail.com>
+#   Copyright (c) 2016 Andrew Kubera <andrew.kubera@gmail.com>
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -18,10 +18,25 @@
 #   limitations under the License.
 #
 """
-Growler is an http(s) server and micro-framework designed around the asyncio
-python module, introduced in python3.4. The goal of this project is to imitate
-the successful Nodejs express framework, which allowing easy creation
-of complex websites using a middleware-based configuration.
+A general purpose asynchronous framework, supporting the asynchronous
+primitives (async/await) introduced in Python 3.5.
+
+The original goal was to serve http, and while this capability is still
+built-in (see growler.http), the structure of Growler allows for a
+larger set of capabilities.
+
+To get started, import `Growler` from this package and create an
+instance (customarily named 'app'). Add functionality to the app object
+via the 'use' method decorator over your functions. This functions
+may be asynchronous, and must accept a request and response object.
+These are called (in the same order as 'use'd) upon a client connection.
+
+Growler does not include its own server or event loop - but provides a
+standard asynchronous interface to be used with an event loop of the users
+choosing. Python includes its own event-loop package, asyncio, which
+works fine with Growler. The asyncio interface is located in
+`growler.aio`; this is merely a convience for quick startup, asyncio is
+not required (or even imported) unless the user wants to.
 """
 
 from .__meta__ import (
@@ -45,13 +60,13 @@ from .core.router import (
 from .core.middleware_chain import (
     MiddlewareChain,
 )
-App = Application
+
+# alias Application
+Growler = App = Application
 
 __all__ = [
     "App",
+    "Growler",
+    "Application",
     "Router",
-    "GrowlerProtocol",
 ]
-
-# remove growler as a child
-# del growler
