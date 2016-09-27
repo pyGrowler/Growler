@@ -98,15 +98,11 @@ def test_construct_with_expected_body(mock_responder):
     assert isinstance(req.body, asyncio.Future)
 
 
-def test_get_body_none(empty_req):
-    assert empty_req.get_body() is None
-
-
-def test_get_body(empty_req, event_loop):
-    data = b'it works! this is the body!!'
-    empty_req.body = asyncio.Future(loop=event_loop)
-    empty_req.body.set_result(data)
-    assert empty_req.get_body() is data
+#def test_get_body(empty_req, event_loop):
+#    data = b'it works! this is the body!!'
+#    empty_req.body = asyncio.Future(loop=event_loop)
+#    empty_req.body.set_result(data)
+#    assert empty_req.get_body() is data
 
 
 def test_type_is(empty_req, mock_responder):

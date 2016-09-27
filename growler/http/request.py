@@ -61,22 +61,6 @@ class HTTPRequest:
         """
         return self.query.get(name, default)
 
-    def get_body(self, timeout=0):
-        """
-        A helper function which blocks until the body has been read completely.
-        Returns the bytes of the body which the user should decode. An optional
-        timeout parameter can be set to throw an asyncio.TimeoutError if the
-        body does not complete before 'timeout' number of seconds.
-
-        If the request does not have a body part (i.e. it is a GET request)
-        this function returns None
-        """
-        if self.body is None:
-            return None
-        coro = asyncio.wait_for(self.body, timeout, loop=self.loop)
-        self._protocol.loop.run_until_complete(coro)
-        return self.body.result()
-
     def type_is(self, mime_type):
         """
         returns True if content-type of the request matches the mime_type
