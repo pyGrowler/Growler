@@ -2,16 +2,14 @@
 # Travis CI configuration
 #
 
-sudo: required
-dist: trusty
-
 language: python
 
 python:
   - "3.5"
+  - "nightly"
 
 install:
-  - pip install -q pytest-cov python-coveralls pytest-asyncio
+  - pip install -qU pytest pytest-cov python-coveralls pytest-asyncio
 
 script:
   - python setup.py pytest --addopts '--cov=growler --cov-report=term-missing'
