@@ -10,17 +10,15 @@ asyncio protocol, server, parser, and request and response objects.
 
 import mimetypes
 
+from http import HTTPStatus as HttpStatus
+
 from .parser import Parser
 from .methods import HTTPMethod
 from .request import HTTPRequest
 from .response import HTTPResponse
 from ..aio.http_protocol import GrowlerHTTPProtocol
 from .errors import __all__ as http_errors
-try:
-    from http import HTTPStatus as HttpStatusPhrase
-except ImportError:
-    from .status import Status
-    HttpStatusPhrase = Status.Phrase
+
 
 from http.server import BaseHTTPRequestHandler
 

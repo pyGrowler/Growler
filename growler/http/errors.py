@@ -7,6 +7,7 @@ Custom Exception subclasses relating to specific http errors.
 
 import sys
 from urllib.error import HTTPError as UrllibHttpError
+from growler.http import HttpStatus
 
 
 class HTTPError(UrllibHttpError):
@@ -47,10 +48,17 @@ class HTTPError(UrllibHttpError):
         """
         return cls.code_to_error.get(code)
 
+    @property
+    def msg(self):
+        return self.status.phrase
+
+    @property
+    def code(self):
+        return self.status.value
+
 
 class HTTPErrorBadRequest(HTTPError):
-    code = 400
-    msg = "Bad Request"
+    status = HttpStatus.BAD_REQUEST
 
 
 class HTTPErrorInvalidHeader(HTTPErrorBadRequest):
@@ -58,13 +66,11 @@ class HTTPErrorInvalidHeader(HTTPErrorBadRequest):
 
 
 class HTTPErrorUnauthorized(HTTPError):
-    code = 401
-    msg = "Unauthorized"
+    status = HttpStatus.UNAUTHORIZED
 
 
 class HTTPErrorPaymentRequired(HTTPError):
-    code = 402
-    msg = "Payment Required"
+    status = HttpStatus.PAYMENT_REQUIRED
 
 
 class HTTPErrorForbidden(HTTPError):

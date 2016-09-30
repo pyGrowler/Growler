@@ -3,7 +3,7 @@
 #
 
 import pytest
-from growler.http.status import Status
+from growler.http import HttpStatus
 
 
 @pytest.mark.parametrize("code, phrase", [
@@ -14,5 +14,6 @@ from growler.http.status import Status
     (500, "Internal Server Error"),
 ])
 def test_phrase(code, phrase):
-    assert Status.phrase_dict[code] == phrase
-    assert Status.Phrase(code) == phrase
+    assert HttpStatus(code).phrase == phrase
+    # assert Status.phrase_dict[code] == phrase
+    # assert Status.Phrase(code) == phrase
