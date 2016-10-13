@@ -9,13 +9,13 @@ from .parser import Parser
 from .request import HTTPRequest
 from .response import HTTPResponse
 from .methods import HTTPMethod
-
+from growler.core.responder import GrowlerResponder
 from .errors import (
     HTTPErrorBadRequest,
 )
 
 
-class GrowlerHTTPResponder:
+class GrowlerHTTPResponder(GrowlerResponder):
     """
     The Growler Responder for HTTP connections.
 

@@ -16,11 +16,12 @@ for event-loop independent client handling.
 
 import asyncio
 import logging
+from growler.core.responder import ResponderHandler
 
 log = logging.getLogger(__name__)
 
 
-class GrowlerProtocol(asyncio.Protocol):
+class GrowlerProtocol(asyncio.Protocol, ResponderHandler):
     """
     The 'base' protocol for handling all requests made to a growler
     application.
@@ -197,14 +198,6 @@ class GrowlerProtocol(asyncio.Protocol):
     @property
     def cipher(self):
         return self.transport.get_extra_info('cipher')
-
-    @property
-    def remote_hostname(self):
-        return self.transport.get_extra_info('peername')[0]
-
-    @property
-    def remote_port(self):
-        return self.transport.get_extra_info('peername')[1]
 
     @property
     def peername(self):
