@@ -1,8 +1,17 @@
 #
-# growler/protocol.py
+# growler/aio/protocol.py
 #
 """
-Code containing Growler's asyncio.Protocol code for handling all streaming (TCP) connections.
+Code containing Growler's asyncio.Protocol code for handling all
+streaming (TCP) connections.
+This module has a 'hard' dependency on asyncio, so if you're using a
+diffent event loop (for example, curio) then you should NOT be using
+this class.
+
+Alternative Protocol classes may use this as an example.
+
+For more information, see the :module:`growler.core.responder` module
+for event-loop independent client handling.
 """
 
 import asyncio
@@ -13,34 +22,59 @@ log = logging.getLogger(__name__)
 
 class GrowlerProtocol(asyncio.Protocol):
     """
-    The 'base' protocol for handling all requests.
-    This implementation hands off all data received to a 'responder' object.
-    Because of this, it does NOT expect that the data_received function would be overloaded by
-    a subclass, but rather the behavior should be defined by the responder it is passing to.
+    The 'base' protocol for handling all requests made to a growler
+    application.
+    This implementation internally uses a stack of 'responder'
+    objects, the top of which will receive incoming client data via
+    the `on_data` method.
+    This design provides a way to temporarily (or permanently) modify
+    the server's behavior.
+    To change behavior when a client has already connected, such as
+    during an HTTP upgrade or to support starttls encryption, simply
+    add a new responder to the protocol's stack.
 
-    The protocol maintains a stack of responders, and forwards incoming data to the top of the
-    stack via an on_data command.
-    This forwarding is (currently) done asynchronously by the asyncio.BaseEventLoop.call_soon
-    function.
+    If all responders are removed, the :method:`handle_error` method
+    will be called with the IndexError exception.
+    This method is not implemented by default and SHOULD be
+    implemented in all subclasses.
 
-    To simplify the creation of the initial responder, a factory (or simply the
-    constructor/type) is passed to the GrowlerProtocol object upon construction.
-    This factory is run when 'connection_made' is called on the protocol.
+    Because of this delegate-style design, the user should NOT
+    overload the :method:`data_received` method when creating a
+    subclass of GrowlerProtocol.
 
-    Two functions, factory and get_factory, are provided to make the construction of servers
-    'easy', without the need for lambdas.
+    To simplify the creation of the initial responder, a factory (or
+    simply the type/constructor) is passed to the GrowlerProtocol
+    object upon construction.
+    This factory is run when 'connection_made' is called on the
+    protocol (which should happen immediately after construction).
+    It is recommended that subclasses of :class:`GrowlerProtocol`
+    specify a particular *default responder* by setting the keyword
+    argument, `responder_factory`, in a call to super().__init__().
+
+    Two methods, :method:`factory` and :method:`get_factory`, are
+    provided to make the construction of servers 'easy', without the
+    need for lambdas.
+
     If you have a subclass:
+    .. code:: python
+
         class GP(GrowlerProtocol):
             ...
+
     you can create a server easy using this protocol via:
+    .. code:: python
 
         asyncio.get_event_loop().create_server(GP.factory, ...)
     or
+    .. code:: python
+
         asyncio.get_event_loop().create_server(GP.get_factory('a','b'), ...)
 
-    , the later example forwarding arguments to the factory.
-    Note, calling GP.factory() will not work as  create_server expects the factory and not an
-    instance of the protocol.
+    arguments passed to get_factory in the later example are
+    forwarded to the protocol constructor (called whenever a client
+    connects).
+    Note, calling GP.factory() will not work as `create_server`
+    expects the factory and *not an instance* of the protocol.
     """
 
     transport = None
@@ -50,14 +84,20 @@ class GrowlerProtocol(asyncio.Protocol):
     def __init__(self, loop, responder_factory):
         """
         Args:
-            loop (asyncio.BaseEventLoop): The event loop managing all asynchronous activity of
-                this protocol.
-            responder_factory (callable): Returns the first responder for this protocol. This
-                could simply be a constructor for the type (i.e. the type's name). This
-                function will only be passed the protocol object. The event loop should be
-                aquired from the protocol via the 'loop' member. The responder returned only
-                needs to have a method defined called 'on_data' which gets passed the bytes
-                received. Note: 'on_data' should only me a function and NOT a coroutine.
+            loop (asyncio.BaseEventLoop): The event loop managing all
+                asynchronous activity of this protocol.
+            responder_factory (callable): Returns the first responder
+                for this protocol.
+                This could simply be a constructor for the type (i.e.
+                the type's name).
+                This function will only be passed the protocol object.
+                The event loop should be aquired from the protocol via
+                the 'loop' member.
+                The responder returned only needs to have a method
+                defined called 'on_data' which gets passed the bytes
+                received.
+                Note: 'on_data' should only be a function and NOT a
+                coroutine.
         """
         self.make_responder = responder_factory
         self.loop = loop if (loop is not None) else asyncio.get_event_loop()
@@ -67,13 +107,14 @@ class GrowlerProtocol(asyncio.Protocol):
         (asyncio.Protocol member)
 
         Called upon when there is a new socket connection.
-        This creates a new responder (as determined by the member 'responder_type') and stores
-        in a list.
-        Incoming data from this connection will always call on_data to the last element of this
-        list.
+        This creates a new responder (as determined by the member
+        'responder_type') and stores in a list.
+        Incoming data from this connection will always call on_data
+        to the last element of this list.
 
         Args:
-            transport (asyncio.Transport): The Transport handling the socket communication
+            transport (asyncio.Transport): The Transport handling the
+                socket communication
         """
         self.transport = transport
         self.responders = [self.make_responder(self)]
@@ -88,7 +129,7 @@ class GrowlerProtocol(asyncio.Protocol):
             raise TypeError(err_str)
 
         log_info = (id(self), self.remote_hostname, self.remote_port)
-        log.info("%d connection from %s:%s" % log_info)
+        log.info("{:d} connection from {}:{}", *log_info)
 
     def connection_lost(self, exc):
         """
@@ -98,22 +139,24 @@ class GrowlerProtocol(asyncio.Protocol):
         This class simply logs the disconnection
 
         Args:
-            exc (Exception or None): Error if connection closed unexpectedly, None if closed
-                cleanly.
+            exc (Exception or None): Error if connection closed
+                unexpectedly, None if closed cleanly.
         """
         if exc:
-            log.error("%d connection_lost %s" % (id(self), exc))
+            log.error("{:d} connection_lost {}", id(self), exc)
         else:
-            log.info("%d connection_lost" % id(self))
+            log.info("{:d} connection_lost", id(self))
 
     def data_received(self, data):
         """
         (asyncio.Protocol member)
 
-        Called upon when there is new data to be passed to the protocol.
-        The data is forwarded to the top of the responder stack (via the on_data method).
-        If an excpetion occurs while this is going on, the Exception is forwarded to the
-        protocol's handle_error method.
+        Called upon when there is new data to be passed to the
+        protocol.
+        The data is forwarded to the top of the responder stack (via
+        the on_data method).
+        If an excpetion occurs while this is going on, the Exception
+        is forwarded to the protocol's handle_error method.
 
         Args:
             data (bytes): Bytes from the latest data transmission
@@ -127,17 +170,20 @@ class GrowlerProtocol(asyncio.Protocol):
         """
         (asyncio.Protocol member)
 
-        Called upon when the client signals it will not be sending any more data to the server.
-        Default behavior is to simply set the is_done_transmitting property to True.
+        Called upon when the client signals it will not be sending
+        any more data to the server.
+        Default behavior is to simply set the `is_done_transmitting`
+        property to True.
         """
         self.is_done_transmitting = True
-        log.info("%d eof_received" % id(self))
+        log.info("{:d} eof_received". id(self))
 
     def handle_error(self, error):
         """
-        An error handling function which will be called when an error is raised during a
-        responder's on_data() function.
-        There is no default functionality and the subclasses MUST overload this.
+        An error handling function which will be called when an error
+        is raised during a responder's :method:`on_data()` function.
+        There is no default functionality and all subclasses SHOULD
+        overload this.
 
         Args:
             error (Exception): The exception raised from the code
@@ -167,8 +213,8 @@ class GrowlerProtocol(asyncio.Protocol):
     @classmethod
     def factory(cls, *args, **kw):
         """
-        A class function which simply calls the constructor. Useful for explicity stating that
-        this is a factory.
+        A class function which simply calls the constructor.
+        Useful for explicity stating that this is a factory.
         All arguments are forwarded to the constructor.
         """
         return cls(*args, **kw)
@@ -176,9 +222,11 @@ class GrowlerProtocol(asyncio.Protocol):
     @classmethod
     def get_factory(cls, *args, **kw):
         """
-        A class function which returns a runnable which calls the factory function (i.e. the
-        constructor) of the class with the arguments provided.
-        This should makes it easy to bind GrowlerProtocol construction explicitly. All
-        arguments are forwarded to the constructor.
+        A class function which returns a runnable which calls the
+        factory function (i.e. the constructor) of the class with
+        the arguments provided.
+        This should makes it easy to bind `GrowlerProtocol`
+        construction explicitly.
+        All arguments are forwarded to the constructor.
         """
         return lambda: cls.factory(*args, **kw)
