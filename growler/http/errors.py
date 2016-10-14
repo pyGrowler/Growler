@@ -74,88 +74,136 @@ class HTTPErrorPaymentRequired(HTTPError):
 
 
 class HTTPErrorForbidden(HTTPError):
-    code = 403
-    msg = "Forbidden"
+    status = HttpStatus.FORBIDDEN
 
 
 class HTTPErrorNotFound(HTTPError):
-    code = 404
-    msg = "Not Found"
+    status = HttpStatus.NOT_FOUND
 
 
 class HTTPErrorMethodNotAllowed(HTTPError):
-    code = 405
-    msg = "Method Not Allowed"
+    status = HttpStatus.METHOD_NOT_ALLOWED
 
 
 class HTTPErrorNotAcceptable(HTTPError):
-    code = 406
-    msg = "Not Acceptable"
+    status = HttpStatus.NOT_ACCEPTABLE
 
 
 class HTTPErrorProxyAuthenticationRequired(HTTPError):
-    code = 407
-    msg = "Proxy Authentication Required"
+    status = HttpStatus.PROXY_AUTHENTICATION_REQUIRED
 
 
 class HTTPErrorRequestTimeout(HTTPError):
-    code = 408
-    msg = "Request Timeout"
+    status = HttpStatus.REQUEST_TIMEOUT
 
 
 class HTTPErrorConflict(HTTPError):
-    code = 409
-    msg = "Conflict"
+    status = HttpStatus.CONFLICT
 
 
 class HTTPErrorGone(HTTPError):
-    code = 410
-    msg = "Gone"
+    status = HttpStatus.GONE
 
 
 class HTTPErrorLengthRequired(HTTPError):
-    code = 411
-    msg = "Length Required"
+    status = HttpStatus.LENGTH_REQUIRED
 
 
 class HTTPErrorPreconditionFailed(HTTPError):
-    code = 412
-    msg = "Precondition Failed"
+    status = HttpStatus.PRECONDITION_FAILED
 
 
 class HTTPErrorRequestEntityTooLarge(HTTPError):
-    code = 413
-    msg = "Request Entity Too Large"
+    status = HttpStatus.REQUEST_ENTITY_TOO_LARGE
 
 
-class HTTPErrorRequestTooLarge(HTTPError):
-    code = 414
-    msg = "Request URI Too Large"
+class HTTPErrorRequestUriTooLarge(HTTPError):
+    status = HttpStatus.REQUEST_URI_TOO_LONG
 
 
 class HTTPErrorUnsupportedMediaType(HTTPError):
-    code = 415
-    msg = "Unsupported Media Type"
+    status = HttpStatus.UNSUPPORTED_MEDIA_TYPE
+
+
+class HTTPErrorRequestRangeNotSatisfiable(HTTPError):
+    status = HttpStatus.REQUEST_RANGE_NOT_SATISFIABLE
+
+
+class HTTPErrorExpectationFailed(HTTPError):
+    status = HttpStatus.EXPECTATION_FAILED
+
+
+class HTTPErrorUnprocessableEntity(HTTPError):
+    status = HttpStatus.UNPROCESSABLE_ENTITY
+
+
+class HTTPErrorLocked(HTTPError):
+    status = HttpStatus.LOCKED
+
+
+class HTTPErrorFailedDependency(HTTPError):
+    status = HttpStatus.FAILED_DEPENDENCY
+
+
+class HTTPErrorUpgradeRequired(HTTPError):
+    status = HttpStatus.UPGRADE_REQUIRED
+
+
+class HTTPErrorPreconditionRequired(HTTPError):
+    status = HttpStatus.PRECONDITION_REQUIRED
 
 
 class HTTPErrorTooManyRequests(HTTPError):
-    code = 429
-    msg = "Too Many Requests"
+    status = HttpStatus.TOO_MANY_REQUESTS
+
+
+class HTTPErrorRequestHeaderFieldsTooLarge(HTTPError):
+    status = HttpStatus.REQUEST_HEADER_FIELDS_TOO_LARGE
 
 
 class HTTPErrorInternalServerError(HTTPError):
-    code = 500
-    msg = "Internal Server Error"
+    status = HttpStatus.INTERNAL_SERVER_ERROR
 
 
 class HTTPErrorNotImplemented(HTTPError):
-    code = 501
-    msg = "Method Not Implemented"
+    status = HttpStatus.NOT_IMPLEMENTED
+
+
+class HTTPErrorBadGateway(HTTPError):
+    status = HttpStatus.BAD_GATEWAY
+
+
+class HTTPErrorServiceUnavailable(HTTPError):
+    status = HttpStatus.SERVICE_UNAVAILABLE
+
+
+class HTTPErrorGatewayTimeout(HTTPError):
+    status = HttpStatus.GATEWAY_TIMEOUT
 
 
 class HTTPErrorVersionNotSupported(HTTPError):
-    msg = "Version not supported"
-    code = 505
+    status = HttpStatus.HTTP_VERSION_NOT_SUPPORTED
+
+
+class HTTPErrorVariantAlsoNegotiates(HTTPError):
+    status = HttpStatus.VARIANT_ALSO_NEGOTIATES
+
+
+class HTTPErrorInsufficientStorage(HTTPError):
+    status = HttpStatus.INSUFFICIENT_STORAGE
+
+
+class HTTPErrorLoopDetected(HTTPError):
+    status = HttpStatus.LOOP_DETECTED
+
+
+class HTTPErrorNotExtended(HTTPError):
+    status = HttpStatus.NOT_EXTENDED
+
+
+class HTTPErrorNetworkAuthenticationRequired(HTTPError):
+    status = HttpStatus.NETWORK_AUTHENTICATION_REQUIRED
+
 
 HTTPError.code_to_error = {
     400: HTTPErrorBadRequest,
@@ -172,12 +220,36 @@ HTTPError.code_to_error = {
     411: HTTPErrorLengthRequired,
     412: HTTPErrorPreconditionFailed,
     413: HTTPErrorRequestEntityTooLarge,
-    414: HTTPErrorRequestTooLarge,
+    414: HTTPErrorRequestUriTooLarge,
+    415: HTTPErrorUnsupportedMediaType,
+    416: HTTPErrorRequestRangeNotSatisfiable,
+    417: HTTPErrorExpectationFailed,
+    422: HTTPErrorUnprocessableEntity,
+    423: HTTPErrorLocked,
+    424: HTTPErrorFailedDependency,
+    426: HTTPErrorUpgradeRequired,
+    428: HTTPErrorPreconditionRequired,
+    429: HTTPErrorTooManyRequests,
+    431: HTTPErrorRequestHeaderFieldsTooLarge,
+
+    500: HTTPErrorInternalServerError,
+    501: HTTPErrorNotImplemented,
+    502: HTTPErrorBadGateway,
+    503: HTTPErrorServiceUnavailable,
+    504: HTTPErrorGatewayTimeout,
+    505: HTTPErrorVersionNotSupported,
+    506: HTTPErrorVariantAlsoNegotiates,
+    507: HTTPErrorInsufficientStorage,
+    508: HTTPErrorLoopDetected,
+    510: HTTPErrorNotExtended,
+    511: HTTPErrorNetworkAuthenticationRequired,
 }
 
 __all__ = [
+    # generic error
     'HTTPError',
-    'HTTPErrorInternalServerError',
+
+    #  -- 4XX errors
     'HTTPErrorBadRequest',
     'HTTPErrorUnauthorized',
     'HTTPErrorPaymentRequired',
@@ -192,9 +264,28 @@ __all__ = [
     'HTTPErrorLengthRequired',
     'HTTPErrorPreconditionFailed',
     'HTTPErrorRequestEntityTooLarge',
-    'HTTPErrorRequestTooLarge',
+    'HTTPErrorRequestUriTooLarge',
     'HTTPErrorUnsupportedMediaType',
+    'HTTPErrorRequestRangeNotSatisfiable',
+    'HTTPErrorExpectationFailed',
+    'HTTPErrorUnprocessableEntity',
+    'HTTPErrorLocked',
+    'HTTPErrorFailedDependency',
+    'HTTPErrorUpgradeRequired',
+    'HTTPErrorPreconditionRequired',
+    'HTTPErrorTooManyRequests',
+    'HTTPErrorRequestHeaderFieldsTooLarge',
+
+    #  -- 5XX errors
     'HTTPErrorInternalServerError',
     'HTTPErrorNotImplemented',
+    'HTTPErrorBadGateway',
+    'HTTPErrorServiceUnavailable',
+    'HTTPErrorGatewayTimeout',
     'HTTPErrorVersionNotSupported',
+    'HTTPErrorVariantAlsoNegotiates',
+    'HTTPErrorInsufficientStorage',
+    'HTTPErrorLoopDetected',
+    'HTTPErrorNotExtended',
+    'HTTPErrorNetworkAuthenticationRequired',
 ]
