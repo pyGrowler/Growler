@@ -8,9 +8,10 @@ Custom Exception subclasses relating to specific http errors.
 import sys
 from urllib.error import HTTPError as UrllibHttpError
 from growler.http import HttpStatus
+from growler.utils.metaclasses import ItemizedMeta
 
 
-class HTTPError(UrllibHttpError):
+class HTTPError(UrllibHttpError, metaclass=ItemizedMeta):
     """
     Generic HTTP Exception.
 
@@ -21,7 +22,7 @@ class HTTPError(UrllibHttpError):
         raise HTTPErrorNotFound()
     """
 
-    msg = ''
+    _msg = None
     code = 0
     code_to_error = dict()
 
@@ -29,7 +30,7 @@ class HTTPError(UrllibHttpError):
         """
         Construct an http error, if code or phrase not defined, use default.
         """
-        super().__init__(url, code or self.code, msg or self.msg, None, None)
+        super().__init__(url, code or self.status.value, msg or self.msg, None, None)
         self.phrase = phrase or self.msg
         self.sys_exception = ex
         self.traceback = sys.exc_info()[2]
@@ -50,11 +51,25 @@ class HTTPError(UrllibHttpError):
 
     @property
     def msg(self):
-        return self.status.phrase
+        return self._msg or self.status.phrase
 
-    @property
-    def code(self):
-        return self.status.value
+    @msg.setter
+    def msg(self, value):
+        self._msg = str(value)
+
+    @classmethod
+    def _getitem_(cls, key):
+        if isinstance(key, int):
+            # key by code
+            err = cls.get_from_code(key)
+            if err is not None:
+                return err
+        elif isinstance(key, str):
+            # key by phrase
+            for error in cls.code_to_error.values():
+                if error.status.phrase == key:
+                    return error
+        raise HTTPErrorInvalidHttpError
 
 
 class HTTPErrorBadRequest(HTTPError):
@@ -125,8 +140,8 @@ class HTTPErrorUnsupportedMediaType(HTTPError):
     status = HttpStatus.UNSUPPORTED_MEDIA_TYPE
 
 
-class HTTPErrorRequestRangeNotSatisfiable(HTTPError):
-    status = HttpStatus.REQUEST_RANGE_NOT_SATISFIABLE
+class HTTPErrorRequestedRangeNotSatisfiable(HTTPError):
+    status = HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE
 
 
 class HTTPErrorExpectationFailed(HTTPError):
@@ -164,6 +179,9 @@ class HTTPErrorRequestHeaderFieldsTooLarge(HTTPError):
 class HTTPErrorInternalServerError(HTTPError):
     status = HttpStatus.INTERNAL_SERVER_ERROR
 
+
+class HTTPErrorInvalidHttpError(HTTPErrorInternalServerError):
+    msg = "Server attempted to raise invalid HTTP error"
 
 class HTTPErrorNotImplemented(HTTPError):
     status = HttpStatus.NOT_IMPLEMENTED
@@ -222,7 +240,7 @@ HTTPError.code_to_error = {
     413: HTTPErrorRequestEntityTooLarge,
     414: HTTPErrorRequestUriTooLarge,
     415: HTTPErrorUnsupportedMediaType,
-    416: HTTPErrorRequestRangeNotSatisfiable,
+    416: HTTPErrorRequestedRangeNotSatisfiable,
     417: HTTPErrorExpectationFailed,
     422: HTTPErrorUnprocessableEntity,
     423: HTTPErrorLocked,
@@ -266,7 +284,7 @@ __all__ = [
     'HTTPErrorRequestEntityTooLarge',
     'HTTPErrorRequestUriTooLarge',
     'HTTPErrorUnsupportedMediaType',
-    'HTTPErrorRequestRangeNotSatisfiable',
+    'HTTPErrorRequestedRangeNotSatisfiable',
     'HTTPErrorExpectationFailed',
     'HTTPErrorUnprocessableEntity',
     'HTTPErrorLocked',
@@ -288,4 +306,8 @@ __all__ = [
     'HTTPErrorLoopDetected',
     'HTTPErrorNotExtended',
     'HTTPErrorNetworkAuthenticationRequired',
+
+    # -- derived errors
+    'HTTPErrorInvalidHeader',
+    'HTTPErrorInvalidHttpError',
 ]
