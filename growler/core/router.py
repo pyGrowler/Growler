@@ -1,5 +1,5 @@
 #
-# growler/router.py
+# growler/core/router.py
 #
 
 import re
@@ -18,34 +18,38 @@ ROUTABLE_NAME_REGEX = re.compile("(%s)_.*" % '|'.join([
     "all",
     "get",
     "post",
+    "put",
     "delete",
 ]), re.IGNORECASE + re.UNICODE)
 
 
 class Router(MiddlewareChain):
     """
-    The router class holds all the 'routes': callbacks connected assigned to
-    HTTP method and regular expression pairs. If a regex matches with the
-    request's path member, the callback is called with the req, res pair.
+    The router class holds all the 'routes': callbacks connected
+    assigned to HTTP method and regular expression pairs.
+    If a regex matches with the request's path member, the callback
+    is called with the req, res pair.
 
-    Routes are added on a per-method basis, using the router.*method*(path, cb)
-    syntax, for example:
-        router.get("/home", cb)
-    will call cb(req, res) upon every incoming HTTP connection with the request
-    line: GET /home HTTP/1.1. To catch all methods, use the 'router.all'
-    member.
+    Routes are added on a per-method basis, using the
+    :code:`router.*method*(path, cb)` syntax, for example:
 
-    Routers can be linked together in a tree-like structure using the member
-    'use'. so components of websites can be developed in their own "namespace"
-    and mounted to the website on its own path:
-        blog_router.get("/list", ...)
-        blog_router.post("/new_post", ...)
+    >>> router.get("/home", cb)
 
-        root_router.use("/blog", blog_router)
+    will call cb(req, res) upon every incoming HTTP connection with
+    the request line: ``GET /home HTTP/1.1``.
+    To catch all methods, use the ``router.all`` member.
 
-    The default growler.App has its root router at self.router, and offers
-    convience aliases to automatically add routes:
-        app.get(..) == app.router.get(...)
+    Routers can be linked together in a tree-like structure using the
+    `use` method enabling components of websites can be developed in
+    their own "namespace" and mounted to the website on its own path:
+
+    >>> blog_router.get("/list", ...)
+    >>> blog_router.post("/new_post", ...)
+    >>> root_router.use("/blog", blog_router)
+
+    The default growler.App has its root router at self.router, and
+    offers convience aliases to automatically add routes:
+    >>> app.get(..) == app.router.get(...)
     """
     sinatra_param_regex = re.compile(r":(\w+)")
     regex_type = type(sinatra_param_regex)
@@ -57,8 +61,9 @@ class Router(MiddlewareChain):
 
     def add_router(self, path, router):
         """
-        Add a (regex, router) pair to this router. Any req.path that matches
-        the regex will pass the request/response objects to that router.
+        Add a (regex, router) pair to this router. Any req.path that
+        matches the regex will pass the request/response objects to
+        that router.
         """
         self.add(HTTPMethod.ALL, path, router)
         return self
@@ -83,13 +88,14 @@ class Router(MiddlewareChain):
 
     def use(self, middleware, path=None):
         """
-        Call the provided middleware upon requests matching the path. If path
-        is not provided or None, all requests will match.
+        Call the provided middleware upon requests matching the path.
+        If path is not provided or None, all requests will match.
 
         Args:
-            middleware (callable): Callable with the signature (res, req) -> None
-            path (Optional[str or regex]): a specific path the request must
-                match for the middleware to be called.
+            middleware (callable): Callable with the signature
+                ``(res, req) -> None``
+            path (Optional[str or regex]): a specific path the
+                request must match for the middleware to be called.
         Returns:
             This router
         """
@@ -101,8 +107,8 @@ class Router(MiddlewareChain):
 
     def match_routes(self, req):
         """
-        Yields a sequence of 'route' functions which match the path in the
-        request.
+        Yields a sequence of 'route' functions which match the path
+        in the request.
         """
         return self(req.method, req.path)
 
@@ -112,8 +118,9 @@ class Router(MiddlewareChain):
 
     def should_skip_middleware(self, middleware, matching, rest) -> bool:
         """
-        Returns True (i.e. should skip) if request does not match the entire
-        middleware path. This is a simple check if 'rest' is truthy or not.
+        Returns True (i.e. should skip) if request does not match the
+        entire middleware path.
+        This is a simple check if 'rest' is truthy or not.
         """
         return bool(not matching) or bool(rest)
 
@@ -132,7 +139,8 @@ class Router(MiddlewareChain):
     @classmethod
     def sinatra_path_to_regex(cls, path):
         """
-        Converts a sinatra-style path to a regex with named parameters.
+        Converts a sinatra-style path to a regex with named
+        parameters.
         """
         # Return the path if already a (compiled) regex
         if type(path) is cls.regex_type:
@@ -150,18 +158,19 @@ class Router(MiddlewareChain):
 
 class RouterMeta(type):
     """
-    A metaclass for classes that should automatically be converted into growler
-    application routers. The only feature this metaclass includes right now is
-    providing an ordered dictionary of members, allowing guarenteed route
-    placement.
+    A metaclass for classes that should automatically be converted
+    into growler application routers.
+    The only feature this metaclass includes right now is
+    providing an ordered dictionary of members, allowing guarenteed
+    route placement.
     """
 
     @classmethod
     def __prepare__(metacls, name, bases, **kargs):
         """
-        Metaclass attribute which creates the mapping object - in this case a
-        standard collections.OrderedDict object to preserve order of method
-        names.
+        Metaclass attribute which creates the mapping object - in
+        this case a standard :class:`collections.OrderedDict` object
+        to preserve order of method names.
 
         Args:
             name (str): The name of the class
@@ -220,15 +229,17 @@ def _find_routeable_attributes(obj, keys):
 
 def get_routing_attributes(obj, modify_doc=False, keys=None):
     """
-    Loops through the provided object (using the dir() function) and finds any
-    callables which match the name signature (e.g. get_foo()) AND has a
-    docstring beginning with a path-like char string. This does process things
-    in alphabetical order (rather than than the unpredictable __dict__
-    attribute) so take this into consideration if certain routes should be
-    checked before others. Unfortunately, this is a problem because the 'all'
-    method will always come before others, so there is no capturing one type
-    followed by a catch-all 'all'. Until a solution is found, just make a
-    router by hand.
+    Loops through the provided object (using the dir() function) and
+    finds any callables which match the name signature (e.g.
+    get_foo()) AND has a docstring beginning with a path-like char
+    string.
+    This does process things in alphabetical order (rather than than
+    the unpredictable __dict__ attribute) so take this into
+    consideration if certain routes should be checked before others.
+    Unfortunately, this is a problem because the 'all' method will
+    always come before others, so there is no capturing one type
+    followed by a catch-all 'all'. Until a solution is found, just
+    make a router by hand.
     """
     if keys is None:
         keys = dir(obj)
@@ -250,16 +261,20 @@ def get_routing_attributes(obj, modify_doc=False, keys=None):
 
 def routerclass(cls):
     """
-    A class decorator which parses a class, looking for an member functions
-    which match an HTTP verb (get, post, etc) followed by an underscore and
-    other letters, with a signature of two parameters (req and res) (e.g.
+    A class decorator which parses a class, looking for an member
+    functions which match an HTTP verb (get, post, etc) followed by
+    an underscore and other letters, with a signature of two
+    parameters (req and res). For example
+    .. code: python
+
         def get_index(req, res):
             ...
-    ).
-    To determine the path to take, the string looks at the first complete word
-    of a stripped docstring, passing this in to the 'path matching algorithm'
-    The order wich the methods are defined are the order the requests will
-    attempt to match.
+
+    To determine the path to take, the string looks at the first
+    complete word of a stripped docstring, passing this in to the
+    'path matching algorithm'.
+    The order wich the methods are defined are the order the requests
+    will attempt to match.
     """
     logging.debug("Creating a routerclass with the class %s" % cls)
     cls.__growler_router = lambda self: routerify(self)
@@ -268,12 +283,13 @@ def routerclass(cls):
 
 def routerify(obj):
     """
-    Scan through attributes of object parameter looking for any which match a
-    route signature. A router will be created and added to the object with
-    parameter.
+    Scan through attributes of object parameter looking for any which
+    match a route signature.
+    A router will be created and added to the object with parameter.
 
     Args:
-        obj (object): The object (with attributes) from which to setup a router
+        obj (object): The object (with attributes) from which to
+            setup a router
 
     Returns:
         Router: The router created from attributes in the object.
