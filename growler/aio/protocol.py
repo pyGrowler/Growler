@@ -177,7 +177,7 @@ class GrowlerProtocol(asyncio.Protocol, ResponderHandler):
         property to True.
         """
         self.is_done_transmitting = True
-        log.info("{:d} eof_received". id(self))
+        log.info("{:d} eof_received", id(self))
 
     def handle_error(self, error):
         """

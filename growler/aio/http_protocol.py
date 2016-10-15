@@ -1,9 +1,10 @@
 #
-# growler/http/protocol.py
+# growler/aio/http_protocol.py
 #
 """
 Code containing Growler's asyncio.Protocol code for handling HTTP requests.
 """
+
 import traceback
 from sys import stderr
 from .protocol import GrowlerProtocol
@@ -141,3 +142,22 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
         # change the call stack so any server errors do not link back to this
         # function
         self.loop.create_task(self.http_application.handle_client_request(req, res))
+
+    def body_storage_pair(self):
+        """
+        Return reader/writer pair for storing receiving body data.
+        These are event-loop specific objects.
+
+        The reader should be an awaitable object that returns the
+        body data once created.
+        """
+        future = Future()
+        def send_body():
+            nonlocal future
+            data = yield
+            future.set_result(data)
+            yield
+
+        sender = send_body()
+        next(sender)
+        return future, send_body
