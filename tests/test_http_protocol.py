@@ -111,6 +111,11 @@ def test_constructor(mock_app, mock_event_loop, mock_responder):
     assert proto.http_application is mock_app
 
 
+def test_http_responder_factory(proto):
+    responder = proto.http_responder_factory(proto)
+    assert responder._handler is proto
+
+
 def test_connection_made(unconnected_proto,
                          mock_transport,
                          mock_responder,
@@ -148,6 +153,35 @@ def test_on_data_error(proto, mock_responder, mock_transport):
     mock_responder.on_data.side_effect = ex
     proto.data_received(data)
     assert mock_transport.write.called
+
+
+def test_handle_error_http(proto, mock_responder, mock_transport):
+    data = b'data'
+    ex = growler.http.errors.HTTPErrorForbidden()
+    mock_responder.on_data.side_effect = ex
+    proto.data_received(data)
+    assert mock_transport.write.called
+    assert mock_transport.write.call_args_list[0][0][0].startswith(b'HTTP/1.1 403 Forbidden')
+
+
+def test_begin_application(proto, mock_app, mock_req, mock_res):
+    proto.loop = mock.Mock()
+    proto.begin_application(mock_req, mock_res)
+    mock_app.handle_client_request.assert_called_with(mock_req, mock_res)
+
+
+@pytest.mark.asyncio
+async def test_body_storage_pair(proto):
+    data = b'test data'
+    a, b = proto.body_storage_pair()
+    async def _test_send():
+        await asyncio.sleep(0.1)
+        b.send(data)
+
+    asyncio.get_event_loop().create_task(_test_send())
+
+    returned = await a
+    assert returned is data
 
 
 def test_factory(mock_app):

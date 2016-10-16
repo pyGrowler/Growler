@@ -5,6 +5,7 @@
 import pytest
 import asyncio
 import growler
+from inspect import iscoroutine
 from growler.http.request import HTTPRequest
 from growler.aio.http_protocol import GrowlerHTTPProtocol
 from collections import namedtuple
@@ -30,9 +31,10 @@ def mock_protocol(event_loop):
 @pytest.fixture
 def mock_responder(mock_protocol, event_loop):
     rspndr = mock.MagicMock(spec=growler.http.responder.GrowlerHTTPResponder)
-    rspndr._proto = mock_protocol
+    rspndr._handler = mock_protocol
     rspndr.request = {'url': mock.MagicMock()}
     rspndr.loop = event_loop
+    rspndr.body_storage_pair.return_value = (mock.Mock(), mock.Mock())
     return rspndr
 
 
@@ -96,18 +98,7 @@ def test_query_params(get_req, mock_responder, request_uri, query):
 
 def test_construct_with_expected_body(mock_responder):
     req = HTTPRequest(mock_responder, {'CONTENT-LENGTH': 12})
-    assert isinstance(req.body, asyncio.Future)
-
-
-def test_get_body_none(empty_req):
-    assert empty_req.get_body() is None
-
-
-def test_get_body(empty_req, event_loop):
-    data = b'it works! this is the body!!'
-    empty_req.body = asyncio.Future(loop=event_loop)
-    empty_req.body.set_result(data)
-    assert empty_req.get_body() is data
+    assert iscoroutine(req.body())
 
 
 def test_type_is(empty_req, mock_responder):

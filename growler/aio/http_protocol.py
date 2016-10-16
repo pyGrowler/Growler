@@ -7,6 +7,7 @@ Code containing Growler's asyncio.Protocol code for handling HTTP requests.
 
 import traceback
 from sys import stderr
+from asyncio import Future
 from .protocol import GrowlerProtocol
 from growler.http.responder import GrowlerHTTPResponder
 from growler.http.response import HTTPResponse
@@ -160,4 +161,4 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
 
         sender = send_body()
         next(sender)
-        return future, send_body
+        return future, sender

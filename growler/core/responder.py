@@ -55,8 +55,9 @@ class ResponderHandler(abc.ABC):
     def peername(self):
         pass
 
-    # def ip(self):
-    #     return self.socket.ip
+    @abc.abstractproperty
+    def transport(self):
+        pass
 
     @property
     def remote_hostname(self):
@@ -65,5 +66,3 @@ class ResponderHandler(abc.ABC):
     @property
     def remote_port(self):
         return self.peername[1]
-
-

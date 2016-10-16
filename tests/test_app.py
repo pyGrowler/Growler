@@ -235,6 +235,7 @@ def test_create_server_as_coroutine(app, mock_event_loop):
     protocol_factory.assert_called_with(app, loop=mock_event_loop)
     assert not mock_event_loop.run_until_complete.called
 
+
 def test_create_server_and_run_forever(app, mock_event_loop):
     m = mock.Mock()
     app.create_server_and_run_forever(loop=mock_event_loop, protocol_factory=m)
