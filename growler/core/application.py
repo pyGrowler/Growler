@@ -375,10 +375,9 @@ class Application:
 
             # try calling the function
             try:
-                if inspect.iscoroutinefunction(mw):
-                    await mw(req, res)
-                else:
-                    mw(req, res)
+                ret_val = mw(req, res)
+                if inspect.isawaitable(ret_val):
+                    await ret_val
 
             # special exception - immediately stop the loop
             #  - do not check if res has sent
