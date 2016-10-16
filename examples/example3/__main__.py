@@ -4,7 +4,7 @@
 #
 
 from growler import App
-from growler.router import routerclass
+from growler.core.router import routerclass
 
 
 @routerclass
