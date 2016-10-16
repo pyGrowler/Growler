@@ -1,5 +1,5 @@
 #
-# growler/application.py
+# growler/core/application.py
 #
 """
 Defines the base application (App) that defines a 'growlerific' program. This
@@ -33,7 +33,6 @@ from growler.utils.event_manager import Events
 from growler.http import (
     HTTPRequest,
     HTTPResponse,
-    GrowlerHTTPProtocol,
 )
 import growler.http.methods
 from growler.http.methods import HTTPMethod
@@ -92,8 +91,7 @@ class Application:
                  debug=True,
                  request_class=HTTPRequest,
                  response_class=HTTPResponse,
-                 protocol_factory=GrowlerHTTPProtocol.get_factory,
-                 middleware_chain_factory=MiddlewareChain,
+                 middleware_chain=None,
                  **kw
                  ):
         """
@@ -103,29 +101,37 @@ class Application:
             name (str): Does nothing right now except identify object
             debug (bool): (de)Activates the loop's debug setting
 
-            request_class (type or callable): The factory of request objects, the default of
-                which is growler.HTTPRequest. This should only be set in special cases, like
-                debugging or if the dev doesn't want to modify default request objects via
-                middleware.
+            request_class (type or callable): The factory of request
+                objects, the default of which is
+                :class:`growler.HTTPRequest`.
+                This should only be set in special cases, like
+                debugging or if the dev doesn't want to modify
+                default request objects via middleware.
 
-            response_class (type or callable): The factory of response objects, the default of
-                which is growler.HTTPResponse. This should only be set in special cases, like
-                debugging or if the dev doesn't want to modify default response objects via
-                middleware.
+            response_class (type or callable): The factory of
+                response objects, the default of which is
+                :class:`growler.HTTPResponse`.
+                This should only be set in special cases, like
+                debugging or if the dev doesn't want to modify
+                default response objects via middleware.
 
-            protocol_factory (callable): Factory function this application uses to construct
-                the asyncio protocol object which responds to client connections. The default
-                is the GrowlerHTTPProtocol.get_factory method, which simply returns a lambda
-                returning new GrowlerHTTPProtocol objects.
-
-            middleware_chain_factory (type or callable): Called upon with no arguments to
-                create the middleware chain used by the application. This is accessible via
-                the attribute 'middleware'.
+            middleware_chain (type or callable): If a type or
+                function-like object, it will be called and the
+                return value will be interpreted as the middleware
+                chain.
+                Otherwise, if not None, it will use the argment as
+                the middleware chain.
+                The default value, if parameter is `None`, is the
+                :class:`MiddlewareChain` class.
+                This value is accessible via the attribute
+                :attr:`middleware`.
 
         Keyword Args:
-            Any other custom variables for the application. This dict is stored as the
-            attribute 'config' in the application. These variables are accessible by the
-            application's dict-access, as in:
+            Any other custom variables for the application.
+            This dict is stored as the attribute 'config' in the
+            application.
+            These variables are accessible by the application's
+            dict-access, as in:
 
             .. code:: python
 
@@ -135,7 +141,12 @@ class Application:
         self.name = name
         self.config = kw
 
-        self.middleware = middleware_chain_factory()
+        if middleware_chain is None:
+            middleware_chain = MiddlewareChain()
+        elif isinstance(middleware_chain, (types.FunctionType, type)):
+            middleware_chain = middleware_chain()
+
+        self.middleware = middleware_chain
 
         self.enable('x-powered-by')
         self['env'] = os.getenv('GROWLER_ENV', 'development')
@@ -145,7 +156,6 @@ class Application:
 
         self._request_class = request_class
         self._response_class = response_class
-        self._protocol_factory = protocol_factory
 
         self.handle_404 = self.default_404_handler
 
@@ -330,26 +340,30 @@ class Application:
         by growler.HTTPResponder (the default responder) after the headers have
         been processed in the begin_application method.
 
-        This iterates over all middleware in the middleware list which matches the client's
-        method and path. It executes the middleware and continues iterating until the
+        This iterates over all middleware in the middleware list which matches
+        the client's method and path.
+        It executes the middleware and continues iterating until the
         res.has_ended property is true.
 
-        If the middleware raises a GrowlerStopIteration exception, this method immediatly
-        returns None, breaking the loop and leaving res without sending any information back to
-        the client. Be *sure* that you have another coroutine scheduled that will take over
+        If the middleware raises a GrowlerStopIteration exception, this method
+        immediatly returns None, breaking the loop and leaving res without
+        sending any information back to the client.
+        Be *sure* that you have another coroutine scheduled that will take over
         handling client data.
 
-        If a middleware function raises any other exception, the exception is forwarded to the
-        middleware generator, which changes behavior to generating any error handlers it had
-        encountered. This method then calls the handle_server_error method which *should*
+        If a middleware function raises any other exception, the exception is
+        forwarded to the middleware generator, which changes behavior to
+        generating any error handlers it had encountered.
+        This method then calls the handle_server_error method which *should*
         handle the error and notify the user.
 
-        If after the chain is exhausted, either with an exception raised or not, res.has_ended
-        does not evaluate to true, the response is sent a simple server error message in text.
+        If after the chain is exhausted, either with an exception raised or
+        not, res.has_ended does not evaluate to true, the response is sent a
+        simple server error message in text.
 
         Args:
-            req (growler.HTTPRequest): The incoming request, containing all information
-                about the client.
+            req (growler.HTTPRequest): The incoming request, containing all
+                information about the client.
             res (growler.HTTPResponse): The outgoing response, containing
                 methods for sending headers and data back to the client.
         """
@@ -484,7 +498,7 @@ class Application:
         print(EOL.join(lines), **kwargs)
 
     @staticmethod
-    def default_error_handler(req, res, error:Exception):
+    def default_error_handler(req, res, error: Exception):
         from io import StringIO
         import traceback
 
@@ -563,7 +577,11 @@ class Application:
     # Helper Functions for easy server creation
     #
 
-    def create_server(self, gen_coroutine=False, loop=None, **server_config):
+    def create_server(self,
+                      loop=None,
+                      as_coroutine=False,
+                      protocol_factory=None,
+                      **server_config):
         """
         Helper function which constructs a listening server, using the default
         growler.http.protocol.Protocol which responds to this app.
@@ -572,12 +590,27 @@ class Application:
         growler app.
 
         Args:
-            gen_coroutine (bool): If True, this function only returns the
-                coroutine generator returned by loop.create_server, else
-                it will 'run_until_complete' the generator and return the
-                created server object.
+            as_coroutine (bool): If True, this function does not wait
+                for the server to be created, and only returns the
+                coroutine generator object returned by loop.create_server.
+                This mode should be used when already inside an async
+                function. The default mode is to call `run_until_complete`
+                on the loop paramter, blocking until the server is created
+                and added to the event loop.
 
-            server_config (mixed): These keyword arguments parameters are
+            loop (BaseEventLoop): This is the asyncio event loop used
+                to provide the underlying `create_server` method, and,
+                if as_coroutine is False, will block until the server
+                is created.
+
+            protocol_factory (callable): Function returning an asyncio
+                protocol object (or more specifically, a
+                `growler.aio.GrowlerProtocol` object) to be called upon
+                client connection.
+                The default is the :class:`GrowlerHttpProtocol` factory
+                function.
+
+            **server_config (mixed): These keyword arguments parameters are
                 passed directly to the BaseEventLoop.create_server function.
                 Consult their documentation for details.
 
@@ -594,12 +627,16 @@ class Application:
             import asyncio
             loop = asyncio.get_event_loop()
 
+        if protocol_factory is None:
+            from growler.aio import GrowlerHTTPProtocol
+            protocol_factory = GrowlerHTTPProtocol.get_factory
+
         create_server = loop.create_server(
-            self._protocol_factory(self),
+            protocol_factory(self, loop=loop),
             **server_config
         )
 
-        if gen_coroutine:
+        if as_coroutine:
             return create_server
         else:
             return loop.run_until_complete(create_server)
@@ -612,12 +649,12 @@ class Application:
         This function exists only to remove boilerplate code for starting up a
         growler app.
 
-        Args:
-            loop (asyncio.BaseEventLoop): optional parameter for specifying
+        Parameters:
+            loop (asyncio.BaseEventLoop): Optional parameter for specifying
                 an event loop which will handle socket setup.
+
             **server_config: These keyword arguments are forwarded directly to
-                the BaseEventLoop.create_server function. Consult their
-                documentation for details.
+                the create_server function.
         """
         if loop is None:
             import asyncio

@@ -69,12 +69,11 @@ def req(req_uri):
 @pytest.fixture
 def app(app_name, mock_MiddlewareChain, use_mock_middlewarechain, mock_event_loop, MockProtocol):
 
-    mw_chain = (lambda: mock_MiddlewareChain) if use_mock_middlewarechain else growler.MiddlewareChain
+    mw_chain = mock_MiddlewareChain if use_mock_middlewarechain else None
     result = Application(app_name,
                          request_class=MockRequest,
                          response_class=MockResponse,
-                         middleware_chain_factory=mw_chain,
-                         protocol_factory=MockProtocol,
+                         middleware_chain=mw_chain,
                          )
     return result
 
@@ -94,7 +93,6 @@ def test_application_constructor():
 def test_app_fixture(app, app_name, mock_MiddlewareChain, MockProtocol):
     assert isinstance(app, growler.Application)
     assert app.middleware is mock_MiddlewareChain
-    assert app._protocol_factory is MockProtocol
     assert app._request_class is MockRequest
     assert app._response_class is MockResponse
 
@@ -220,22 +218,28 @@ def test_use_growler_router_metaclass(app, mock_route_generator):
 
 def test_create_server(app, mock_event_loop):
     """ Test if the application creates a server coroutine """
-    app._protocol_factory = mock.Mock()
-    app.create_server(loop=mock_event_loop)
+    protocol_factory = mock.Mock()
+    server_coro = mock.Mock()
+    mock_event_loop.create_server.return_value = server_coro
+    app.create_server(mock_event_loop, False, protocol_factory)
+    protocol_factory.assert_called_with(app, loop=mock_event_loop)
     assert mock_event_loop.create_server.called
-    assert app._protocol_factory.called
+    mock_event_loop.run_until_complete.assert_called_with(server_coro)
 
 
 def test_create_server_as_coroutine(app, mock_event_loop):
     """ Test if the application creates a server coroutine """
-    app._protocol_factory = mock.Mock()
-    app.create_server(gen_coroutine=True, loop=mock_event_loop)
+    protocol_factory = mock.Mock()
+    app.create_server(mock_event_loop, True, protocol_factory)
     assert mock_event_loop.create_server.called
-    assert app._protocol_factory.called
-
+    protocol_factory.assert_called_with(app, loop=mock_event_loop)
+    assert not mock_event_loop.run_until_complete.called
 
 def test_create_server_and_run_forever(app, mock_event_loop):
-    app.create_server_and_run_forever(loop=mock_event_loop)
+    m = mock.Mock()
+    app.create_server_and_run_forever(loop=mock_event_loop, protocol_factory=m)
+
+    m.assert_called_with(app, loop=mock_event_loop)
     assert mock_event_loop.create_server.called
     assert mock_event_loop.run_forever.called
 
