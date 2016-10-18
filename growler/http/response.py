@@ -12,10 +12,9 @@ from pathlib import Path
 from itertools import chain
 from datetime import datetime
 from collections import OrderedDict
+from growler.http import HttpStatus
 from growler.utils.event_manager import Events
 from wsgiref.handlers import format_date_time as format_RFC_1123
-
-from .status import Status
 
 
 class HTTPResponse:
@@ -81,13 +80,13 @@ class HTTPResponse:
         self.events.sync_emit('headers')
         self._set_default_headers()
         header_str = self.status_line + self.EOL + str(self.headers)
-        self.protocol.transport.write(header_str.encode())
+        self.stream.write(header_str.encode())
         self.events.sync_emit('after_headers')
 
     def write(self, msg=None):
         msg = self.message if msg is None else msg
         msg = msg.encode() if isinstance(msg, str) else msg
-        self.protocol.transport.write(msg)
+        self.stream.write(msg)
 
     def write_eof(self):
         self.stream.write_eof()
@@ -101,7 +100,7 @@ class HTTPResponse:
         and a phrase (OK).
         """
         if not self.phrase:
-            self.phrase = Status.Phrase(self.status_code)
+            self.phrase = HttpStatus(self.status_code).phrase
         return "{} {} {}".format("HTTP/1.1", self.status_code, self.phrase)
 
     def end(self):

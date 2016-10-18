@@ -6,6 +6,7 @@ import growler
 from growler.http.responder import GrowlerHTTPResponder
 from growler.http.methods import HTTPMethod
 from growler.http.errors import HTTPErrorBadRequest
+from growler.aio.http_protocol import GrowlerHTTPProtocol
 import asyncio
 import pytest
 from unittest import mock
@@ -36,11 +37,11 @@ DELETE = HTTPMethod.DELETE
 
 
 @pytest.fixture
-def mock_protocol(mock_app):
-    protocol = mock.Mock(spec=growler.http.protocol.GrowlerHTTPProtocol)
+def mock_protocol(mock_app, mock_event_loop):
+    protocol = mock.Mock(spec=GrowlerHTTPProtocol)
     protocol.socket.getpeername = mock.MagicMock()
     protocol.http_application = mock_app
-    protocol.loop = mock_app.loop
+    protocol.loop = mock_event_loop
     protocol.client_headers = None
     return protocol
 

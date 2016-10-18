@@ -6,8 +6,8 @@ Provides the MiddlewareChain class, which is used to store structured routing, a
 easy interface for request matching.
 """
 
-import logging
 import re
+import logging
 from inspect import signature
 
 

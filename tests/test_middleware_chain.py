@@ -3,7 +3,7 @@
 #
 
 import growler
-from growler.middleware_chain import MiddlewareChain, MiddlewareNode
+from growler.core.middleware_chain import MiddlewareChain, MiddlewareNode
 import pytest
 from unittest import mock
 
@@ -33,7 +33,7 @@ def test_chain_add_middleware(chain):
 
 
 def test_add_router(chain):
-    router = mock.Mock(spec=growler.router.Router)
+    router = mock.Mock(spec=growler.Router)
     chain.add(0x1, '/', router)
     assert router in chain
 
@@ -129,8 +129,8 @@ def test_chain_calls_iterate_subchain(chain):
     assert next(gen) is mw3
 
     mock_chain0.assert_called_once_with(1, '/')
-    assert not mock_chain1.called
-    assert not mock_chain2.called
+    mock_chain1.assert_not_called
+    mock_chain2.assert_not_called
 
 
 def test_chain_adds_error_handler(chain):

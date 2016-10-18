@@ -1,12 +1,14 @@
 #
-# growler/http/protocol.py
+# growler/aio/http_protocol.py
 #
 """
 Code containing Growler's asyncio.Protocol code for handling HTTP requests.
 """
+
 import traceback
 from sys import stderr
-from growler.protocol import GrowlerProtocol
+from asyncio import Future
+from .protocol import GrowlerProtocol
 from growler.http.responder import GrowlerHTTPResponder
 from growler.http.response import HTTPResponse
 from growler.http.errors import (
@@ -34,7 +36,7 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
     client_query = None
     client_headers = None
 
-    def __init__(self, app):
+    def __init__(self, app, loop=None):
         """
         Construct a GrowlerHTTPProtocol object. This should only be called from
         a growler.HTTPServer instance (or any asyncio.create_server function).
@@ -47,7 +49,7 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
             handle_client_request coroutine method should work.
         """
         self.http_application = app
-        super().__init__(loop=app.loop,
+        super().__init__(loop=loop,
                          responder_factory=self.http_responder_factory)
 
     @staticmethod
@@ -107,7 +109,7 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
             "<html>"
             "<head></head>"
             "<body><h1>HTTP Error : {code} {message}</h1><p>{info}</p></body>"
-            "</html>"
+            "</html>\n"
         ).format(
             code=err_code,
             message=err_msg,
@@ -131,3 +133,32 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
             "{contents}")).format(**header_info)
 
         self.transport.write(response.encode())
+
+    def begin_application(self, req, res):
+        """
+        Entry point for the application middleware chain for an asyncio
+        event loop.
+        """
+        # Add the middleware processing to the event loop - this *should*
+        # change the call stack so any server errors do not link back to this
+        # function
+        self.loop.create_task(self.http_application.handle_client_request(req, res))
+
+    def body_storage_pair(self):
+        """
+        Return reader/writer pair for storing receiving body data.
+        These are event-loop specific objects.
+
+        The reader should be an awaitable object that returns the
+        body data once created.
+        """
+        future = Future()
+        def send_body():
+            nonlocal future
+            data = yield
+            future.set_result(data)
+            yield
+
+        sender = send_body()
+        next(sender)
+        return future, sender

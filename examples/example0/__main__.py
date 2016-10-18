@@ -12,6 +12,7 @@ from os import path
 import asyncio
 
 from growler import (App)
+from growler.aio import GrowlerHTTPProtocol
 from growler.middleware import (
     Logger,
     StringRenderer,
@@ -50,7 +51,7 @@ server_params = {
     'port': 8000,
 }
 
-make_server = loop.create_server(app._protocol_factory(app), **server_params)
+make_server = loop.create_server(lambda: GrowlerHTTPProtocol(app), **server_params)
 loop.run_until_complete(make_server)
 
 loop.run_forever()

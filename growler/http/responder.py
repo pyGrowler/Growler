@@ -9,18 +9,18 @@ from .parser import Parser
 from .request import HTTPRequest
 from .response import HTTPResponse
 from .methods import HTTPMethod
-
+from growler.core.responder import GrowlerResponder, ResponderHandler
 from .errors import (
     HTTPErrorBadRequest,
 )
 
 
-class GrowlerHTTPResponder:
+class GrowlerHTTPResponder(GrowlerResponder):
     """
     The Growler Responder for HTTP connections.
 
     Like *all* growler responders - this class is responsible for
-    responding to client data forwarded by a growler protocol object.
+    responding to client data forwarded by a handler object.
 
     This responder has linear functionality, performing the following
     tasks:
@@ -32,10 +32,12 @@ class GrowlerHTTPResponder:
     #) Store all remaining client data into the request objects "body"
        attribute (a Future).
 
-    The `on_data` method is the only useful method, where the responder
-    acts on the next bit of user data.
+    The :method:`on_data` method is the only useful method, where the
+    responder acts on the next bit of user data.
 
-    This should really only be constructed from a growler protocol instance.
+    This should really only be constructed from an instance of a
+    :class:`growler.ResponderHandler`, the default being
+    :class:`growler.aio.HttpProtocol`.
     """
 
     body_buffer = None
@@ -43,59 +45,68 @@ class GrowlerHTTPResponder:
     headers = None
 
     def __init__(self,
-                 protocol,
+                 handler,
                  parser_factory=Parser,
                  request_factory=HTTPRequest,
                  response_factory=HTTPResponse,
                  ):
         """
         Construct a Responder. This method only requires the 'parent'
-        protocol object which has a link to the main Application object.
+        handler object which has a link to the main
+        :class:`Application` object.
 
         Parameters:
-            protocol (GrowlerHTTPProtocol): The owner/creator of this
-                responder. This object MUST have an `app` attribute
-                that points to the application to be called. Some
-                connection information (e.g. client's ip address) is
-                forwarded from this protocol via some properties.
+            handler (growler.ResponderHandler): The owner/creator of
+                this responder.
+                This object is required to have an `app` attribute that
+                points to the growler application.
+                Some connection information properties (e.g. client's
+                ip address) from the handler is exposed by this
+                responder.
 
             parser_factor (type or callable): Factory function (or
                 classname) of the object responsible for parsing the
-                client's request line and headers. Default value is the
-                growler.http.parser.Parser class. The object must have
-                a 'consume' method which accepts the incoming data. If
-                this data only has partial headers, consume returns
-                None, and the parser should expect consume to be called
-                again. When the headers have finished, the consume
-                function returns any body data past the headers.
+                client's request line and headers. Default value is
+                the :class:`growler.http.parser.Parser` class.
+                The object must have a :method:`consume` method which
+                accepts the incoming data.
+                If this data only has partial headers, ``consume``
+                returns None, and the parser should expect consume to
+                be called again.
+                When the headers have finished, the consume function
+                returns any body data past the headers.
 
             request_factory (type or callable): Factory function (or
                 classname) of the request object which gets passed to
                 the applications middleware as the first parameter.
-                The default value is the class growler.http.HTTPRequest.
-                When called, this object must accepts two arguments: the
-                protocol handling the connection and the headers
-                returned from the parser.
+                The default value is the class
+                :class:`growler.http.HTTPRequest`.
+                When called, this object must accepts two arguments:
+                this responder's handler and the headers returned
+                from the parser object.
 
             response_factory (type or callable): Factory function (or
                 classname) of the response object which gets passed to
-                the applications middleware as the second parameter.
-                The default value is the class growler.http.HTTPResponse.
-                When called, this object must accept one argument: the
-                parent protocol handling the connection.
+                the application's middleware as the second parameter.
+                The default value is the class :class:`HTTPResponse`
+                found in :mod:`growler.http`.
+                The function is called with this responder's handler
+                object, which provides access to the 'write stream'
+                to respond.
 
         """
-        self._proto = protocol
+        self._handler = handler
         self.parser = parser_factory(self)
         self.build_req = request_factory
         self.build_res = response_factory
 
     def on_data(self, data):
         """
-        This is the function called by the http protocol upon receipt
-        of incoming client data.
+        This is the function called by the handler object upon
+        receipt of incoming client data.
         The data is passed to the responder's parser class (via the
-        consume method), which digests and stores as HTTP fields.
+        :method:`consume` method), which digests and stores the HTTP
+        data.
 
         Upon completion of parsing the HTTP headers, the responder
         creates the request and response objects, and passes them to
@@ -110,6 +121,7 @@ class GrowlerHTTPResponder:
             HTTPErrorBadRequest: If there is a problem parsing headers
                 or body length exceeds expectation.
         """
+
         # Headers have not been read in yet
         if len(self.headers) == 0:
             # forward data to the parser
@@ -129,8 +141,9 @@ class GrowlerHTTPResponder:
                 # builds request and response out of self.headers and protocol
                 self.req, self.res = self.build_req_and_res()
 
-                # add middleware chain to event loop
-                self.begin_application(self.req, self.res)
+                # add instruct handler to begin running the application
+                # with the created req and res pairs
+                self._handler.begin_application(self.req, self.res)
 
         # if truthy, 'data' now holds body data
         if data:
@@ -138,24 +151,37 @@ class GrowlerHTTPResponder:
 
             # if we have reached end of content - put in the request's body
             if len(self.body_buffer) == self.content_length:
-                self.req.body.set_result(bytes(self.body_buffer))
+                self.set_body_data(bytes(self.body_buffer))
 
     def begin_application(self, req, res):
         """
         Sends the given req/res objects to the application.
 
-        This method calls the target app's handle_client_request method
-        and adds this coroutine to the loop as a task.
+        This implementation forwards the request to the handler's
+        :method:`begin_application` method, which SHOULD create a
+        new task/event to run in the event loop (starting a fresh
+        call stack).
+
         This is only to be called after parsing the request headers.
 
         Parameters:
             req (HTTPRequest): The request
             res (HTTPResponse): The response
         """
-        # Add the middleware processing to the event loop - this *should*
-        # change the call stack so any server errors do not link back to this
-        # function
-        self.loop.create_task(self.app.handle_client_request(req, res))
+        self._handler.begin_application(req, res)
+
+    def set_body_data(self, data):
+        """
+        Method called when the server has finished reading in the
+        complete body data.
+
+        The default implementation forwards this to the request
+        object via its own :method:`set_body_data` method.
+
+        Parameters:
+            data (bytes): The bytes of the client's HTTP body.
+        """
+        self.req.set_body_data(data)
 
     def set_request_line(self, method, url, version):
         """
@@ -192,7 +218,7 @@ class GrowlerHTTPResponder:
         the responder was given, and returns the pair.
         """
         req = self.build_req(self, self.headers)
-        res = self.build_res(self._proto)
+        res = self.build_res(self._handler)
         return req, res
 
     def validate_and_store_body_data(self, data):
@@ -218,6 +244,10 @@ class GrowlerHTTPResponder:
                 len(self.body_buffer), self.content_length
             )
             raise HTTPErrorBadRequest(phrase=problem)
+
+    def body_storage_pair(self):
+        reader, writer = self._handler.body_storage_pair()
+        return reader, writer
 
     @property
     def method(self):
@@ -253,18 +283,18 @@ class GrowlerHTTPResponder:
         """
         The asyncio event loop this responder belongs to.
         """
-        return self._proto.loop
+        return self._handler.loop
 
     @property
     def app(self):
         """
         The growler application this responder belongs to.
         """
-        return self._proto.http_application
+        return self._handler.http_application
 
     @property
     def ip(self):
         """
-        Ip address of the client. Retrieved from parent protocol object
+        IP address of the client. Retrieved from parent protocol object
         """
-        return self._proto.socket.getpeername()[0]
+        return self._handler.socket.getpeername()[0]
