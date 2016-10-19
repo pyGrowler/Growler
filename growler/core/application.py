@@ -495,15 +495,14 @@ class Application:
         def mask_to_method_name(mask):
             if mask == HTTPMethod.ALL:
                 return 'ALL'
-            names = (method.name
-                     for method in HTTPMethod
-                     if method.value & mask)
+            methods = set(HTTPMethod) - {HTTPMethod.ALL}
+            names = (method.name for method in methods if method.value & mask)
             return '+'.join(names)
 
         def path_to_str(path):
             if isinstance(path, str):
                 return path
-            return path.pattern
+            return re.subpath.pattern.replace('\\', '')
 
         def decend_into_tree(chain, level):
             lines_ = []
