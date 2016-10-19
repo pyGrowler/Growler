@@ -35,9 +35,8 @@ from growler.utils.event_manager import Events
 from growler.http import (
     HTTPRequest,
     HTTPResponse,
+    HTTPMethod,
 )
-import growler.http.methods
-from growler.http.methods import HTTPMethod
 from .router import Router, RouterMeta
 from .middleware_chain import MiddlewareChain
 
@@ -496,8 +495,9 @@ class Application:
         def mask_to_method_name(mask):
             if mask == HTTPMethod.ALL:
                 return 'ALL'
-            methods_names = growler.http.methods.string_to_method.items()
-            names = [name for name, key in methods_names if (key & mask)]
+            names = (method.name
+                     for method in HTTPMethod
+                     if method.value & mask)
             return '+'.join(names)
 
         def path_to_str(path):

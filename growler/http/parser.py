@@ -5,10 +5,7 @@
 import re
 from urllib.parse import (unquote, urlparse, parse_qs)
 
-from .methods import (
-    HTTPMethod,
-    string_to_method as Gen_HTTP_Method
-)
+from .methods import HTTPMethod
 
 from growler.http.errors import (
     HTTPErrorNotImplemented,
@@ -265,7 +262,7 @@ class Parser:
 
         # save 'method' and get the correct function to finish processing
         try:
-            self.method = Gen_HTTP_Method[self.method_str]
+            self.method = HTTPMethod[self.method_str]
         except KeyError:
             # Method not found
             err = "Unknown HTTP Method '{}'".format(self.method_str)

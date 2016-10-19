@@ -6,10 +6,7 @@ import re
 import logging
 from functools import partialmethod
 from collections import OrderedDict
-from growler.http.methods import (
-    HTTPMethod,
-    string_to_method as StringToHTTPMethod,
-)
+from growler.http import HTTPMethod
 from .middleware_chain import (
     MiddlewareChain,
 )
@@ -254,7 +251,7 @@ def get_routing_attributes(obj, modify_doc=False, keys=None):
         if modify_doc:
             val.__doc__ = ''.join(doc)
 
-        method = StringToHTTPMethod[method_str]
+        method = HTTPMethod[method_str]
 
         yield method, path, val
 
