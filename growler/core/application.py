@@ -31,14 +31,15 @@ import types
 import inspect
 import logging
 
-from growler.utils.event_manager import Events
-from growler.http import (
+from ..utils.event_manager import Events
+from .router import Router, RouterMeta
+from .middleware_chain import MiddlewareChain
+
+from ..http import (
     HTTPRequest,
     HTTPResponse,
     HTTPMethod,
 )
-from .router import Router, RouterMeta
-from .middleware_chain import MiddlewareChain
 
 log = logging.getLogger(__name__)
 
@@ -406,10 +407,6 @@ class Application:
             if res.has_ended:
                 break
 
-        # TODO: Decide if a 404 exception should be thrown back into the generator somehow.
-        #       This is not easy as the generator should be closed at end of for loop. - could
-        #       change generator behavior to yield the exception - prompting app to throw it
-        #       back.
         if not res.has_ended:
             self.handle_response_not_sent(req, res)
 
@@ -502,7 +499,7 @@ class Application:
         def path_to_str(path):
             if isinstance(path, str):
                 return path
-            return re.subpath.pattern.replace('\\', '')
+            return path.pattern.replace('\\', '')
 
         def decend_into_tree(chain, level):
             lines_ = []
