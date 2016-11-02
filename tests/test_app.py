@@ -89,6 +89,11 @@ def test_application_constructor():
     assert app.name == 'Test'
 
 
+def test_application_constructor_alternate_middleware_type():
+    app = growler.Application('Test', middleware_chain=list)
+    assert app.middleware == []
+
+
 @pytest.mark.parametrize("use_mock_middlewarechain", [True])
 def test_app_fixture(app, app_name, mock_MiddlewareChain, MockProtocol):
     assert isinstance(app, growler.Application)
@@ -124,6 +129,19 @@ def test_post(app_with_router, router):
     m = mock.Mock()
     app_with_router.post('/', m)
     router.post.assert_called_with('/', m)
+
+
+def test_put(app_with_router, router):
+    m = mock.Mock()
+    app_with_router.put('/', m)
+    router.put.assert_called_with('/', m)
+
+
+
+def test_delete(app_with_router, router):
+    m = mock.Mock()
+    app_with_router.delete('/', m)
+    router.delete.assert_called_with('/', m)
 
 
 def test_use_function(app, mock_route_generator):
@@ -227,6 +245,19 @@ def test_create_server(app, mock_event_loop):
     mock_event_loop.run_until_complete.assert_called_with(server_coro)
 
 
+def test_create_server_default_params(app, mock_event_loop):
+    """ Test if the application creates a server coroutine """
+    import asyncio
+    asyncio.set_event_loop(mock_event_loop)
+    server = app.create_server(port=1)
+
+    create_server_call = mock.call(mock.ANY, port=1)
+    assert mock_event_loop.create_server.mock_calls[0] == create_server_call
+
+    run_until_complete_call = mock.call(mock_event_loop.create_server.return_value)
+    assert mock_event_loop.run_until_complete.mock_calls[0] == run_until_complete_call
+
+
 def test_create_server_as_coroutine(app, mock_event_loop):
     """ Test if the application creates a server coroutine """
     protocol_factory = mock.Mock()
@@ -249,6 +280,25 @@ def test_create_server_and_run_forever_args(app, mock_event_loop):
     app.create_server_and_run_forever(loop=mock_event_loop, arg1='arg1', arg2='arg2')
     assert mock_event_loop.create_server.called
     assert mock_event_loop.run_forever.called
+
+
+def test_create_server_and_run_forever_default_params(app, mock_event_loop):
+    """ Test if the application creates a server coroutine """
+    import asyncio
+
+    # solves a coverage problem
+    mock_event_loop.run_forever.side_effect = KeyboardInterrupt
+
+    asyncio.set_event_loop(mock_event_loop)
+    server = app.create_server_and_run_forever(host='◉', port=1)
+
+    create_server_call = mock.call(mock.ANY, host='◉', port=1)
+    assert mock_event_loop.create_server.mock_calls[0] == create_server_call
+
+    run_until_complete_call = mock.call(mock_event_loop.create_server.return_value)
+    assert mock_event_loop.run_until_complete.mock_calls[0] == run_until_complete_call
+
+    mock_event_loop.run_forever.assert_called_with()
 
 #
 # @pytest.mark.parametrize("method", [
@@ -307,6 +357,11 @@ def test_router_property(app):
 def test_enable(app):
     app.enable('option')
     assert app.enabled('option')
+
+
+def test_enabled(app):
+    app.enable('option')
+    assert app.enabled('opti') is None
 
 
 def test_disable(app):
@@ -463,6 +518,32 @@ async def test_middleware_stops_with_res(app, req, res):
 
 
 @pytest.mark.asyncio
+async def test_middleware_stops_with_growlerstopiter(app, req, res):
+    res.has_ended = False
+
+    m0 = mock.MagicMock()
+    m1 = mock.MagicMock()
+
+    @app.use
+    def passes(req, res):
+        m0(req, res)
+
+    @app.use
+    def stop_iter(req, res):
+        raise GrowlerStopIteration
+
+    @app.use
+    def passes_again(req, res):
+        m1(req, res)
+
+    await app.handle_client_request(req, res)
+
+    m0.assert_called_with(req, res)
+    m1.assert_not_called
+    assert res.has_ended == False
+
+
+@pytest.mark.asyncio
 async def test_handle_server_error(app, req, res):
     m1 = mock.create_autospec(lambda rq, rs, er: None)
     m2 = mock.create_autospec(lambda rq, rs, er: None)
@@ -477,6 +558,38 @@ async def test_handle_server_error(app, req, res):
     await app.handle_server_error(req, res, generator, err)
     assert m1.called
     assert not m2.called
+
+
+@pytest.mark.asyncio
+async def test_handle_server_error_awaitable(app, req, res):
+    res.has_ended = False
+    ex = Exception("Boom")
+    m0 = mock.MagicMock()
+    eh = mock.MagicMock()
+    m1 = mock.MagicMock()
+
+    def m_call(m):
+        return lambda req, res: m(req, res)
+
+    async def ehandle(req, res, err):
+        eh(req, res, err)
+        assert err is None
+
+    async def oops(req, res):
+        raise ex
+
+    app.use(m_call(m0))
+    app.use(ehandle)
+    e = app.middleware.mw_list[-1]
+
+    app.use(m_call(m1))
+    app.use(oops)
+    app.print_middleware_tree()
+    await app.handle_client_request(req, res)
+
+    m0.assert_called_with(req, res)
+    m1.assert_called_with(req, res)
+    eh.assert_called_with(req, res, ex)
 
 
 @pytest.mark.asyncio
