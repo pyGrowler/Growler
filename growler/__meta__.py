@@ -6,11 +6,11 @@
 package = 'growler'
 project = 'Web framework using standard python asyncio'
 
-version_info = (0, 8, 0)
+version_info = (0, 9, 0, 'dev0')
 version = '.'.join(map(str, version_info))
 version_name = ''.join((project, 'version', version))
 
-date = "Sep 7, 2016"
+date = "Nov 2, 2016"
 author = "Andrew Kubera"
 author_email = "andrew.kubera@gmail.com"
 copyright = "Copyright 2016, Andrew Kubera"
