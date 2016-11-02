@@ -3,9 +3,9 @@
 #
 #
 
-from http.cookies import SimpleCookie
-import logging
 import json
+import logging
+from http.cookies import SimpleCookie
 
 log = logging.getLogger(__name__)
 
@@ -37,17 +37,16 @@ class CookieParser:
         and adds a callback to the 'on_headerstrings' response event.
         """
         # Do not clobber cookies
-        try:
-            log.info("%d built with %s" % (id(self), json.dumps(self.opts)))
-            req.cookies
-            return None
-        except AttributeError:
-            # Create an empty cookie state
-            req.cookies, res.cookies = SimpleCookie(), SimpleCookie()
+        if hasattr(req, 'cookies'):
+            return
+
+        # Create an empty cookie state
+        req.cookies, res.cookies = SimpleCookie(), SimpleCookie()
+
+        log.info("{:d} built with {}", id(self), json.dumps(self.opts))
 
         # If the request had a cookie, load it!
-        if 'COOKIE' in req.headers:
-            req.cookies.load(req.headers['COOKIE'])
+        req.cookies.load(req.headers.get('COOKIE', ''))
 
         def _gen_cookie():
             if res.cookies:
