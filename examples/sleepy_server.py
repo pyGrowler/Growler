@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 #
-# Ex2 - Lonely Server
+# examples/sleepy_server.py
 #
+"""
+Example growler server which uses a coroutine middleware
+"""
 
 import asyncio
 import growler
@@ -12,11 +15,10 @@ app = growler.App("Example2")
 
 # Small function to handle requests from server
 @app.get("/")
-@asyncio.coroutine
-def handle_request(req, res):
+async def handle_request(req, res):
     sleep_for = 2
     print("Sleeping for %d seconds" % (sleep_for))
-    yield from asyncio.sleep(sleep_for)
+    await asyncio.sleep(sleep_for)
     res.send_text('It Works!')
 
 

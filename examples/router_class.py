@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 #
-# Example3 - routerclass
+# examples/router_class.py
 #
+"""
+Example growler server using a the @routerclass decorator
+"""
 
 from growler import App
 from growler.core.router import routerclass
+from datetime import datetime
 
 
 @routerclass
@@ -24,7 +28,7 @@ class QuickRoute:
         """ /
         return the root of the object
         """
-        res.send_json({'param': self.param})
+        res.send_json({'param': self.param, 'time': datetime.now().isoformat()})
 
     def post_name(self, req, res):
         """ /name
