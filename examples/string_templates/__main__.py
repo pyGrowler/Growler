@@ -1,9 +1,9 @@
 #
-# examples/example0/__main__.py
+# examples/string_templates/__main__.py
 #
 """
-Example script to demonstrate route decorating, string-template rendering and
-low-level server.
+Example script to demonstrate route decorating, string-template
+rendering and low-level server.
 """
 
 
@@ -51,7 +51,11 @@ server_params = {
     'port': 8000,
 }
 
-make_server = loop.create_server(lambda: GrowlerHTTPProtocol(app), **server_params)
+# This is explicitly calling asyncio functions;
+# the same could be accomplished with the one line:
+#   app.create_server_and_run_forever(**server_params)
+make_server = loop.create_server(lambda: GrowlerHTTPProtocol(app),
+                                 **server_params)
 loop.run_until_complete(make_server)
 
 loop.run_forever()
