@@ -6,6 +6,7 @@ import pytest
 import growler
 from pathlib import Path
 from unittest import mock
+from sys import version_info
 from growler.middleware.static import Static
 
 
@@ -25,7 +26,8 @@ def test_construct_with_list(tmpdir):
 
 
 def test_error_on_missing_dir():
-    with pytest.raises(FileNotFoundError):
+    err = FileNotFoundError if version_info < (3, 6) else NotADirectoryError
+    with pytest.raises(err):
         Static("/does/not/exist")
 
 

@@ -11,6 +11,7 @@ import growler
 
 from pathlib import Path
 from unittest import mock
+from sys import version_info
 from growler.middleware.renderer import Renderer, RenderEngine, StringRenderer
 
 
@@ -70,7 +71,8 @@ def test_render_engine_adds_render_method(base_renderer, req):
 
 
 def test_renderer_requires_real_path(tmpdir):
-    with pytest.raises(FileNotFoundError):
+    err = FileNotFoundError if version_info < (3, 6) else NotADirectoryError
+    with pytest.raises(err):
         RenderEngine(str(tmpdir / 'does-not-exist'))
 
 
