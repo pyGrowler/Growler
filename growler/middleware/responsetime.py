@@ -9,6 +9,7 @@ process
 import time
 import logging
 
+
 class ResponseTime:
     """
     Middleware which saves the time when initially called, and sets an
@@ -42,7 +43,7 @@ class ResponseTime:
         self.units = units
         self.header_name = header
         self.digits = digits
-        self.log = log
+        self.log = log if log else logging.getLogger(__name__)
         self.suffix = suffix
         self.clobber_header = clobber_header
 
@@ -59,7 +60,7 @@ class ResponseTime:
             res.set(self.header_name, val)
 
             if self.log:
-                self.log.info("-- timer %s" % val)
+                self.log.info("-- timer {}", val)
 
         res.events.on('before_headers', on_header_send)
 

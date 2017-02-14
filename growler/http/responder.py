@@ -9,7 +9,7 @@ from .parser import Parser
 from .request import HTTPRequest
 from .response import HTTPResponse
 from .methods import HTTPMethod
-from growler.core.responder import GrowlerResponder, ResponderHandler
+from growler.core.responder import GrowlerResponder
 from .errors import (
     HTTPErrorBadRequest,
 )

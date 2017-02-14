@@ -96,7 +96,7 @@ class Router(MiddlewareChain):
         Returns:
             This router
         """
-        self.log.info(" Using middleware %s" % middleware)
+        self.log.info(" Using middleware {}", middleware)
         if path is None:
             path = MiddlewareChain.ROOT_PATTERN
         self.add(HTTPMethod.ALL, path, middleware)

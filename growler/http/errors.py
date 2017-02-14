@@ -183,6 +183,7 @@ class HTTPErrorInternalServerError(HTTPError):
 class HTTPErrorInvalidHttpError(HTTPErrorInternalServerError):
     msg = "Server attempted to raise invalid HTTP error"
 
+
 class HTTPErrorNotImplemented(HTTPError):
     status = HttpStatus.NOT_IMPLEMENTED
 

@@ -135,10 +135,7 @@ class Parser:
         """
         yield from self._receive_eol_token()
         req_line, _, self._buffer = self._buffer.partition(eol)
-        # req_line, header_lines = self._split_req_headers()
-        # save raw_request_line (as str)
         self._store_request_line(req_line)
-        # return; yield
 
     def _parse_and_store_headers(self):
         """
@@ -146,11 +143,8 @@ class Parser:
         the body is found.
         """
 
-        HEADER_END = self.EOL_TOKEN * 2
-
         header_storage = self._store_header()
         header_storage.send(None)
-        headers = []
 
         for header_line in self._next_header_line():
             if header_line is None:
@@ -190,7 +184,6 @@ class Parser:
 
         yield dict(headers)
 
-
     def _next_header_line(self):
         """
         Non-destructive buffer processor returning all lines (defined
@@ -206,7 +199,7 @@ class Parser:
         start = 0
         end = self._buffer.find(eol)
 
-        # if start == end, foudn empty header - stop iterating
+        # if start == end, found empty header - stop iterating
         while start != end:
 
             # end of line was found

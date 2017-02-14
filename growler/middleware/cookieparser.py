@@ -28,7 +28,7 @@ class CookieParser:
         do nothing currently except get stored in the CookieParser.opts
         attribute.
         """
-        log.info("%d built with %s" % (id(self), json.dumps(opts)))
+        log.info("{:d} built with {}", id(self), json.dumps(opts))
         self.opts = opts
 
     def __call__(self, req, res):

@@ -285,7 +285,7 @@ class Application:
             for mw in middleware:
                 self.use(mw, path, method_mask)
         else:
-            log.info("%d Using %s on path %s" % (id(self), middleware, path))
+            log.info("{} Using {} on path {}", id(self), middleware, path)
             self.middleware.add(path=path,
                                 func=middleware,
                                 method_mask=method_mask)
@@ -307,7 +307,7 @@ class Application:
         if self.strict_router_check and not isinstance(router, Router):
             raise TypeError("Expected object of type Router, found %r" % type(router))
 
-        log.info("%d Adding router %s on path %s" % (id(self), router, path))
+        log.info("{} Adding router {} on path {}", id(self), router, path)
         self.middleware.add(path=path,
                             func=router,
                             method_mask=HTTPMethod.ALL,)

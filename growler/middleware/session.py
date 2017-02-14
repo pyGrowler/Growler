@@ -42,6 +42,7 @@ from collections.abc import MutableMapping
 
 logger = logging.getLogger(__name__)
 
+
 class Session(MutableMapping):
     """
     Session data
@@ -149,11 +150,11 @@ class DefaultSessionStorage(SessionStorage):
 
         res.cookies[qid] = sid
 
-        logger.debug("[DefaultSessionStorage] %s" % sid)
+        logger.debug("[DefaultSessionStorage] {}", sid)
         if sid not in self._sessions:
             self._sessions[sid] = {'id': sid}
         req.session = Session(self, self._sessions[sid])
 
     def save(self, sess):
-        logger.debug("[DefaultSessionStorage::save] saving %s" % sess.id)
+        logger.debug("[DefaultSessionStorage::save] saving {}", sess.id)
         self._sessions[sess.id] = sess._data

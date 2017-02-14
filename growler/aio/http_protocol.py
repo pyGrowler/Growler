@@ -153,6 +153,7 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
         body data once created.
         """
         future = Future()
+
         def send_body():
             nonlocal future
             data = yield

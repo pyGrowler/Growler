@@ -2,7 +2,6 @@
 # growler/http/request.py
 #
 
-import asyncio
 import logging
 
 log = logging.getLogger(__name__)

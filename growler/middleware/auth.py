@@ -12,7 +12,7 @@ class Auth:
     """
 
     def __init__(self):
-        log.info("%d built" % (id(self)))
+        log.info("{:d} built", id(self))
 
     def __call__(self):
         """
