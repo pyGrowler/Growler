@@ -2,18 +2,15 @@
 # growler/utils/event_emitter.py
 #
 
-import asyncio
 from collections import defaultdict
-from types import CoroutineType, GeneratorType
+from inspect import isawaitable
 
-def event_emitter(cls_=None, *, events=('*',), loop=None):
+
+def event_emitter(cls_=None, *, events=('*', )):
     """
     A class-decorator which will add the specified events and the methods 'on'
     and 'emit' to the class.
     """
-
-    if loop is None:
-        loop = asyncio.get_event_loop()
 
     # create a dictionary from items in the 'events' parameter and with empty
     # lists as values
@@ -31,9 +28,8 @@ def event_emitter(cls_=None, *, events=('*',), loop=None):
             Add a callback to the event named 'name'. Returns the object for
             chained 'on' calls.
             """
-            if not callable(callback):
-                msg = "Callback not callable: {0!r}".format(callback)
-                raise ValueError(msg)
+            if not (callable(callback) or isawaitable(callback)):
+                raise ValueError("Callback not callable: %r" % callback)
 
             try:
                 event_dict[name].append(callback)
@@ -41,23 +37,19 @@ def event_emitter(cls_=None, *, events=('*',), loop=None):
                 if allow_any_eventname:
                     event_dict[name] = [callback]
                 else:
-                    msg = "Event Emitter has no event {0!r}".format(name)
+                    msg = "Event Emitter has no event {!r}".format(name)
                     raise KeyError(msg)
 
             return self
 
-        # async def emit(self, name):
-        @asyncio.coroutine
-        def emit(self, name):
+        async def emit(self, name):
             """
             Coroutine which executes each of the callbacks added to the event
             identified by 'name'
             """
             for cb in event_dict[name]:
-                # if isinstance(cb, CoroutineType):
-                    # await cb()
-                if asyncio.iscoroutinefunction(cb):
-                    yield from cb()
+                if isawaitable(cb):
+                    await cb
                 else:
                     cb()
 
@@ -114,33 +106,31 @@ class Events:
         else:
             self._event_list = {name: [] for name in event_names}
 
-
     def on(self, name, _callback=None):
         """
         Add a callback to the event named 'name'.
         Returns callback object for decorationable calls.
         """
-        # this must be a decorator
+
+        # this is being used as a decorator
         if _callback is None:
             return lambda cb: self.on(name, cb)
 
-        if not callable(_callback) and not isinstance(_callback, GeneratorType):
+        if not (callable(_callback) or isawaitable(_callback)):
             msg = "Callback not callable: {0!r}".format(_callback)
             raise ValueError(msg)
 
         self._event_list[name].append(_callback)
         return _callback
 
-    # async def emit(self, name):
-    @asyncio.coroutine
-    def emit(self, name):
+    async def emit(self, name):
         """
         Add a callback to the event named 'name'.
         Returns this object for chained 'on' calls.
         """
         for cb in self._event_list[name]:
-            if isinstance(cb, (CoroutineType, GeneratorType)):
-                yield from cb
+            if isawaitable(cb):
+                await cb
             else:
                 cb()
 

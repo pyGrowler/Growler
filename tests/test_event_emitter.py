@@ -62,15 +62,14 @@ def test_on_good_name(loop, mock_func):
     assert mock_func.called
 
 
-# @pytest.mark.asyncio
-# async def test_coro_callback(): #loop, mock_func):
-#     e = EEE()
-#     async def foo():
-#         return 10
-#     e.on('good', foo)
-#     emit_coro = e.emit('good')
-#     await emit_coro
-#     assert mock_func.called
+@pytest.mark.asyncio
+async def test_coro_callback():
+    e = EEE()
+    async def foo():
+        return 10
+    e.on('good', foo())
+    emit_coro = e.emit('good')
+    await emit_coro
 
 
 def test_events_constructor_empty():
@@ -89,26 +88,27 @@ def test_events_on_typecheck():
         e.on('anything', 10)
 
 @pytest.mark.asyncio
-def test_events_on_decorator():
+async def test_events_on_decorator():
     e = Events('foo')
     m = mock.MagicMock()
 
     @e.on("foo")
     def doit():
         m()
-    yield from e.emit("foo")
+    await e.emit("foo")
     assert m.called
 
 @pytest.mark.asyncio
-def test_events_on():
+async def test_events_on():
     e = Events('foo')
     m = mock.MagicMock()
     e.on('foo', m)
-    yield from e.emit('foo')
+    await e.emit('foo')
     assert m.called
 
+
 @pytest.mark.asyncio
-def test_events_on_async():
+async def test_events_on_asyncio_coro():
     e = Events('foo')
     m = mock.MagicMock()
 
@@ -117,5 +117,20 @@ def test_events_on_async():
         m()
 
     e.on('foo', foo())
-    yield from e.emit('foo')
-    assert m.called
+    await e.emit('foo')
+    m.assert_called_with()
+
+
+@pytest.mark.asyncio
+async def test_events_on_async():
+    e = Events('foo')
+    m = mock.MagicMock()
+
+    x = 'It Works!'
+
+    async def foo():
+        m(x)
+
+    e.on('foo', foo())
+    await e.emit('foo')
+    m.assert_called_with(x)
