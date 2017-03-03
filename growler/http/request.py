@@ -125,3 +125,15 @@ class HTTPRequest:
         The name of the protocol being used
         """
         return 'https' if self._responder.cipher else 'http'
+
+    @property
+    def peercert(self):
+        """
+        Returns a dictionary of information about the connection's
+        ssl cetrificate if a secure channel has been established,
+        otherwise return None.
+
+        For more information, see the standard library documentation at
+        ``https://docs.python.org/3/library/ssl.html#ssl.SSLSocket.getpeercert``
+        """
+        return self._handler.socket.getpeercert()
