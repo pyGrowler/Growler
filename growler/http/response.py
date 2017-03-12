@@ -89,7 +89,11 @@ class HTTPResponse:
         self.stream.write(msg)
 
     def write_eof(self):
-        self.stream.write_eof()
+        print(">> ", self.stream)
+        if self.stream.can_write_eof():
+            self.stream.write_eof()
+        else:
+            self.stream.close()
         self.has_ended = True
         self.events.sync_emit('after_send')
 
