@@ -61,6 +61,11 @@ from .core.middleware_chain import (
     MiddlewareChain,
 )
 
+# growler module self reference `from growler import growler, App`
+import sys
+growler = sys.modules[__name__]
+del sys
+
 # alias Application
 Growler = App = Application
 

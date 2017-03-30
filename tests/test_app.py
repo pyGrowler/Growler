@@ -6,11 +6,10 @@ import re
 import sys
 import types
 import pytest
-import growler
 
 from mocks import *                                                      # noqa
 from unittest import mock
-from growler import Application, GrowlerStopIteration
+from growler import growler, Application, GrowlerStopIteration
 
 
 from mock_classes import (
