@@ -5,34 +5,25 @@
 import sys
 import pytest
 from unittest import mock
-import growler.mw
-
-
-@pytest.fixture
-def mock_importer():
-    import growler.ext
-    return mock.create_autospec(growler.ext)
-
-
-def test_module():
-    import growler.ext
-    assert growler.ext.__name__ == 'GrowlerExtensionImporter'
 
 
 def test_load_module():
     mod = mock.Mock()
-    sys.modules['growler_ext.xxxx'] = mod
-    from growler.ext import xxxx
-    assert xxxx is mod
+    m = mock.Mock()
+    m.name = 'foo'
+    mi = mock.Mock(return_value=(m, ))
+    mclass = mock.Mock()
+    m.load.return_value = mclass
+    mod.iter_entry_points = mi
+    pkg_resources = sys.modules.get('pkg_resources')
+    sys.modules['pkg_resources'] = mod
+    import growler.ext as ext
 
+    assert m.load.called
+    assert getattr(ext, m.name) is mclass
 
-def test_load_missing_module():
-    with pytest.raises(ImportError):
-        from growler.ext import yyy
-
-
-def test_load_module_cached():
-    import growler.ext
-    growler.ext.__mods__ = mock.MagicMock()
-    mod = growler.ext.mod_is_cached
-    growler.ext.__mods__.__getitem__.assert_called_with("mod_is_cached")
+    # reset pkg_resources module
+    if pkg_resources is None:
+        del sys.modules['pkg_resources']
+    else:
+        sys.modules['pkg_resources'] = pkg_resources
