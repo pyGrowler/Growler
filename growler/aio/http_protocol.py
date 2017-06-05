@@ -17,19 +17,27 @@ from growler.http.errors import (
 
 
 # Or should this be called HTTPGrowlerProtocol?
+#                        | HttpGrowlerProtocol?
 class GrowlerHTTPProtocol(GrowlerProtocol):
     """
-    GrowlerProtocol dealing with HTTP requests. Objects are created with a
-    growler.App instance, which contains the relevant event_loop. The default
-    responder_type is GrowlerHTTPResponder, which does the data parsing and
-    req/res creation.
+    GrowlerProtocol dealing with HTTP requests.
 
-    Additional responders may be created and used, the req/res pair may be
-    lost, but only one GrowlerHTTPProtocol object will persist through the
-    connection; it may be wise to store HTTP information in this.
+    Objects are created with a :class:`growler.Application` instance
+    which contains the event loop the protocol will use to schedule
+    routing tasks.
+    The default responder_type is :class:`GrowlerHTTPResponder`,
+    which is responsible for parsing the http request, creating
+    the req & res pair, and forwards that pair to this classes'
+    :method:`begin_application` method.
 
-    To change the responder type to something other than GrowlerHTTPResponder,
-    overload or replace the http_responder_factory method.
+    Additional responders may be created and used, the req/res pair
+    may be lost, but only one ``GrowlerHTTPProtocol`` object will
+    persist through the connection; it may be wise to store HTTP
+    information in this.
+
+    To change the responder type to something other than
+    ``GrowlerHTTPResponder``, overload or replace
+    :method:`http_responder_factory`.
     """
 
     client_method = None
@@ -38,8 +46,10 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
 
     def __init__(self, app, loop=None):
         """
-        Construct a GrowlerHTTPProtocol object. This should only be called from
-        a growler.HTTPServer instance (or any asyncio.create_server function).
+        Construct a GrowlerHTTPProtocol object.
+
+        This should only be called from a growler.HTTPServer
+        instance (or any asyncio.create_server function).
 
         Parameters
         ----------
@@ -71,9 +81,10 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
 
         Note
         ----
-        This method is decorated with @staticmethod, as the connection_made
-        method of GrowlerProtocol explicitly passes `self` as a parameters,
-        instead of treating as a bound method.
+        This method is decorated with @staticmethod, as the
+        :method:`connection_made` method of :class:`GrowlerProtocol`
+        explicitly passes ``self`` as a parameters, instead of
+        treating as a bound method.
         """
         return GrowlerHTTPResponder(
             proto,
@@ -83,9 +94,10 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
 
     def handle_error(self, error):
         """
-        An error handling function which will be called when an error is raised
-        during a responder's on_data() function. There is no default
-        functionality and the subclasses must overload this.
+        An error handling function which will be called when an error
+        is raised during a responder's on_data() function.
+        There is no default functionality and the subclasses must
+        overload this.
 
         Parameters
         ----------
