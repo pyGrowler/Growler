@@ -1,11 +1,10 @@
 #
 # growler/http/__init__.py
 #
-# flake8: noqa
-#
 """
-Sub-package dealing with HTTP implementation. In this pacakge we have the
-asyncio protocol, server, parser, and request and response objects.
+Submodule dealing with HTTP implementation.
+In this pacakge we have the asyncio protocol, server, parser, and
+request and response objects.
 """
 
 import mimetypes
@@ -13,6 +12,7 @@ import mimetypes
 from http import HTTPStatus as HttpStatus
 
 from .parser import Parser
+from .parser import Parser as HTTPParser
 from .methods import HTTPMethod
 from .request import HTTPRequest
 from .response import HTTPResponse
@@ -28,7 +28,10 @@ mimetypes.init()
 __all__ = [
     'HTTPRequest',
     'HTTPResponse',
+    'Parser',
     'HTTPParser',
+    'HTTPMethod',
+    'HttpStatus',
     'HttpStatusPhrase',
     'GrowlerHTTPProtocol',
 ]

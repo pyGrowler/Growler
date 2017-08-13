@@ -11,6 +11,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class ResponseTime:
     """
     Middleware which saves the time when initially called, and sets an

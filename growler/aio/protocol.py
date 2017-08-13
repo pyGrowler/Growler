@@ -130,8 +130,8 @@ class GrowlerProtocol(asyncio.Protocol, ResponderHandler):
             err_str = "Provided responder MUST implement an 'on_data' method"
             raise TypeError(err_str)
 
-        self.log.info("Connection from %s:%d", self.remote_hostname,
-                                               self.remote_port)
+        self.log.info("Connection from %s:%d",
+                      self.remote_hostname, self.remote_port)
 
     def connection_lost(self, exc):
         """

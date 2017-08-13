@@ -2,7 +2,6 @@
 # growler/middleware/static.py
 #
 
-import os
 import re
 import logging
 import mimetypes
