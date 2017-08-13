@@ -44,7 +44,7 @@ def test_on_method():
 
 def test_on_bad_callback():
     e = EE()
-    with pytest.raises(ValueError):
+    with pytest.raises(AssertionError):
         e.on('x', 'y')
 
 
@@ -84,7 +84,7 @@ def test_events_constructor_nonempty():
 
 def test_events_on_typecheck():
     e = Events('foo')
-    with pytest.raises(ValueError):
+    with pytest.raises(AssertionError):
         e.on('anything', 10)
 
 @pytest.mark.asyncio

@@ -28,8 +28,9 @@ def event_emitter(cls_=None, *, events=('*', )):
             Add a callback to the event named 'name'. Returns the object for
             chained 'on' calls.
             """
-            if not (callable(callback) or isawaitable(callback)):
-                raise ValueError("Callback not callable: %r" % callback)
+
+            assert callable(callback) or isawaitable(callback), \
+                "Callback %r not callable" % callback
 
             try:
                 event_dict[name].append(callback)
@@ -116,9 +117,8 @@ class Events:
         if _callback is None:
             return lambda cb: self.on(name, cb)
 
-        if not (callable(_callback) or isawaitable(_callback)):
-            msg = "Callback not callable: {0!r}".format(_callback)
-            raise ValueError(msg)
+        assert callable(_callback) or isawaitable(_callback), \
+            "Callback %r not callable" % _callback
 
         self._event_list[name].append(_callback)
         return _callback
