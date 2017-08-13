@@ -4,7 +4,7 @@
 
 import logging
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class HTTPRequest:
@@ -40,13 +40,14 @@ class HTTPRequest:
             headers (dict): The headers gathered from the incoming
                 stream.
         """
+        self.log = logger.getChild("id=%x" % id(self))
         self._responder = responder
         self.headers = headers
 
         if 'CONTENT-LENGTH' in headers:
             self._body, self._body_writer = responder.body_storage_pair()
 
-        log.info("{:d} {} {}", id(self), self.method, self.path)
+        self.log.info("%r %r", self.method, self.path)
 
     def param(self, name, default=None):
         """
@@ -71,6 +72,7 @@ class HTTPRequest:
         """
         if not isinstance(self._body, bytes):
             self._body = await self._body
+            self.log.info("Set body to %d bytes", len(self._body))
         return self._body
 
     def set_body_data(self, data):

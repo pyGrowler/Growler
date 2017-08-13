@@ -19,6 +19,7 @@ ROUTABLE_NAME_REGEX = re.compile("(%s)_.*" % '|'.join([
     "delete",
 ]), re.IGNORECASE + re.UNICODE)
 
+logger = logging.getLogger(__name__)
 
 class Router(MiddlewareChain):
     """
@@ -53,7 +54,7 @@ class Router(MiddlewareChain):
 
     def __init__(self):
         super().__init__()
-        self.log = logging.getLogger("%s:%d" % (__name__, id(self)))
+        self.log = logger.getChild("id=%x" % id(self))
         self.add_route = self.add
 
     def add_router(self, path, router):
@@ -96,7 +97,7 @@ class Router(MiddlewareChain):
         Returns:
             This router
         """
-        self.log.info(" Using middleware {}", middleware)
+        self.log.info(" Using middleware %r", middleware)
         if path is None:
             path = MiddlewareChain.ROOT_PATTERN
         self.add(HTTPMethod.ALL, path, middleware)

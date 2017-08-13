@@ -136,6 +136,7 @@ class DefaultSessionStorage(SessionStorage):
         super().__init__()
         self.session_id_name = session_id_name
         self._sessions = {}
+        self.log = logger.getChild("id=%x" % id(self))
 
     def __call__(self, req, res):
         """
@@ -150,11 +151,11 @@ class DefaultSessionStorage(SessionStorage):
 
         res.cookies[qid] = sid
 
-        logger.debug("[DefaultSessionStorage] {}", sid)
+        self.log.debug("%r", sid)
         if sid not in self._sessions:
             self._sessions[sid] = {'id': sid}
         req.session = Session(self, self._sessions[sid])
 
     def save(self, sess):
-        logger.debug("[DefaultSessionStorage::save] saving {}", sess.id)
+        self.log.debug("Saving %r", sess.id)
         self._sessions[sess.id] = sess._data

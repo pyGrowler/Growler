@@ -41,7 +41,7 @@ from ..http import (
     HTTPMethod,
 )
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class GrowlerStopIteration(StopIteration):
@@ -166,6 +166,7 @@ class Application:
         self._response_class = response_class
 
         self.handle_404 = self.default_404_handler
+        self.log = logger.getChild("id=%x" % id(self))
 
     #
     # Middleware adding functions
@@ -287,7 +288,7 @@ class Application:
             for mw in middleware:
                 self.use(mw, path, method_mask)
         else:
-            log.info("{} Using {} on path {}", id(self), middleware, path)
+            self.log.info("Using %s on path %r", middleware, path)
             self.middleware.add(path=path,
                                 func=middleware,
                                 method_mask=method_mask)
@@ -309,7 +310,7 @@ class Application:
         if self.strict_router_check and not isinstance(router, Router):
             raise TypeError("Expected object of type Router, found %r" % type(router))
 
-        log.info("{} Adding router {} on path {}", id(self), router, path)
+        self.log.info("Adding router %s on path %r", router, path)
         self.middleware.add(path=path,
                             func=router,
                             method_mask=HTTPMethod.ALL,)

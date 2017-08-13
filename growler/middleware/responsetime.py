@@ -9,6 +9,7 @@ process
 import time
 import logging
 
+logger = logging.getLogger(__name__)
 
 class ResponseTime:
     """
@@ -43,7 +44,7 @@ class ResponseTime:
         self.units = units
         self.header_name = header
         self.digits = digits
-        self.log = log if log else logging.getLogger(__name__)
+        self.log = log if log else logger.getChild("id=%x" % id(self))
         self.suffix = suffix
         self.clobber_header = clobber_header
 
@@ -60,7 +61,7 @@ class ResponseTime:
             res.set(self.header_name, val)
 
             if self.log:
-                self.log.info("-- timer {}", val)
+                self.log.info("-- timer %s", val)
 
         res.events.on('before_headers', on_header_send)
 

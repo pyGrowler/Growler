@@ -7,7 +7,7 @@ import json
 import logging
 from http.cookies import SimpleCookie
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class CookieParser:
@@ -28,7 +28,8 @@ class CookieParser:
         do nothing currently except get stored in the CookieParser.opts
         attribute.
         """
-        log.info("{:d} built with {}", id(self), json.dumps(opts))
+        self.log = logger.getChild("id=%x" % id(self))
+        self.log.info("Initialized with %s", json.dumps(opts))
         self.opts = opts
 
     def __call__(self, req, res):
@@ -42,8 +43,6 @@ class CookieParser:
 
         # Create an empty cookie state
         req.cookies, res.cookies = SimpleCookie(), SimpleCookie()
-
-        log.info("{:d} built with {}", id(self), json.dumps(self.opts))
 
         # If the request had a cookie, load it!
         req.cookies.load(req.headers.get('COOKIE', ''))

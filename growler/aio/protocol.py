@@ -18,7 +18,7 @@ import asyncio
 import logging
 from growler.core.responder import ResponderHandler
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class GrowlerProtocol(asyncio.Protocol, ResponderHandler):
@@ -102,6 +102,7 @@ class GrowlerProtocol(asyncio.Protocol, ResponderHandler):
         """
         self.make_responder = responder_factory
         self.loop = loop if (loop is not None) else asyncio.get_event_loop()
+        self.log = logger.getChild("id=%x" % id(self))
 
     def connection_made(self, transport):
         """
@@ -129,8 +130,8 @@ class GrowlerProtocol(asyncio.Protocol, ResponderHandler):
             err_str = "Provided responder MUST implement an 'on_data' method"
             raise TypeError(err_str)
 
-        log_info = (id(self), self.remote_hostname, self.remote_port)
-        log.info("{:d} connection from {}:{}", *log_info)
+        self.log.info("Connection from %s:%d", self.remote_hostname,
+                                               self.remote_port)
 
     def connection_lost(self, exc):
         """
@@ -144,9 +145,9 @@ class GrowlerProtocol(asyncio.Protocol, ResponderHandler):
                 unexpectedly, None if closed cleanly.
         """
         if exc:
-            log.error("{:d} connection_lost {}", id(self), exc)
+            self.log.error("connection_lost %r", exc)
         else:
-            log.info("{:d} connection_lost", id(self))
+            self.log.info("connection_lost")
 
     def data_received(self, data):
         """
@@ -177,7 +178,7 @@ class GrowlerProtocol(asyncio.Protocol, ResponderHandler):
         property to True.
         """
         self.is_done_transmitting = True
-        log.info("{:d} eof_received", id(self))
+        self.log.info("eof_received")
 
     def handle_error(self, error):
         """

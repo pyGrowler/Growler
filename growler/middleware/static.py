@@ -8,7 +8,7 @@ import logging
 import mimetypes
 from pathlib import Path
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class Static:
@@ -25,27 +25,39 @@ class Static:
 
     def __init__(self, path):
         """
-        Construct Static method.
+        Construct Static middleware object providing files from
+        given path.
+
         Args:
-            path (str or list): The directory path to search for files.
-                If this is a list, the paths will be path-joined
+            path (str or list): The directory path to search for
+                files. If this is a list, the paths will be joined
                 automatically.
         """
-        # if list, do a pathjoin
-        if isinstance(path, list):
-            path = os.path.join(*path)
 
-        # store as pathlib.Path, to avoid unexpected relative
-        # path redirection
+        self.log = logger.getChild("id=%x" % id(self))
+        self.log.debug("Initialized with %r", path)
+
+        # if list, do a pathjoin
+        if isinstance(path, Path):
+            pass
+        elif isinstance(path, str):
+            path = Path(path)
+        else:
+            try:
+                path = Path(*path)
+            except TypeError:
+                raise TypeError("Unexpected type %r passed to Static middleware" % type(path))
+
+        # resolve path to avoid unexpected relative path redirection
         self.path = Path(path).resolve()
 
         # ensure that path exists
         if not self.path.is_dir():
-            log.error("No path exists at {}".format(self.path))
+            self.log.error("Static middleware given non-directory path %r", self.path)
             err_msg = "Path '{}' is not a directory.".format(self.path)
             raise NotADirectoryError(err_msg)
 
-        log.info("%d Serving static files out of %s" % (id(self), self.path))
+        self.log.info("Serving static files from %r", self.path)
 
     def __call__(self, req, res):
         """
@@ -75,7 +87,7 @@ class Static:
             res.set_type(mime[0])
             res.send_file(file_path)
 
-            log.info("%d Sent %s (%s)" % (id(self), file_path, mime[0]))
+            self.log.info("Sent %s (%s)", file_path, mime[0])
 
     @staticmethod
     def calculate_etag(file_path):
