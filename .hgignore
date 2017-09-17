@@ -37,6 +37,7 @@ dist
 pyvenv.cfg
 nbproject/
 .idea/
+.vscode/
 
 *.manifest
 *.spec
@@ -52,6 +53,7 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
+.pytest_cache/
 
 # Sphinx documentation
 docs/_build/

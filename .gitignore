@@ -14,6 +14,7 @@ dist
 pyvenv.cfg
 nbproject/
 .idea/
+.vscode/
 
 # Distribution / packaging
 .Python
@@ -53,6 +54,7 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
+.pytest_cache/
 
 # Translations
 *.mo
