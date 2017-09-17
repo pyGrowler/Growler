@@ -6,7 +6,6 @@
 A micro web-framework using asyncio coroutines and chained middleware.
 """
 
-from glob import glob
 from importlib.machinery import SourceFileLoader
 from setuptools import setup, find_packages
 
@@ -66,5 +65,4 @@ setup(
     packages=PACKAGES,
     setup_requires=SETUP_REQUIRES,
     platforms='all',
-    scripts=glob('scripts/*')
 )
