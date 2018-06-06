@@ -54,6 +54,7 @@ htmlcov/
 nosetests.xml
 coverage.xml
 .pytest_cache/
+.mypy_cache/
 
 # Sphinx documentation
 docs/_build/
