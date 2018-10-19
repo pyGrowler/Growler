@@ -89,7 +89,6 @@ class HTTPResponse:
         self.stream.write(msg)
 
     def write_eof(self):
-        print(">> ", self.stream)
         if self.stream.can_write_eof():
             self.stream.write_eof()
         else:
