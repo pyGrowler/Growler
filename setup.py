@@ -4,7 +4,7 @@
 #
 
 from importlib.machinery import SourceFileLoader
-from setuptools import setup, find_packages
+from setuptools import setup
 
 metadata = SourceFileLoader("metadata", "growler/__meta__.py").load_module()
 

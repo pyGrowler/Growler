@@ -10,6 +10,7 @@ try:
 except ImportError:
     main = None
 
+
 def handle_missing_executable_package():
     print(" 🚫  Could not execute growler module - this functionality is found "
           "in the `growler-tools` package. Install that and try again (and "

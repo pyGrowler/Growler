@@ -147,7 +147,7 @@ class Router(MiddlewareChain):
 
         # Build a regular expression string which is split on the '/' character
         regex = [
-            "(?P<{}>\w+)".format(segment[1:])
+            r"(?P<{}>\w+)".format(segment[1:])
             if cls.sinatra_param_regex.match(segment)
             else segment
             for segment in path.split('/')

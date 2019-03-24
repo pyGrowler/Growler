@@ -37,4 +37,5 @@ class GrowlerExtensionImporter:
 
         return result
 
+
 sys.modules[__name__] = GrowlerExtensionImporter()

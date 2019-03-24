@@ -262,7 +262,7 @@ class Application:
 
             method_mask (Optional[HTTPMethod]): Filters requests by HTTP
                 method. The HTTPMethod enum behaves as a bitmask, so
-                multiple methods may be joined by `+` or `\|`, removed
+                multiple methods may be joined by `+` or `\\|`, removed
                 with `-`, or toggled with `^`
                 (e.g. `HTTPMethod.GET + HTTPMethod.POST`,
                       `HTTPMethod.ALL - HTTPMethod.DELETE`).

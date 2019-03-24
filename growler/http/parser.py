@@ -14,7 +14,7 @@ from growler.http.errors import (
     HTTPErrorVersionNotSupported,
 )
 
-INVALID_CHAR_REGEX = re.compile('[\x00-\x1F\x7F\(\),/:;<=>?@\[\]\{\} \t\\\\\"]')
+INVALID_CHAR_REGEX = re.compile(r'[\x00-\x1F\x7F\(\),/:;<=>?@\[\]\{\} \t\\\\\"]')
 
 MAX_REQUEST_LENGTH = 1024 ** 2  # 1 MB
 MAX_REQUEST_LINE_LENGTH = 8 * 1024  # 8 KB
