@@ -16,10 +16,8 @@ def app(event_loop):
 @pytest.fixture
 def growler_server(app, event_loop, unused_tcp_port):
     return app.create_server(host='127.0.0.1',
-                             loop=event_loop,
                              port=unused_tcp_port,
-                             as_coroutine=True,
-                             )
+                             as_coroutine=True)
 
 
 @pytest.mark.asyncio
@@ -44,8 +42,7 @@ async def test_post_request(app, growler_server, event_loop, unused_tcp_port):
         nonlocal did_send, response_data
         did_send = True
         r, w = await asyncio.open_connection(host='127.0.0.1',
-                                             port=unused_tcp_port,
-                                             loop=event_loop)
+                                             port=unused_tcp_port)
 
         data = b'{"somekey": "somevalue"}'
 

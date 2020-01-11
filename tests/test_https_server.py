@@ -37,20 +37,18 @@ def app(event_loop):
 @pytest.fixture
 def growler_server(app, event_loop, hostname, unused_tcp_port, ssl_ctx):
     return app.create_server(host=hostname,
-                             loop=event_loop,
                              port=unused_tcp_port,
                              ssl=ssl_ctx,
-                             as_coroutine=True,
-                             )
+                             as_coroutine=True)
 
 @pytest.fixture
 def make_client(hostname, unused_tcp_port, event_loop):
     ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
     ssl_context.check_hostname = False
     ssl_context.load_verify_locations(SSL_CERFILE)
-    return asyncio.open_connection(
-        host=hostname, port=unused_tcp_port, ssl=ssl_context,
-        loop=event_loop)
+    return asyncio.open_connection(host=hostname,
+                                   port=unused_tcp_port,
+                                   ssl=ssl_context)
 
 @pytest.fixture
 def did_send():
