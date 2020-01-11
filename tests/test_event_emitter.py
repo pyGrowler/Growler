@@ -112,8 +112,7 @@ async def test_events_on_asyncio_coro():
     e = Events('foo')
     m = mock.MagicMock()
 
-    @asyncio.coroutine
-    def foo():
+    async def foo():
         m()
 
     e.on('foo', foo())
