@@ -5,6 +5,9 @@
 Virtual namespace for other pacakges to extend the growler server
 """
 
+from typing import Dict
+from types import ModuleType
+
 import sys
 from importlib import (
     import_module,
@@ -15,7 +18,7 @@ class GrowlerExtensionImporter:
 
     __path__ = 'growler.ext'
     __name__ = 'GrowlerExtensionImporter'
-    __mods__ = {}
+    __mods__: Dict[str, ModuleType] = {}
 
     def __getattr__(self, module_name):
         """
