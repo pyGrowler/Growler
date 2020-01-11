@@ -300,7 +300,7 @@ class Parser:
 
         prev_char = data[line_end_pos - 1]
 
-        return b'\r\n' if (prev_char is b'\r'[0]) else b'\n'
+        return b'\r\n' if (prev_char == b'\r'[0]) else b'\n'
 
     def split_header_key_value(self, line):
         """
