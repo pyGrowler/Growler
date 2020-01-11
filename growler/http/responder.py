@@ -42,7 +42,6 @@ class GrowlerHTTPResponder(GrowlerResponder):
 
     body_buffer = None
     content_length = None
-    headers = None
 
     def __init__(self,
                  handler,
