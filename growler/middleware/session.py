@@ -105,9 +105,8 @@ class Session(MutableMapping):
 #   def __dict__(self):
 #     print ("DICT")
 
-    @asyncio.coroutine
-    def save(self):
-        yield from self._store.save(self)
+    async def save(self):
+        await self._store.save(self)
 
 
 class SessionStorage:
