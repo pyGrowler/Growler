@@ -96,9 +96,29 @@ def test_query_params(get_req, mock_responder, request_uri, query):
         assert get_req.param(k) == v
 
 
-def test_construct_with_expected_body(mock_responder):
-    req = HTTPRequest(mock_responder, {'CONTENT-LENGTH': 12})
-    assert iscoroutine(req.body())
+@pytest.mark.asyncio
+async def test_construct_with_expected_body(mock_responder):
+    BODY = b"""
+    here is the text of the body
+    """
+
+    async def _body_read():
+        return BODY
+
+    async def _body_write():
+        return
+
+    mock_responder.body_storage_pair = lambda: (_body_read(), _body_write)
+    req = HTTPRequest(mock_responder, {'CONTENT-LENGTH': len(BODY)})
+
+    assert req._body.cr_code is _body_read.__code__
+
+    body = await req.body()
+    assert body == BODY
+
+    # getting body
+    body = await req.body()
+    assert body is BODY
 
 
 def test_type_is(empty_req, mock_responder):
