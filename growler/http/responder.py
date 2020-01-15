@@ -146,6 +146,7 @@ class GrowlerHTTPResponder(GrowlerResponder):
 
         # if truthy, 'data' now holds body data
         if data:
+            assert self.body_buffer is not None
             self.validate_and_store_body_data(data)
 
             # if we have reached end of content - put in the request's body
@@ -233,6 +234,7 @@ class GrowlerHTTPResponder(GrowlerResponder):
             HTTPErrorBadRequest: Raised if data is sent when not
                 expected, or if too much data is sent.
         """
+        assert self.body_buffer is not None
 
         # add data to end of buffer
         self.body_buffer[-1:] = data
