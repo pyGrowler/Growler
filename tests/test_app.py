@@ -6,6 +6,7 @@ import re
 import sys
 import types
 import pytest
+from asyncio.coroutines import iscoroutine
 
 from mocks import *                                                      # noqa
 from unittest import mock
@@ -200,7 +201,7 @@ def test_use_as_called_decorator(app):
 
     assert test_mw is not app
     assert app.middleware.last().func is test_mw
-    assert app.middleware.last().path == re.compile('\\/foo')
+    assert app.middleware.last().path == re.compile('/foo')
 
 
 def test_add_bad_router(app):
@@ -233,34 +234,58 @@ def test_use_growler_router_metaclass(app, mock_route_generator):
     assert mrouter.get_b == router.mw_list[2].func
 
 
-def test_create_server(app, mock_event_loop):
+def test_create_server_return_server(app, event_loop, unused_tcp_port):
     """ Test if the application creates a server coroutine """
-    protocol_factory = mock.Mock()
-    server_coro = mock.Mock()
-    mock_event_loop.create_server.return_value = server_coro
-    app.create_server(mock_event_loop, False, protocol_factory)
-    protocol_factory.assert_called_with(app, loop=mock_event_loop)
-    assert mock_event_loop.create_server.called
-    mock_event_loop.run_until_complete.assert_called_with(server_coro)
+    from asyncio.base_events import Server
+    proto_factory = mock.Mock()
+    server_cfg = dict(host='localhost', port=unused_tcp_port)
+
+    server = app.create_server(proto_factory,
+                               loop=event_loop,
+                               as_coroutine=False,
+                               **server_cfg)
+
+    assert isinstance(server, Server)
+    assert server._protocol_factory is proto_factory.return_value
 
 
-def test_create_server_default_params(app, mock_event_loop):
+def test_create_server_return_coroutine(app, mock_event_loop, event_loop):
     """ Test if the application creates a server coroutine """
-    import asyncio
-    asyncio.set_event_loop(mock_event_loop)
-    server = app.create_server(port=1)
+    proto_factory = mock.Mock()
+    server = mock.Mock()
+    mock_event_loop.create_server.return_value = server
 
-    create_server_call = mock.call(mock.ANY, port=1)
-    assert mock_event_loop.create_server.mock_calls[0] == create_server_call
+    server_coroutine = app.create_server(proto_factory,
+                                         loop=mock_event_loop,
+                                         as_coroutine=True)
 
-    run_until_complete_call = mock.call(mock_event_loop.create_server.return_value)
-    assert mock_event_loop.run_until_complete.mock_calls[0] == run_until_complete_call
+    assert iscoroutine(server_coroutine)
+    assert event_loop.run_until_complete(server_coroutine) is server
+
+    proto_factory.assert_called_with(app, loop=mock_event_loop)
+
+
+def test_create_server_default_params(app, event_loop, unused_tcp_port):
+    """ Test if the application creates a server coroutine """
+    from asyncio.base_events import Server
+    asyncio.set_event_loop(event_loop)
+    server = app.create_server(port=unused_tcp_port, host='localhost')
+    assert isinstance(server, Server)
+    assert server._loop is event_loop
+
+    # create_server_call = mock.call(mock.ANY, port=1)
+    # assert mock_event_loop.create_server.mock_calls[0] == create_server_call
+
+    # run_until_complete_call = mock.call(mock_event_loop.create_server.return_value)
+    # assert mock_event_loop.run_until_complete.mock_calls[0] == run_until_complete_call
 
 
 def test_create_server_as_coroutine(app, mock_event_loop):
     """ Test if the application creates a server coroutine """
     protocol_factory = mock.Mock()
-    app.create_server(mock_event_loop, True, protocol_factory)
+    app.create_server(loop=mock_event_loop,
+                      as_coroutine=True,
+                      protocol_factory=protocol_factory)
     assert mock_event_loop.create_server.called
     protocol_factory.assert_called_with(app, loop=mock_event_loop)
     assert not mock_event_loop.run_until_complete.called
@@ -289,17 +314,24 @@ def test_create_server_and_run_forever_default_params(app, mock_event_loop):
     mock_event_loop.run_forever.side_effect = KeyboardInterrupt
 
     asyncio.set_event_loop(mock_event_loop)
-    server = app.create_server_and_run_forever(host='◉', port=1)
+    # assert mock_event_loop.run_until_complete(asyncio.get_event_loop()) is mock_event_loop
 
-    create_server_call = mock.call(mock.ANY, host='◉', port=1)
-    assert mock_event_loop.create_server.mock_calls[0] == create_server_call
+    mock_pf = mock.Mock()
+    mock_server = mock.Mock()
+    mock_event_loop.create_server = mock.MagicMock(return_value=mock_server)
+    # assert mock_event_loop.create_server() is mock_server
 
-    run_until_complete_call = mock.call(mock_event_loop.create_server.return_value)
-    assert mock_event_loop.run_until_complete.mock_calls[0] == run_until_complete_call
+    noval = app.create_server_and_run_forever(protocol_factory=mock_pf,
+                                              host='◉', port=1)
+    assert noval is None
 
+    mock_event_loop.create_server.assert_called_once_with(mock_pf.return_value,
+                                                          host='◉',
+                                                          port=1)
+    mock_event_loop.run_until_complete.assert_called_once_with(mock_server)
     mock_event_loop.run_forever.assert_called_with()
 
-#
+
 # @pytest.mark.parametrize("method", [
 #     'get',
 #     'post',
@@ -312,9 +344,8 @@ def test_create_server_and_run_forever_default_params(app, mock_event_loop):
 #
 #     router_m = getattr(router, method)
 #     router_m.assert_called_with('/', do_something)
-#
 
-#
+
 # def test_calling_use(app, router):
 #     do_something = mock.Mock(spec=types.FunctionType)
 #     do_something_else = mock.Mock(spec=types.FunctionType)
@@ -460,13 +491,13 @@ async def test_handle_client_request_get(app, req, res, middlewares, called, moc
 
 @pytest.mark.asyncio
 async def test_middleware_stops_with_stop_iteration(app, req, res):
-    def do_something(req, res):
+    async def do_something(req, res):
         return None
 
     def mock_function():
         # this coroutine required to let test pass - unknown why
-        return asyncio.coroutine(mock.create_autospec(do_something))
-        # return mock.create_autospec(do_something)
+        # return asyncio.coroutine(mock.create_autospec(do_something))
+        return mock.create_autospec(do_something)
 
     m1 = mock_function()
     m2 = mock_function()

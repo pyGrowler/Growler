@@ -615,9 +615,10 @@ class Application:
     #
 
     def create_server(self,
+                      protocol_factory=None,
+                      *,
                       loop=None,
                       as_coroutine=False,
-                      protocol_factory=None,
                       **server_config):
         """
         Helper function which constructs a listening server, using the
@@ -706,6 +707,7 @@ class Application:
             import asyncio
             loop = asyncio.get_event_loop()
 
+        server_config['as_coroutine'] = False
         self.create_server(loop=loop, **server_config)
         try:
             loop.run_forever()
