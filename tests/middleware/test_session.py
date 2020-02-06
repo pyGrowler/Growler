@@ -10,13 +10,13 @@ from growler.middleware import session
 
 
 @pytest.fixture
-def backend():
-    return mock.MagicMock()
+def mock_backend():
+    return mock.AsyncMock()
 
 
 @pytest.fixture
-def sess(backend):
-    return session.Session(backend)
+def sess(mock_backend):
+    return session.Session(mock_backend)
 
 
 def test_sess_fixture(sess):
@@ -30,20 +30,20 @@ def test_getters_and_setters(sess):
     assert sess['data'] is data
     assert sess.get('data') is data
     assert sess.get('notFound') is None
-    assert len(sess) is 1
+    assert len(sess) == 1
 
     for i in sess:
-        assert i is 'data'
+        assert i == 'data'
 
     del sess['data']
     assert 'data' not in sess
-    assert len(sess) is 0
+    assert len(sess) == 0
 
 
 @pytest.mark.asyncio
-def test_session_save(sess, backend):
-    yield from sess.save()
-    backend.save.assert_called_with(sess)
+async def test_session_save(sess, mock_backend):
+    await sess.save()
+    mock_backend.save.assert_called_with(sess)
 
 
 @pytest.fixture
