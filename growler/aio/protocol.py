@@ -223,4 +223,5 @@ class GrowlerProtocol(asyncio.Protocol, ResponderHandler):
         construction explicitly.
         All arguments are forwarded to the constructor.
         """
-        return lambda: cls.factory(*args, **kw)
+        from functools import partial
+        return partial(cls.factory, *args, **kw)
