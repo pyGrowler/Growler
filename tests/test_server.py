@@ -37,7 +37,6 @@ async def test_post_request(app, growler_server, event_loop, unused_tcp_port):
         did_receive = True
         res.send_text("OK")
 
-
     async def http_request():
         nonlocal did_send, response_data
         did_send = True
