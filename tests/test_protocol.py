@@ -12,7 +12,6 @@ from unittest import mock
 from mocks import *
 
 
-@pytest.fixture
 def MockGrowlerProtocol():
     return mock.create_autospec(GrowlerProtocol)
 
@@ -40,24 +39,31 @@ def listening_proto(proto, mock_transport):
     return proto
 
 
-def test_mock_protocol(MockGrowlerProtocol):
-    MockGrowlerProtocol(mock_event_loop(), mock_responder)
+@pytest.fixture
+def mock_protocol(mock_event_loop, m_make_responder):
+    # return MockGrowlerProtocol()(mock_event_loop, m_make_responder)
+    return GrowlerProtocol(mock_event_loop, m_make_responder)
+
+
+def test_mock_protocol(mock_protocol, mock_event_loop, mock_responder):
+    from growler.aio import GrowlerProtocol
+    assert isinstance(mock_protocol, GrowlerProtocol)
 
 
 def test_constructor(mock_event_loop):
     proto = GrowlerProtocol(mock_event_loop, mock_responder)
 
     assert isinstance(proto, asyncio.Protocol)
-    assert proto.loop is mock_event_loop
     assert proto.make_responder is mock_responder
 
 
 def test_connection_made(proto, mock_transport, mock_responder, m_make_responder):
-    mock_transport.get_extra_info.return_value = ('mock.host', 2112)
+    host_info = ('mock.host', 2112)
+    mock_transport.get_extra_info.return_value = host_info
     proto.connection_made(mock_transport)
     assert proto.transport is mock_transport
     assert proto.responders[0] is mock_responder
-    assert proto.remote_port is 2112
+    assert proto.remote_port is host_info[-1]
     mock_transport.get_extra_info.assert_called_with('peername')
     m_make_responder.assert_called_with(proto)
 

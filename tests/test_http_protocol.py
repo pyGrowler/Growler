@@ -20,7 +20,7 @@ from test_protocol import (
 )
 
 
-@pytest.fixture
+# @pytest.fixture
 def MockGrowlerHTTPProtocol(request):
     return mock.create_autospec(growler.http.GrowlerHTTPProtocol)
 
@@ -99,15 +99,20 @@ def proto(unconnected_proto, mock_transport):
     return unconnected_proto
 
 
-def test_mock_protocol(mock_app):
-    MockGrowlerHTTPProtocol(mock_app)
+@pytest.fixture
+def mock_proto(mock_app):
+    return MockGrowlerHTTPProtocol(mock_app)
+
+
+def test_mock_protocol(mock_proto):
+    from growler.http import GrowlerHTTPProtocol
+    assert isinstance(mock_proto, GrowlerHTTPProtocol)
 
 
 def test_constructor(mock_app, mock_event_loop, mock_responder):
     proto = growler.http.GrowlerHTTPProtocol(mock_app, loop=mock_event_loop)
 
     assert isinstance(proto, asyncio.Protocol)
-    assert proto.loop is mock_event_loop
     assert proto.http_application is mock_app
 
 
@@ -164,7 +169,8 @@ def test_handle_error_http(proto, mock_responder, mock_transport):
     assert mock_transport.write.call_args_list[0][0][0].startswith(b'HTTP/1.1 403 Forbidden')
 
 
-def test_begin_application(proto, mock_app, mock_req, mock_res):
+@pytest.mark.asyncio
+async def test_begin_application(proto, mock_app, mock_req, mock_res):
     proto.loop = mock.Mock()
     proto.begin_application(mock_req, mock_res)
     mock_app.handle_client_request.assert_called_with(mock_req, mock_res)
