@@ -14,9 +14,13 @@ For more information, see the :module:`growler.core.responder` module
 for event-loop independent client handling.
 """
 
+from typing import Callable
+
 import asyncio
 import logging
-from growler.core.responder import ResponderHandler
+from growler.core.responder import GrowlerResponder, ResponderHandler
+
+ResponderFactoryType = Callable[['GrowlerProtocol'], GrowlerResponder]
 
 logger = logging.getLogger(__name__)
 
@@ -81,8 +85,9 @@ class GrowlerProtocol(asyncio.Protocol, ResponderHandler):
     transport = None
     responders = None
     is_done_transmitting = False
+    loop = None
 
-    def __init__(self, loop, responder_factory):
+    def __init__(self, loop, responder_factory: ResponderFactoryType):
         """
         Args:
             loop (asyncio.BaseEventLoop): The event loop managing all
@@ -130,8 +135,8 @@ class GrowlerProtocol(asyncio.Protocol, ResponderHandler):
             err_str = "Provided responder MUST implement an 'on_data' method"
             raise TypeError(err_str)
 
-        self.log.info("Connection from %s:%d",
-                      self.remote_hostname, self.remote_port)
+        self.log.info("Connection from %s:%d", self.remote_hostname,
+                      self.remote_port)
 
     def connection_lost(self, exc):
         """
