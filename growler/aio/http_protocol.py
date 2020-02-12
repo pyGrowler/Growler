@@ -7,7 +7,7 @@ Code containing Growler's asyncio.Protocol code for handling HTTP requests.
 
 import traceback
 from sys import stderr
-from asyncio import Future
+from asyncio import ensure_future, Future
 from .protocol import GrowlerProtocol
 from growler.http.responder import GrowlerHTTPResponder
 from growler.http.response import HTTPResponse
@@ -154,7 +154,7 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
         # Add the middleware processing to the event loop - this *should*
         # change the call stack so any server errors do not link back to this
         # function
-        self.loop.create_task(self.http_application.handle_client_request(req, res))
+        asyncio.ensure_future(self.http_application.handle_client_request(req, res))
 
     def body_storage_pair(self):
         """

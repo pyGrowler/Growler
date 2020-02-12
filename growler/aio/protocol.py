@@ -85,13 +85,10 @@ class GrowlerProtocol(asyncio.Protocol, ResponderHandler):
     transport = None
     responders = None
     is_done_transmitting = False
-    loop = None
 
-    def __init__(self, loop, responder_factory: ResponderFactoryType):
+    def __init__(self, _loop, responder_factory: ResponderFactoryType):
         """
         Args:
-            loop (asyncio.BaseEventLoop): The event loop managing all
-                asynchronous activity of this protocol.
             responder_factory (callable): Returns the first responder
                 for this protocol.
                 This could simply be a constructor for the type (i.e.
@@ -106,7 +103,6 @@ class GrowlerProtocol(asyncio.Protocol, ResponderHandler):
                 coroutine.
         """
         self.make_responder = responder_factory
-        self.loop = loop if (loop is not None) else asyncio.get_event_loop()
         self.log = logger.getChild("id=%x" % id(self))
 
     def connection_made(self, transport):
@@ -135,8 +131,8 @@ class GrowlerProtocol(asyncio.Protocol, ResponderHandler):
             err_str = "Provided responder MUST implement an 'on_data' method"
             raise TypeError(err_str)
 
-        self.log.info("Connection from %s:%d", self.remote_hostname,
-                      self.remote_port)
+        self.log.info("Connection from %s:%d",
+                      self.remote_hostname, self.remote_port)
 
     def connection_lost(self, exc):
         """
