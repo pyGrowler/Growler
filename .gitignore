@@ -51,11 +51,9 @@ pip-delete-this-directory.txt
 htmlcov/
 .tox/
 .coverage*
-.cache
+.*cache*
 nosetests.xml
 coverage.xml
-.pytest_cache/
-.mypy_cache/
 
 # Translations
 *.mo
