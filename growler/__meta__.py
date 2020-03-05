@@ -11,7 +11,7 @@ version = '.'.join(map(str, version_info))
 version_name = ''.join((project, 'version', version))
 
 date = "Nov 2, 2016"
-author = "Andrew Kubera <andrew.kubera@gmail.com>"
+author = "Andrew Kubera <andrew.kubera@floss.email>"
 copyright = "Copyright 2016, Andrew Kubera"
 
 url = "https://github.com/pyGrowler/Growler"
