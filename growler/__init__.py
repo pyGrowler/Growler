@@ -47,17 +47,17 @@ from .__meta__ import (
     license as __license__,
 )
 
-from .core.application import (
+from .application import (
     Application,
     GrowlerStopIteration,
 )
-from .core.router import (
+from .router import (
     Router,
     RouterMeta,
     routerclass,
     get_routing_attributes
 )
-from .core.middleware_chain import (
+from .middleware_chain import (
     MiddlewareChain,
 )
 

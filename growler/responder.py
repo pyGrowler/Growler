@@ -1,5 +1,5 @@
 #
-# growler/core/responder.py
+# growler/responder.py
 #
 """
 Event loop independent class for managing clients' requests and

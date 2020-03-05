@@ -186,7 +186,7 @@ def test_sinatra_passes_regex():
 
 
 def test_routerify():
-    from growler.core.router import routerify
+    from growler.router import routerify
 
     foo = Foo('1')
     routerify(foo)
@@ -300,7 +300,7 @@ def test_property_subrouter(router):
 
 
 def test_find_routable_attributes(router):
-    from growler.core.router import _find_routeable_attributes
+    from growler.router import _find_routeable_attributes
 
     class TestMe:
         def get_something():

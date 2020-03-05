@@ -7,7 +7,7 @@ Example growler server using a the @routerclass decorator
 """
 
 from growler import App
-from growler.core.router import routerclass
+from growler.router import routerclass
 from datetime import datetime
 
 

@@ -10,7 +10,7 @@ this class.
 
 Alternative Protocol classes may use this as an example.
 
-For more information, see the :module:`growler.core.responder` module
+For more information, see the :module:`growler.responder` module
 for event-loop independent client handling.
 """
 
@@ -18,7 +18,7 @@ from typing import Callable
 
 import asyncio
 import logging
-from growler.core.responder import GrowlerResponder, ResponderHandler
+from growler.responder import GrowlerResponder, ResponderHandler
 
 ResponderFactoryType = Callable[['GrowlerProtocol'], GrowlerResponder]
 

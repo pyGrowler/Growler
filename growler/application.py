@@ -1,5 +1,5 @@
 #
-# growler/core/application.py
+# growler/application.py
 #
 """
 Defines the base application (App) that defines a 'growlerific' program.
@@ -31,11 +31,11 @@ import types
 import inspect
 import logging
 
-from ..utils.event_manager import Events
+from .utils.event_manager import Events
 from .router import Router, RouterMeta
 from .middleware_chain import MiddlewareChain
 
-from ..http import (
+from .http import (
     HTTPRequest,
     HTTPResponse,
     HTTPMethod,
@@ -83,10 +83,10 @@ class Application:
     was not found, the default implementation throws a '500 - Server
     Error' to the user.
 
-    Each middleware in the chain can either be a normal function or an
-    asyncio.coroutine. Either will be called asynchronously. There is
-    no timeout variable yet, but I think I will put one in later, to
-    ensure that the middleware is as responsive as the dev expects.
+    Each middleware in the chain can either be a normal or async
+    function. There is no timeout variable yet, but I think I will
+    put one in later, to ensure that the middleware is as responsive
+    as the dev expects.
     """
 
     error_recursion_max_depth = 10
@@ -97,8 +97,7 @@ class Application:
                  request_class=HTTPRequest,
                  response_class=HTTPResponse,
                  middleware_chain=None,
-                 **kw
-                 ):
+                 **kw):
         """
         Creates an application object.
 
@@ -278,7 +277,7 @@ class Application:
 
         if hasattr(middleware, '__growler_router'):
             router = getattr(middleware, '__growler_router')
-            if isinstance(router, (types.MethodType,)):
+            if isinstance(router, (types.MethodType, )):
                 router = router()
             self.add_router(path, router)
         elif isinstance(type(middleware), RouterMeta):
@@ -308,12 +307,15 @@ class Application:
                 the router is not an instance of growler.Router.
         """
         if self.strict_router_check and not isinstance(router, Router):
-            raise TypeError("Expected object of type Router, found %r" % type(router))
+            raise TypeError("Expected object of type Router, found %r" %
+                            type(router))
 
         self.log.info("Adding router %s on path %r", router, path)
-        self.middleware.add(path=path,
-                            func=router,
-                            method_mask=HTTPMethod.ALL,)
+        self.middleware.add(
+            path=path,
+            func=router,
+            method_mask=HTTPMethod.ALL,
+        )
 
     @property
     def router(self):
@@ -324,8 +326,7 @@ class Application:
         and added to the middleware chain, matching all requests.
         """
         if not self.has_root_router:
-            self.middleware.add(HTTPMethod.ALL,
-                                MiddlewareChain.ROOT_PATTERN,
+            self.middleware.add(HTTPMethod.ALL, MiddlewareChain.ROOT_PATTERN,
                                 Router())
         return self.middleware.last().func
 
@@ -344,11 +345,8 @@ class Application:
         except IndexError:
             return False
 
-        return (
-            isinstance(mw.func, Router)
-            and mw.mask == HTTPMethod.ALL
-            and mw.path is MiddlewareChain.ROOT_PATTERN
-        )
+        return (isinstance(mw.func, Router) and mw.mask == HTTPMethod.ALL
+                and mw.path is MiddlewareChain.ROOT_PATTERN)
 
     async def handle_client_request(self, req, res):
         """
@@ -413,7 +411,12 @@ class Application:
         if not res.has_ended:
             self.handle_response_not_sent(req, res)
 
-    async def handle_server_error(self, req, res, mw_generator, error, err_count=0):
+    async def handle_server_error(self,
+                                  req,
+                                  res,
+                                  mw_generator,
+                                  error,
+                                  err_count=0):
         """
         Entry point for handling an exception that occured during
         execution of the middleware chain.
@@ -467,8 +470,9 @@ class Application:
         else:
             self.default_error_handler(req, res, error)
             if not res.has_ended:  # noqa pragma: no cover
-                print("Default error handler did not send a response to "
-                      "client!", file=sys.stderr)
+                print("Default error handler did not send a "
+                      "response to client!",
+                      file=sys.stderr)
 
     def handle_response_not_sent(self, req, res):
         """
@@ -480,7 +484,10 @@ class Application:
         # res.send_text("404 - Not Found", 404)
         self.handle_404(req, res)
 
-    def print_middleware_tree(self, *, EOL=os.linesep, **kwargs):  # noqa pragma: no cover
+    def print_middleware_tree(self,
+                              *,
+                              EOL=os.linesep,
+                              **kwargs):  # noqa pragma: no cover
         """
         Prints a unix-tree-like output of the structure of the web
         application to the file specified (stdout by default).
@@ -491,7 +498,6 @@ class Application:
                 This allows specifying the file to write to and the
                 ability to flush output upon creation.
         """
-
         def mask_to_method_name(mask):
             if mask == HTTPMethod.ALL:
                 return 'ALL'
@@ -530,13 +536,14 @@ class Application:
 
         trace = StringIO()
         traceback.print_exc(file=trace)
-        html = ("<!DOCTYPE html>"
-                "<html><head><title>500 - Server Error</title></head>"
-                "<body>"
-                "<h1>500 - Server Error</h1><hr>"
-                "<p style='font-family:monospace;'>"
-                "The server encountered an error while processing your request to {path}"
-                "</p><pre>{trace}</pre></body></html>\n")
+        html = (
+            "<!DOCTYPE html>"
+            "<html><head><title>500 - Server Error</title></head>"
+            "<body>"
+            "<h1>500 - Server Error</h1><hr>"
+            "<p style='font-family:monospace;'>"
+            "The server encountered an error while processing your request to {path}"
+            "</p><pre>{trace}</pre></body></html>\n")
         res.send_html(html.format(path=req.path, trace=trace.getvalue()), 500)
 
     @staticmethod
@@ -674,10 +681,8 @@ class Application:
             from growler.aio import GrowlerHTTPProtocol
             protocol_factory = GrowlerHTTPProtocol.get_factory
 
-        create_server = loop.create_server(
-            protocol_factory(self, loop=loop),
-            **server_config
-        )
+        create_server = loop.create_server(protocol_factory(self),
+                                           **server_config)
 
         if as_coroutine:
             return create_server
