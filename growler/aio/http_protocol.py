@@ -7,7 +7,11 @@ Code containing Growler's asyncio.Protocol code for handling HTTP requests.
 
 import traceback
 from sys import stderr
-from asyncio import ensure_future, Future
+try:
+    from asyncio import create_task, Future
+except ImportError:
+    from asyncio import ensure_future as create_task, Future
+
 from .protocol import GrowlerProtocol
 from growler.http.responder import GrowlerHTTPResponder
 from growler.http.response import HTTPResponse
@@ -59,7 +63,7 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
             handle_client_request coroutine method should work.
         """
         self.http_application = app
-        super().__init__(loop=loop,
+        super().__init__(_loop=loop,
                          responder_factory=self.http_responder_factory)
 
     @staticmethod
@@ -154,7 +158,8 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
         # Add the middleware processing to the event loop - this *should*
         # change the call stack so any server errors do not link back to this
         # function
-        asyncio.ensure_future(self.http_application.handle_client_request(req, res))
+        coro = self.http_application.handle_client_request(req, res)
+        create_task(coro)
 
     def body_storage_pair(self):
         """
