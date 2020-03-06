@@ -35,7 +35,6 @@ methods are implemented as expected.
 """
 
 import uuid
-import asyncio
 import logging
 from abc import abstractmethod
 from collections.abc import MutableMapping
@@ -53,13 +52,13 @@ class Session(MutableMapping):
         self._store = storage
 
     def __getitem__(self, name):
-        return self._data.__getitem__(name)
+        return self._data[name]
 
     def __setitem__(self, name, value):
-        return self._data.__setitem__(name, value)
+        self._data[name] = value
 
     def __delitem__(self, name):
-        return self._data.__delitem__(name)
+        del self._data[name]
 
     def __len__(self):
         return self._data.__len__()
