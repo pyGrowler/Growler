@@ -14,11 +14,14 @@ from mocks import (
     client_port,
 )
 
+from mock_classes import (
+    AsyncMock,
+)
+
 from test_protocol import (
     MockGrowlerProtocol,
     mock_responder,
 )
-
 
 # @pytest.fixture
 def MockGrowlerHTTPProtocol(request):
@@ -170,8 +173,10 @@ def test_handle_error_http(proto, mock_responder, mock_transport):
 
 
 @pytest.mark.asyncio
-async def test_begin_application(proto, mock_app, mock_req, mock_res):
+async def test_begin_application(proto, mock_app, mock_req, mock_res, AsyncMock):
     proto.loop = mock.Mock()
+    proto.http_application.handle_client_request = AsyncMock()
+
     proto.begin_application(mock_req, mock_res)
     mock_app.handle_client_request.assert_called_with(mock_req, mock_res)
 
@@ -179,14 +184,11 @@ async def test_begin_application(proto, mock_app, mock_req, mock_res):
 @pytest.mark.asyncio
 async def test_body_storage_pair(proto):
     data = b'test data'
-    a, b = proto.body_storage_pair()
-    async def _test_send():
-        await asyncio.sleep(0.1)
-        b.send(data)
 
-    asyncio.get_event_loop().create_task(_test_send())
+    rdr, wtr = proto.body_storage_pair()
+    wtr.send(data)
 
-    returned = await a
+    returned = await rdr
     assert returned is data
 
 

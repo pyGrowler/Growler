@@ -194,7 +194,6 @@ def test_good_header_all(parser, mock_responder, header, header_dict):
     assert parser.headers == header_dict
 
 
-@pytest.mark.timeout(3)
 @pytest.mark.parametrize("req_pieces, expected_header", [
     ((b"GET / HTTP/1.1\r\n", b'h:d\r\n\r\n'),
      {'H': 'd'}),

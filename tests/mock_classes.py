@@ -13,6 +13,16 @@ from growler.http.responder import GrowlerHTTPResponder
 
 
 @pytest.fixture
+def AsyncMock():
+    try:
+        from unittest.mock import AsyncMock
+    except ImportError:
+        mock = pytest.importorskip("mock")
+        AsyncMock = mock.AsyncMock
+    return AsyncMock
+
+
+@pytest.fixture
 def MockApp():
     MockAppClass = mock.create_autospec(growler.App)
 

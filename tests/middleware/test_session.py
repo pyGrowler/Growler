@@ -11,7 +11,13 @@ from growler.middleware import session
 
 @pytest.fixture
 def mock_backend():
-    return mock.AsyncMock()
+    try:
+        from unittest.mock import AsyncMock
+    except ImportError:
+        mock = pytest.importorskip('mock')
+        AsyncMock = mock.AsyncMock
+
+    return AsyncMock()
 
 
 @pytest.fixture
