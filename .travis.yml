@@ -18,6 +18,7 @@ matrix:
 
 install:
   - pip install -qU pip pytest pytest-cov python-coveralls pytest-asyncio mock
+  - pip install -q 'coverage<5.0'
 
 script:
   - python setup.py pytest --addopts '--cov=growler --cov-report=term-missing'
