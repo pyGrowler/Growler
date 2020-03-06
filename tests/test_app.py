@@ -37,10 +37,6 @@ def router():
 
 
 @pytest.fixture
-def MockProtocol(proto):
-    return mock.Mock(return_value=proto)
-
-@pytest.fixture
 def mock_MiddlewareChain():
     return mock.create_autospec(growler.MiddlewareChain)
 
@@ -67,14 +63,13 @@ def req(req_uri):
 
 
 @pytest.fixture
-def app(app_name, mock_MiddlewareChain, use_mock_middlewarechain, mock_event_loop, MockProtocol):
+def app(app_name, mock_MiddlewareChain, use_mock_middlewarechain, MockProtocol):
 
     mw_chain = mock_MiddlewareChain if use_mock_middlewarechain else None
     result = Application(app_name,
                          request_class=MockRequest,
                          response_class=MockResponse,
-                         middleware_chain=mw_chain,
-                         )
+                         middleware_chain=mw_chain)
     return result
 
 
@@ -135,7 +130,6 @@ def test_put(app_with_router, router):
     m = mock.Mock()
     app_with_router.put('/', m)
     router.put.assert_called_with('/', m)
-
 
 
 def test_delete(app_with_router, router):
@@ -249,20 +243,22 @@ def test_create_server_return_server(app, event_loop, unused_tcp_port):
     assert server._protocol_factory is proto_factory.return_value
 
 
-def test_create_server_return_coroutine(app, mock_event_loop, event_loop):
+@pytest.mark.asyncio
+async def test_create_server_return_coroutine(app, event_loop, unused_tcp_port):
+    from unittest.mock import MagicMock
+    from asyncio.base_events import Server
     """ Test if the application creates a server coroutine """
     proto_factory = mock.Mock()
-    server = mock.Mock()
-    mock_event_loop.create_server.return_value = server
-
+    server_config = dict(host='127.1', port=unused_tcp_port)
     server_coroutine = app.create_server(proto_factory,
-                                         loop=mock_event_loop,
-                                         as_coroutine=True)
+                                         as_coroutine=True,
+                                         **server_config)
 
     assert iscoroutine(server_coroutine)
-    assert event_loop.run_until_complete(server_coroutine) is server
-
-    proto_factory.assert_called_with(app, loop=mock_event_loop)
+    server = await server_coroutine
+    assert isinstance(server, Server)
+    assert server._protocol_factory is proto_factory.return_value
+    proto_factory.assert_called_with(app)
 
 
 def test_create_server_default_params(app, event_loop, unused_tcp_port):
@@ -280,52 +276,47 @@ def test_create_server_default_params(app, event_loop, unused_tcp_port):
     # assert mock_event_loop.run_until_complete.mock_calls[0] == run_until_complete_call
 
 
-def test_create_server_as_coroutine(app, mock_event_loop):
-    """ Test if the application creates a server coroutine """
-    protocol_factory = mock.Mock()
-    app.create_server(loop=mock_event_loop,
-                      as_coroutine=True,
-                      protocol_factory=protocol_factory)
-    assert mock_event_loop.create_server.called
-    protocol_factory.assert_called_with(app, loop=mock_event_loop)
-    assert not mock_event_loop.run_until_complete.called
+def test_create_server_and_run_forever(app):
+    mock_protocol_factory = mock.Mock()
+    mock_event_loop = mock.MagicMock()
+    mock_server_coro = mock.Mock()
+    mock_event_loop.create_server.return_value = mock_server_coro
+
+    host = mock.Mock()
+    port = mock.Mock()
+    app.create_server_and_run_forever(loop=mock_event_loop,
+                                      protocol_factory=mock_protocol_factory,
+                                      host=host,
+                                      port=port)
+
+    mock_protocol_factory.assert_called_once_with(app)
+    mock_event_loop.create_server.assert_called_with(mock_protocol_factory.return_value,
+                                                     host=host,
+                                                     port=port)
+    mock_event_loop.run_forever.assert_called_once()
+    mock_event_loop.run_until_complete.assert_called_once_with(mock_server_coro)
 
 
-def test_create_server_and_run_forever(app, mock_event_loop):
-    m = mock.Mock()
-    app.create_server_and_run_forever(loop=mock_event_loop, protocol_factory=m)
-
-    m.assert_called_with(app, loop=mock_event_loop)
-    assert mock_event_loop.create_server.called
-    assert mock_event_loop.run_forever.called
-
-
-def test_create_server_and_run_forever_args(app, mock_event_loop):
-    app.create_server_and_run_forever(loop=mock_event_loop, arg1='arg1', arg2='arg2')
-    assert mock_event_loop.create_server.called
-    assert mock_event_loop.run_forever.called
-
-
-def test_create_server_and_run_forever_default_params(app, mock_event_loop):
-    """ Test if the application creates a server coroutine """
+def test_create_server_and_run_forever_default_params(app):
+    """ Test if the application creates a server """
     import asyncio
+
+    mock_event_loop = mock.Mock(spec=asyncio.AbstractEventLoop)
 
     # solves a coverage problem
     mock_event_loop.run_forever.side_effect = KeyboardInterrupt
 
     asyncio.set_event_loop(mock_event_loop)
-    # assert mock_event_loop.run_until_complete(asyncio.get_event_loop()) is mock_event_loop
 
-    mock_pf = mock.Mock()
     mock_server = mock.Mock()
     mock_event_loop.create_server = mock.MagicMock(return_value=mock_server)
-    # assert mock_event_loop.create_server() is mock_server
 
-    noval = app.create_server_and_run_forever(protocol_factory=mock_pf,
-                                              host='◉', port=1)
+    protocol_path = "growler.aio.GrowlerHTTPProtocol.get_factory"
+    with mock.patch(protocol_path) as mock_get_factory:
+        noval = app.create_server_and_run_forever(host='◉', port=1)
+
     assert noval is None
-
-    mock_event_loop.create_server.assert_called_once_with(mock_pf.return_value,
+    mock_event_loop.create_server.assert_called_once_with(mock_get_factory.return_value,
                                                           host='◉',
                                                           port=1)
     mock_event_loop.run_until_complete.assert_called_once_with(mock_server)
@@ -357,8 +348,11 @@ def test_create_server_and_run_forever_default_params(app, mock_event_loop):
 def mock_route_generator():
     return lambda: mock.create_autospec(lambda rq, rs: None)
 
+def test_fixture_mock_event_loop(mock_event_loop):
+    assert isinstance(mock_event_loop, asyncio.AbstractEventLoop)
 
-def test_empty_app(app):
+def test_fixture_app(app: Application, mock_event_loop):
+    assert isinstance(app, Application)
     assert len(app.middleware.mw_list) is 0
 
 
@@ -374,7 +368,7 @@ def test_router_property(app):
 #     router.add_router.assert_called_with(None, obj.__growler_router)
 
 
-# def test_use_with_routified_class(app, router):
+# def xtest_use_with_routified_class(app, router):
 #     sub_router = mock.Mock()
 #     obj = mock.MagicMock()
 #     obj.__growler_router.return_value = sub_router
