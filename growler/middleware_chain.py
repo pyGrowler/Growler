@@ -2,8 +2,8 @@
 # growler/middleware_chain.py
 #
 """
-Provides the MiddlewareChain class, which is used to store structured routing, and provides an
-easy interface for request matching.
+Provides the MiddlewareChain class, which is used to store structured
+routing, and provides an easy interface for request matching.
 """
 
 import re
@@ -14,13 +14,16 @@ from inspect import signature
 class MiddlewareNode:
     """
     A class representing a node in the MiddlewareChain.
-    It contains the actual middleware function, the path this node is mounted on, and the
-    'method mask' which requests must match to proceed.
-    There are two boolean slots which indicate whether this node contains a 'subchain' (i.e.
-    another MiddlewareChain stored in func) and if function should be treated as an error
-    handler rather than standard middleware.
+    It contains the actual middleware function, the path this node
+    is mounted on, and the 'method mask' which requests must match
+    to proceed.
+    There are two boolean slots which indicate whether this node
+    contains a 'subchain' (i.e. another MiddlewareChain stored in
+    func) and if function should be treated as an error handler
+    rather than standard middleware.
 
-    A 'subchain' middleware node has the subtree stored as the func attribute.
+    A 'subchain' middleware node has the subtree stored as the func
+    attribute.
     """
 
     IGNORE_TRAILING_SLASH = True
@@ -50,8 +53,8 @@ class MiddlewareNode:
     @staticmethod
     def path_to_regex(path):
         """
-        Static method wich handles the conversion of a string to the regex that will be tested
-        against the incoming request paths.
+        Static method wich handles the conversion of a string to the
+        regex that will be tested against the incoming request paths.
         """
         # last_slash = '' if path.endswith('/') else '/'
         esc_path = re.escape(path)
@@ -65,18 +68,22 @@ class MiddlewareNode:
 
     def path_split(self, path):
         """
-        Splits a path into the part matching this middleware and the part remaining.
+        Splits a path into the part matching this middleware and the
+        part remaining.
         If path does not exist, it returns a pair of None values.
-        If the regex matches the entire pair, the second item in returned tuple is None.
+        If the regex matches the entire pair, the second item in
+        returned tuple is None.
 
         Args:
             path (str): The url to split
 
         Returns:
             Tuple
-            matching_path (str or None): The beginning of the path which matches this
-                middleware or None if it does not match
-            remaining_path (str or None): The 'rest' of the path, following the matching part
+            matching_path (str or None): The beginning of the path
+                which matches this middleware or None if it does not
+                match
+            remaining_path (str or None): The 'rest' of the path,
+                following the matching part
         """
 
         match = self.path.match(path)
@@ -103,13 +110,10 @@ class MiddlewareNode:
 
 class MiddlewareChain:
     """
-    Class handling the storage and retreival of growler middleware functions.
+    Handles the storage and retrieval of growler middleware functions
     """
 
     ROOT_PATTERN = re.compile(re.escape('/'))
-
-    mw_list = None
-    log = None
 
     def __init__(self):
         self.mw_list = []
@@ -119,25 +123,30 @@ class MiddlewareChain:
         """
         Generator yielding the middleware which matches the provided path.
 
-        When called with an HTTP method and path, the middleware chain returns a generator
-        object that will walk along the chain in a depth-first pattern. Any middleware nodes
+        When called with an HTTP method and path, the middleware
+        chain returns a generator object that will walk along the
+        chain in a depth-first pattern. Any middleware nodes
         matching both the method code and path are yielded.
 
-        The generator keeps any error handlers encountered walking the tree in its internal
-        state. If an error occurs during execution of a middleware function, the exception
-        should be sent back to the generator via the throw method: ``mw_chain.throw(err)``. The
-        error handlers will be looped through in reverse order, so the most specific handler
-        matching method and path is called first.
+        The generator keeps any error handlers encountered walking
+        the tree in its internal state. If an error occurs during
+        execution of a middleware function, the exception should be
+        sent back to the generator via the throw method:
+        ``mw_chain.throw(err)``.
+        The error handlers will be looped through in reverse order,
+        so the most specific handler matching method and path is
+        called first.
 
-        If an error occurs during the execution of an error handler, it is ignored (for now)
-        until a solution is determined.
+        If an error occurs during the execution of an error handler,
+        it is ignored (for now) until a solution is determined.
 
         Args:
             method (growler.http.HTTPMethod): The request method which
             path (str): URL path of the request.
 
         Yields:
-            Callable or Coroutine: The next middleware object that matches the incoming request
+            Callable or Coroutine: The next middleware object that
+            matches the incoming request
 
         TODO:
             What to do when the error handler raises a new error?
@@ -182,8 +191,10 @@ class MiddlewareChain:
 
     def find_matching_middleware(self, method, path):
         """
-        Iterator handling the matching of middleware against a method+path
-        pair. Yields the middleware, and the
+        Iterator handling the matching of middleware against a
+        method+path pair.
+
+        Yields the middleware, matching path, and the remaining url
         """
         for mw in self.mw_list:
             if not mw.matches_method(method):
@@ -220,26 +231,35 @@ class MiddlewareChain:
     def should_skip_middleware(self, middleware, matching, rest):
         """
         Method used to determine if middleware should be called.
-        Returns True (should skip) only if matching evaluates to False (no match), otherwise
-        the standard MiddlewareChain returns any matching request.
-        The Router overrides this and the *entire* request must be matched to warrant yielding
-        a function.
-        This method was factored out of __call__ so it may be overriden with cust logic without
-        reimplementing the whole __call__ method.
+        Returns True (should skip) only if matching evaluates to
+        False (no match), otherwise the standard MiddlewareChain
+        returns any matching request.
+        The Router overrides this and the *entire* request must be
+        matched to warrant yielding a function.
+        This method was factored out of __call__ so it may be
+        overriden with custom logic without reimplementing the whole
+        __call__ method.
+
+        Args:
+            middleware (MiddlewareNode):
+
         """
         return bool(not matching)
 
     def add(self, method_mask, path, func):
         """
         Add a function to the middleware chain.
-        This function is returned when iterating over the chain with matching method and path.
+        This function is returned when iterating over the chain with
+        matching method and path.
 
         Args:
-            method_mask (growler.http.HTTPMethod): A bitwise mask intended to match specific
-                request methods.
-            path (str or regex): An object with which to compare request urls
-            func (callable): The function to be yieled from the generator upon a request
-                matching the method_mask and path
+            method_mask (growler.http.HTTPMethod): A bitwise mask
+                intended to match specific request methods
+            path (str or regex): An object with which to compare
+                request urls
+            func (callable): The function to be yieled from the
+                generator upon a request matching the method_mask
+                and path
         """
         is_err = len(signature(func).parameters) == 3
         is_subchain = isinstance(func, MiddlewareChain)
@@ -252,15 +272,18 @@ class MiddlewareChain:
 
     def __contains__(self, func):
         """
-        Returns whether the function is stored anywhere in the middleware chain.
+        Returns whether the function is stored anywhere in the
+        middleware chain.
 
         This runs recursively though any subchains.
 
         Args:
-            func (callable): A function which may be present in the chain
+            func (callable): A function which may be present in the
+                chain
 
         Returns:
-            bool: True if func is a function contained anywhere in the chain.
+            bool: True if func is a function contained anywhere in
+                the chain.
         """
         return any((func is mw.func) or (mw.is_subchain and func in mw.func)
                    for mw in self.mw_list)
@@ -273,20 +296,24 @@ class MiddlewareChain:
 
     def __len__(self):
         """
-        Returns the number of middleware contained in the root of this chain.
-        To count the number of middleware, included in subchains, use count_all().
+        Returns the number of middleware contained in the root of
+        this chain.
+        To count the number of middleware, included in subchains, use
+        count_all().
         """
         return len(self.mw_list)
 
     def __iter__(self):
         """
-        Iterates directly through the middleware chain. Does not enter any subchains.
+        Iterates directly through the middleware chain. Does not
+        enter any subchains.
         """
         return iter(self.mw_list)
 
     def __reversed__(self):
         """
-        Iterates directly through the middleware chain, starting from the bottom.
+        Iterates directly through the middleware chain, starting
+        from the bottom.
         Does not enter any subchains along the way.
         """
         return reversed(self.mw_list)
