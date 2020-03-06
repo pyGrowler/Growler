@@ -10,7 +10,7 @@ python:
   - "3.8"
 
 install:
-  - pip install -qU pytest pytest-cov python-coveralls pytest-asyncio
+  - pip install -qU pip pytest pytest-cov python-coveralls pytest-asyncio mock
 
 script:
   - python setup.py pytest --addopts '--cov=growler --cov-report=term-missing'
