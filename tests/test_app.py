@@ -195,7 +195,7 @@ def test_use_as_called_decorator(app):
 
     assert test_mw is not app
     assert app.middleware.last().func is test_mw
-    assert app.middleware.last().path == re.compile('/foo')
+    assert app.middleware.last().path == re.compile(re.escape('/foo'))
 
 
 def test_add_bad_router(app):
@@ -240,7 +240,8 @@ def test_create_server_return_server(app, event_loop, unused_tcp_port):
                                **server_cfg)
 
     assert isinstance(server, Server)
-    assert server._protocol_factory is proto_factory.return_value
+    if hasattr(server, '_protocol_factory'):
+        assert server._protocol_factory is proto_factory.return_value
 
 
 @pytest.mark.asyncio
@@ -257,7 +258,8 @@ async def test_create_server_return_coroutine(app, event_loop, unused_tcp_port):
     assert iscoroutine(server_coroutine)
     server = await server_coroutine
     assert isinstance(server, Server)
-    assert server._protocol_factory is proto_factory.return_value
+    if hasattr(server, '_protocol_factory'):
+        assert server._protocol_factory is proto_factory.return_value
     proto_factory.assert_called_with(app)
 
 

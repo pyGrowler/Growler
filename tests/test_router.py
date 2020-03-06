@@ -193,7 +193,7 @@ def test_routerify():
     assert hasattr(foo, '__growler_router')
     first_route = foo.__growler_router.routes[0]
     assert first_route[0] == GET
-    assert first_route[1] == re.compile("/")
+    assert first_route[1] == re.compile(re.escape('/'))
     assert first_route[2](None, None) is foo.get_something(None, None)
 
 
@@ -223,7 +223,7 @@ def test_routerclass():
     assert hasattr(sf, '__growler_router')
     first_route = sf.__growler_router.routes[0]
     assert first_route[0] == GET
-    assert first_route[1] == re.compile(r'/')
+    assert first_route[1] == re.compile(re.escape(r'/'))
     assert first_route[2](None, None) is sf.get_something(None, None)
     assert len(sf.__growler_router.routes) == 1
 
