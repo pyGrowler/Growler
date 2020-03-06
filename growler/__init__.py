@@ -3,7 +3,7 @@
 #
 # flake8: noqa
 #
-#   Copyright (c) 2016 Andrew Kubera <andrew.kubera@gmail.com>
+#   Copyright (c) 2020 Andrew Kubera <andrew.kubera@floss.email>
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
