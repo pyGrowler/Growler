@@ -8,6 +8,13 @@ python:
   - "3.6"
   - "3.7"
   - "3.8"
+  - "3.9-dev"
+  - "nightly"
+
+matrix:
+  allow_failures:
+    - python: "3.9-dev"
+    - python: "nightly"
 
 install:
   - pip install -qU pip pytest pytest-cov python-coveralls pytest-asyncio mock
