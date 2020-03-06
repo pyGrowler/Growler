@@ -5,8 +5,9 @@
 language: python
 
 python:
-  - "3.5"
   - "3.6"
+  - "3.7"
+  - "3.8"
 
 install:
   - pip install -qU pytest pytest-cov python-coveralls pytest-asyncio
