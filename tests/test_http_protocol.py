@@ -19,7 +19,6 @@ from mock_classes import (
 )
 
 from test_protocol import (
-    MockGrowlerProtocol,
     mock_responder,
 )
 

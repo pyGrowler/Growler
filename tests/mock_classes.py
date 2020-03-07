@@ -25,10 +25,7 @@ def AsyncMock():
 @pytest.fixture
 def MockApp():
     MockAppClass = mock.create_autospec(growler.App)
-
-    def build():
-        return MockAppClass()
-    return build
+    return MockAppClass
 
 
 @pytest.fixture(scope='session')
@@ -44,7 +41,7 @@ def MockResponder():
 
 
 @pytest.fixture
-def MockProtocol():
+def MockProtocolHttp():
     MockProtocolClass = mock.create_autospec(growler.http.GrowlerHTTPProtocol)
 
     def buildMockProtocol(app):

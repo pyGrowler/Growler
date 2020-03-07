@@ -14,6 +14,9 @@ def mock_backend():
     try:
         from unittest.mock import AsyncMock
     except ImportError:
+        AsyncMock = None
+
+    if not AsyncMock:
         mock = pytest.importorskip('mock')
         AsyncMock = mock.AsyncMock
 

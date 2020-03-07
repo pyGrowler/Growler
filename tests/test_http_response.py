@@ -16,6 +16,8 @@ from mock_classes import (
     request_uri,
 )
 
+from mocks import *  # noqa
+
 
 @pytest.fixture
 def res(mock_protocol):
@@ -29,20 +31,24 @@ def headers():
 
 @pytest.fixture
 def mock_app():
-    return mock.Mock(spec=growler.App,
-                     )
+    app = growler.App()
+    return mock.Mock(spec=app)
 
 @pytest.fixture
-def mock_protocol(mock_app, request_uri):
+def mock_protocol(mock_app, request_uri, mock_event_loop):
     from urllib.parse import (unquote, urlparse, parse_qs)
     parsed_url = urlparse(request_uri)
 
-    protocol = mock.Mock(spec=growler.http.GrowlerHTTPProtocol,
-                         loop=mock.Mock(spec=BaseEventLoop),
+    proto_spec = growler.http.GrowlerHTTPProtocol(mock_app, mock_event_loop)
+
+    protocol = mock.Mock(spec=proto_spec,
+                         loop=mock_event_loop,
                          http_application=mock_app,
                          headers=None,
                          path=unquote(parsed_url.path),
                          query=parse_qs(parsed_url.query),)
+
+    assert protocol.http_application is mock_app
 
     protocol.socket.getpeername.return_value = ['', '']
 

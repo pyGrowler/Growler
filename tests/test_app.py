@@ -16,7 +16,7 @@ from growler import growler, Application, GrowlerStopIteration
 from mock_classes import (
     MockRequest,
     MockResponse,
-    MockProtocol,
+    MockProtocolHttp,
 )
 
 from test_http_protocol import (
@@ -63,7 +63,7 @@ def req(req_uri):
 
 
 @pytest.fixture
-def app(app_name, mock_MiddlewareChain, use_mock_middlewarechain, MockProtocol):
+def app(app_name, mock_MiddlewareChain, use_mock_middlewarechain, MockProtocolHttp):
 
     mw_chain = mock_MiddlewareChain if use_mock_middlewarechain else None
     result = Application(app_name,
@@ -90,7 +90,7 @@ def test_application_constructor_alternate_middleware_type():
 
 
 @pytest.mark.parametrize("use_mock_middlewarechain", [True])
-def test_app_fixture(app, app_name, mock_MiddlewareChain, MockProtocol):
+def test_app_fixture(app, app_name, mock_MiddlewareChain, MockProtocolHttp):
     assert isinstance(app, growler.Application)
     assert app.middleware is mock_MiddlewareChain
     assert app._request_class is MockRequest

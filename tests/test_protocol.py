@@ -12,14 +12,17 @@ from unittest import mock
 from mocks import *
 
 
-def MockGrowlerProtocol():
-    return mock.create_autospec(GrowlerProtocol)
+@pytest.fixture
+def mock_handler():
+    handler = mock.Mock()
+    return handler
 
 
 @pytest.fixture
-def mock_responder(request):
-    responder = mock.Mock(spec=growler.http.responder.GrowlerHTTPResponder)
-    return responder
+def mock_responder():
+    mock_handler = mock.Mock()
+    responder = growler.http.responder.GrowlerHTTPResponder(mock_handler)
+    return mock.Mock(wraps=responder)
 
 
 @pytest.fixture

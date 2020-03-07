@@ -18,7 +18,8 @@ def mock_socket():
 
 @pytest.fixture
 def mock_event_loop():
-    return mock.Mock(spec=asyncio.BaseEventLoop)
+    loop = asyncio.BaseEventLoop()
+    return mock.Mock(spec=loop)
 
 
 @pytest.fixture
