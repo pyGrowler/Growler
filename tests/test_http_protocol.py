@@ -7,12 +7,7 @@ import asyncio
 import growler
 from unittest import mock
 
-from mocks import (
-    mock_event_loop,
-    mock_transport,
-    client_host,
-    client_port,
-)
+from mocks import *
 
 from mock_classes import (
     AsyncMock,
@@ -32,30 +27,6 @@ def mock_app(mock_req_factory, mock_res_factory):
     return mock.Mock(spec=growler.Application,
                      _request_class=mock_req_factory,
                      _response_class=mock_res_factory)
-
-
-@pytest.fixture
-def mock_req_factory(mock_req):
-    factory = mock.Mock(return_value=mock_req)
-    return factory
-
-
-@pytest.fixture
-def mock_res_factory(mock_res):
-    factory = mock.Mock(return_value=mock_res)
-    return factory
-
-
-@pytest.fixture
-def mock_req():
-    req = mock.Mock(spec=growler.http.HTTPRequest)
-    return req
-
-
-@pytest.fixture
-def mock_res():
-    res = mock.Mock(spec=growler.http.HTTPResponse)
-    return res
 
 
 @pytest.fixture

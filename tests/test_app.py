@@ -19,10 +19,7 @@ from mock_classes import (
     MockProtocolHttp,
 )
 
-from test_http_protocol import (
-    mock_res as res,
-)
-
+res = mock_res
 
 @pytest.fixture
 def app_name():
@@ -30,15 +27,9 @@ def app_name():
 
 
 @pytest.fixture
-def router():
-    return mock.Mock(spec=growler.Router,
-                     middleware_chain=lambda req: (yield from ()),
-                     get=mock.Mock(lambda *args: route_list.append(args)))
-
-
-@pytest.fixture
 def mock_MiddlewareChain():
     return mock.create_autospec(growler.MiddlewareChain)
+
 
 @pytest.fixture
 def use_mock_middlewarechain():
@@ -74,8 +65,8 @@ def app(app_name, mock_MiddlewareChain, use_mock_middlewarechain, MockProtocolHt
 
 
 @pytest.fixture
-def app_with_router(app, router):
-    app.middleware.add(growler.http.methods.HTTPMethod.ALL, '/', router)
+def app_with_router(app, mock_router):
+    app.middleware.add(growler.http.methods.HTTPMethod.ALL, '/', mock_router)
     return app
 
 
@@ -108,34 +99,34 @@ def test_application_enables_x_powered_by(app):
     assert app.enabled('x-powered-by')
 
 
-def test_all(app_with_router, router):
+def test_all(app_with_router, mock_router):
     m = mock.Mock()
     app_with_router.all('/', m)
-    router.all.assert_called_with('/', m)
+    mock_router.all.assert_called_with('/', m)
 
 
-def test_get(app_with_router, router):
+def test_get(app_with_router, mock_router):
     m = mock.Mock()
     app_with_router.get('/', m)
-    router.get.assert_called_with('/', m)
+    mock_router.get.assert_called_with('/', m)
 
 
-def test_post(app_with_router, router):
+def test_post(app_with_router, mock_router):
     m = mock.Mock()
     app_with_router.post('/', m)
-    router.post.assert_called_with('/', m)
+    mock_router.post.assert_called_with('/', m)
 
 
-def test_put(app_with_router, router):
+def test_put(app_with_router, mock_router):
     m = mock.Mock()
     app_with_router.put('/', m)
-    router.put.assert_called_with('/', m)
+    mock_router.put.assert_called_with('/', m)
 
 
-def test_delete(app_with_router, router):
+def test_delete(app_with_router, mock_router):
     m = mock.Mock()
     app_with_router.delete('/', m)
-    router.delete.assert_called_with('/', m)
+    mock_router.delete.assert_called_with('/', m)
 
 
 def test_use_function(app, mock_route_generator):
@@ -199,7 +190,7 @@ def test_use_as_called_decorator(app):
 
 
 def test_add_bad_router(app):
-    # TODO: Implement real check for router type
+    # TODO: Implement real check for mock_router type
     app.strict_router_check = True
     with pytest.raises(TypeError):
         app.add_router("/foo", lambda req, res: res.send_text("bad type!"))
@@ -330,16 +321,16 @@ def test_create_server_and_run_forever_default_params(app):
 #     'post',
 #     'all',
 # ])
-# def test_forwards_methods(app, router, method):
+# def test_forwards_methods(app, mock_router, method):
 #     do_something = mock.Mock()
 #     app_method = getattr(app, method)
 #     app_method('/', do_something)
 #
-#     router_m = getattr(router, method)
-#     router_m.assert_called_with('/', do_something)
+#     mock_router_m = getattr(router, method)
+#     mock_router_m.assert_called_with('/', do_something)
 
 
-# def test_calling_use(app, router):
+# def test_calling_use(app, mock_router):
 #     do_something = mock.Mock(spec=types.FunctionType)
 #     do_something_else = mock.Mock(spec=types.FunctionType)
 #     app.use(do_something).use(do_something_else)
@@ -363,20 +354,20 @@ def test_router_property(app):
     assert len(app.middleware.mw_list) is 1
 
 
-# def test_use_with_routified_obj(app, router):
+# def test_use_with_routified_obj(app, mock_router):
 #     obj = mock.Mock()
 #     obj.__growler_router = mock.NonCallableMock()
 #     app.use(obj)
-#     router.add_router.assert_called_with(None, obj.__growler_router)
+#     mock_router.add_router.assert_called_with(None, obj.__growler_router)
 
 
-# def xtest_use_with_routified_class(app, router):
+# def xtest_use_with_routified_class(app, mock_router):
 #     sub_router = mock.Mock()
 #     obj = mock.MagicMock()
 #     obj.__growler_router.return_value = sub_router
 #     obj.__growler_router.__class__ = types.MethodType
 #     app.use(obj)
-#     router.add_router.assert_called_with(None, sub_router)
+#     mock_router.add_router.assert_called_with(None, sub_router)
 #     obj.__growler_router.assert_called()
 
 
