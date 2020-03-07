@@ -4,7 +4,6 @@
 
 import re
 import logging
-from functools import partialmethod
 from collections import OrderedDict
 from growler.http import HTTPMethod
 from .middleware_chain import (
@@ -79,11 +78,25 @@ class Router(MiddlewareChain):
                 func
             )[1]
 
-    all = partialmethod(_add_route, HTTPMethod.ALL)
-    get = partialmethod(_add_route, HTTPMethod.GET)
-    post = partialmethod(_add_route, HTTPMethod.POST)
-    put = partialmethod(_add_route, HTTPMethod.PUT)
-    delete = partialmethod(_add_route, HTTPMethod.DELETE)
+    def all(self, path, middleware=None):
+        """ Matches all HTTP requests """
+        return self._add_route(HTTPMethod.ALL, path, middleware)
+
+    def get(self, path, middleware=None):
+        """ Matches "GET" HTTP request """
+        return self._add_route(HTTPMethod.GET, path, middleware)
+
+    def post(self, path, middleware=None):
+        """ Matches "POST" HTTP request """
+        return self._add_route(HTTPMethod.POST, path, middleware)
+
+    def put(self, path, middleware=None):
+        """ Matches "PUT" HTTP request """
+        return self._add_route(HTTPMethod.PUT, path, middleware)
+
+    def delete(self, path, middleware=None):
+        """ Matches "DELETE" HTTP request """
+        return self._add_route(HTTPMethod.DELETE, path, middleware)
 
     def use(self, middleware, path=None):
         """
