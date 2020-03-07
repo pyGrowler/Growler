@@ -14,7 +14,7 @@ For more information, see the :module:`growler.responder` module
 for event-loop independent client handling.
 """
 
-from typing import cast as _typecast, Callable, List
+from typing import Callable
 
 import asyncio
 import logging
@@ -81,7 +81,6 @@ class GrowlerProtocol(asyncio.Protocol, ResponderHandler):
     Note, calling GP.factory() will not work as `create_server`
     expects the factory and *not an instance* of the protocol.
     """
-
     def __init__(self, _loop, responder_factory: ResponderFactoryType):
         """
         Args:
@@ -98,13 +97,14 @@ class GrowlerProtocol(asyncio.Protocol, ResponderHandler):
                 Note: 'on_data' should only be a function and NOT a
                 coroutine.
         """
+        from typing import List, Optional
         self.make_responder = responder_factory
         self.log = logger.getChild("id=%x" % id(self))
         self.responders: List[GrowlerResponder] = []
-        self.transport = _typecast(asyncio.Transport, None)
+        self.transport = None
         self.is_done_transmitting = False
 
-    def connection_made(self, transport):
+    def connection_made(self, transport: asyncio.BaseTransport):
         """
         (asyncio.Protocol member)
 
@@ -214,4 +214,5 @@ class GrowlerProtocol(asyncio.Protocol, ResponderHandler):
         from functools import partial
         return partial(cls.factory, *args, **kw)
 
-del List
+# clean namespace
+del Callable

@@ -10,7 +10,7 @@ from sys import stderr
 try:
     from asyncio import create_task, Future
 except ImportError:
-    from asyncio import ensure_future as create_task, Future
+    from asyncio import ensure_future as create_task, Future  # type: ignore
 
 from .protocol import GrowlerProtocol
 from growler.http.responder import GrowlerHTTPResponder
