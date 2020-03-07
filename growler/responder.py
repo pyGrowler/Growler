@@ -6,10 +6,14 @@ Event loop independent class for managing clients' requests and
 server responses.
 """
 
-import abc
+from typing import Optional
+from asyncio import BaseTransport
+from socket import socket as Socket
+
+from abc import ABC, abstractmethod
 
 
-class GrowlerResponder(abc.ABC):
+class GrowlerResponder(ABC):
     """
     Abstract base class for 'responder' objects that handle the
     stream of client data.
@@ -20,8 +24,7 @@ class GrowlerResponder(abc.ABC):
     constructs provided by specific libraries (such as asyncio) and
     instead try to use as much from standard python as they can.
     """
-
-    @abc.abstractmethod
+    @abstractmethod
     def on_data(self, data):
         raise NotImplementedError()
 
@@ -31,7 +34,6 @@ class CoroutineResponder(GrowlerResponder):
     Special responder object that will 'send' data to a coroutine
     object for processing.
     """
-
     def __init__(self, coro):
         self._coro = coro
 
@@ -39,7 +41,8 @@ class CoroutineResponder(GrowlerResponder):
         self._coro.send(data)
 
 
-class ResponderHandler(abc.ABC):
+
+class ResponderHandler:
     """
     A common interface for classes that handle GrowlerResponder
     objects.
@@ -47,22 +50,46 @@ class ResponderHandler(abc.ABC):
     growler.aio.protocol.
     """
 
-    @abc.abstractproperty
-    def socket(self):
-        pass
+    __slots__ = (
+        'transport',
+    )
 
-    @abc.abstractproperty
+    transport: Optional[BaseTransport]
+
+    @property
+    def socket(self) -> Optional[Socket]:
+        return (self.transport.get_extra_info('socket')
+                if self.transport is not None
+                else None)
+
+    @property
     def peername(self):
-        pass
+        return (self.transport.get_extra_info('peername')
+                if self.transport is not None
+                else None)
 
-    @abc.abstractproperty
-    def transport(self):
-        pass
+    @property
+    def cipher(self):
+        return (self.transport.get_extra_info('cipher')
+                if self.transport is not None
+                else None)
 
     @property
     def remote_hostname(self):
-        return self.peername[0]
+        return (self.peername[0]
+                if self.transport is not None
+                else None)
 
     @property
     def remote_port(self):
-        return self.peername[1]
+        return (self.peername[1]
+                if self.transport is not None
+                else None)
+
+
+# clean namespace
+del ABC
+del abstractmethod
+del BaseTransport
+del Optional
+del Socket
