@@ -14,7 +14,7 @@ For more information, see the :module:`growler.responder` module
 for event-loop independent client handling.
 """
 
-from typing import Callable
+from typing import cast as _typecast, Callable, List
 
 import asyncio
 import logging
@@ -82,10 +82,6 @@ class GrowlerProtocol(asyncio.Protocol, ResponderHandler):
     expects the factory and *not an instance* of the protocol.
     """
 
-    transport = None
-    responders = None
-    is_done_transmitting = False
-
     def __init__(self, _loop, responder_factory: ResponderFactoryType):
         """
         Args:
@@ -104,6 +100,9 @@ class GrowlerProtocol(asyncio.Protocol, ResponderHandler):
         """
         self.make_responder = responder_factory
         self.log = logger.getChild("id=%x" % id(self))
+        self.responders: List[GrowlerResponder] = []
+        self.transport = _typecast(asyncio.Transport, None)
+        self.is_done_transmitting = False
 
     def connection_made(self, transport):
         """
@@ -120,7 +119,7 @@ class GrowlerProtocol(asyncio.Protocol, ResponderHandler):
                 socket communication
         """
         self.transport = transport
-        self.responders = [self.make_responder(self)]
+        self.responders.append(self.make_responder(self))
 
         try:
             good_func = callable(self.responders[0].on_data)
@@ -193,18 +192,6 @@ class GrowlerProtocol(asyncio.Protocol, ResponderHandler):
         """
         raise NotImplementedError(error)
 
-    @property
-    def socket(self):
-        return self.transport.get_extra_info('socket')
-
-    @property
-    def cipher(self):
-        return self.transport.get_extra_info('cipher')
-
-    @property
-    def peername(self):
-        return self.transport.get_extra_info('peername')
-
     @classmethod
     def factory(cls, *args, **kw):
         """
@@ -226,3 +213,5 @@ class GrowlerProtocol(asyncio.Protocol, ResponderHandler):
         """
         from functools import partial
         return partial(cls.factory, *args, **kw)
+
+del List
