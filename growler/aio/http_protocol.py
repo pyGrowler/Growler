@@ -44,10 +44,6 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
     :method:`http_responder_factory`.
     """
 
-    client_method = None
-    client_query = None
-    client_headers = None
-
     def __init__(self, app, loop=None):
         """
         Construct a GrowlerHTTPProtocol object.
@@ -63,6 +59,10 @@ class GrowlerHTTPProtocol(GrowlerProtocol):
             handle_client_request coroutine method should work.
         """
         self.http_application = app
+        self.client_method = None
+        self.client_query = None
+        self.client_headers = None
+
         super().__init__(_loop=loop,
                          responder_factory=self.http_responder_factory)
 
