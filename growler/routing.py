@@ -72,11 +72,15 @@ class Router(MiddlewareChain):
             self.add(method, path, middleware)
             return self
         else:
-            # return a lambda that will return the 'func' argument
-            return lambda func: (
-                self.add(method, path, func),
-                func
-            )[1]
+
+            def addroute_decorator(func):
+                """
+                Function called when _add_route is used as a decorator
+                """
+                self.add(method, path, func)
+                return func
+
+            return addroute_decorator
 
     def all(self, path, middleware=None):
         """ Matches all HTTP requests """
