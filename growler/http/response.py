@@ -47,6 +47,7 @@ class HTTPResponse:
     )
 
     protocol = None
+    has_sent_continue = False
     has_sent_headers = False
     has_ended = False
     status_code = 200
@@ -244,6 +245,16 @@ class HTTPResponse:
         self.send_headers()
         self.write()
         self.write_eof()
+
+    def send_continue_message(self):
+        """
+        Sends the "100 CONTINUE" code to the client, usually in
+        response to a "Expect: 100-continue" header.
+        """
+        self.has_sent_continue = True
+        self.stream.write(b"HTTP/1.1 100 Continue\r\n\r\n")
+        # TODO: Check if this is ever necessary
+        # self.stream.flush()
 
     def send(self, *args, **kwargs):
         raise NotImplementedError

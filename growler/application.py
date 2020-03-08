@@ -381,6 +381,11 @@ class Application:
             res (growler.HTTPResponse): The outgoing response, containing
                 methods for sending headers and data back to the client.
         """
+
+        # TODO: Move to a "default" root middleware function
+        if req.headers.get("EXPECT") == "100-continue" and self.config.get("autohandle_expect", True):
+            res.send_continue_message()
+
         # create a middleware generator
         mw_generator = self.middleware(req.method, req.path)
 
