@@ -477,6 +477,35 @@ async def test_handle_client_request_get(app, req, res, middlewares, called, moc
 
 
 @pytest.mark.asyncio
+async def test_handle_header_expect(mock_transport):
+    from asyncio import sleep
+    from growler.aio import GrowlerHTTPProtocol
+
+    app = Application(__name__)
+
+    payload = b'123abc'
+    http_req = ("POST / HTTP/1.1\nHost: test\nExpect: 100-continue\n"
+                f"content-length: {len(payload)}\n\n").encode() + payload
+
+    protocol = GrowlerHTTPProtocol(app)
+    protocol.connection_made(mock_transport)
+
+    responder = protocol.responders[0]
+    protocol.data_received(http_req)
+    req = responder.req
+    res = responder.res
+
+    assert 'EXPECT' in req.headers
+    assert not res.has_sent_continue
+
+    # allow event loop to move to app.handle_client_request
+    await sleep(0)
+
+    assert res.has_sent_continue
+    assert mock_transport.write.mock_calls[0] == mock.call(b'HTTP/1.1 100 Continue\r\n\r\n')
+
+
+@pytest.mark.asyncio
 async def test_middleware_stops_with_stop_iteration(app, req, res):
     async def do_something(req, res):
         return None
