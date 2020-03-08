@@ -3,7 +3,8 @@
 #
 
 import growler
-from growler.middleware_chain import MiddlewareChain, MiddlewareNode
+from growler.routing import MiddlewareChain, MiddlewareNode
+
 import pytest
 from unittest import mock
 

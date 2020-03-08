@@ -55,9 +55,7 @@ from .routing import (
     Router,
     RouterMeta,
     routerclass,
-    get_routing_attributes
-)
-from .middleware_chain import (
+    get_routing_attributes,
     MiddlewareChain,
 )
 
