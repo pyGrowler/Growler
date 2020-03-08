@@ -32,7 +32,7 @@ import inspect
 import logging
 
 from .utils.event_manager import Events
-from .router import Router, RouterMeta
+from .routing import Router, RouterMeta
 from .middleware_chain import MiddlewareChain
 
 from .http import (

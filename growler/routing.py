@@ -1,5 +1,5 @@
 #
-# growler/router.py
+# growler/routing.py
 #
 
 import re

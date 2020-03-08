@@ -51,7 +51,7 @@ from .application import (
     Application,
     GrowlerStopIteration,
 )
-from .router import (
+from .routing import (
     Router,
     RouterMeta,
     routerclass,
